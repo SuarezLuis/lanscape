@@ -63,7 +63,11 @@ const Chart = (props: { data: Record<string, unknown>[]; unit: string; series: r
     data={props.data}
     dataKey="time"
     series={[...props.series]}
+    // Tooltips keep the unit; ticks drop it (it's in the chart title) so "1000 Mbps" doesn't wrap
     unit={props.unit}
+    yAxisProps={{ unit: "" }}
+    // Dots help on a few points and turn into a solid band on a month of them
+    withDots={props.data.length <= 60}
     curveType="linear"
     strokeWidth={2}
     connectNulls
@@ -141,7 +145,10 @@ export const SpeedHistory = () => {
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <div>
                 <Text fw={600} mb="xs" lh="30px">
-                  Speed
+                  Speed{" "}
+                  <Text span c="dimmed" fw={400}>
+                    (Mbps)
+                  </Text>
                 </Text>
                 {speedPoints.length > 0 ? (
                   <Chart data={speedPoints} unit=" Mbps" series={SPEED_SERIES} />
@@ -153,7 +160,12 @@ export const SpeedHistory = () => {
               </div>
               <div>
                 <Group justify="space-between" mb="xs">
-                  <Text fw={600}>Latency</Text>
+                  <Text fw={600}>
+                    Latency{" "}
+                    <Text span c="dimmed" fw={400}>
+                      (ms)
+                    </Text>
+                  </Text>
                   <SegmentedControl size="xs" value={source} onChange={(value) => setSource(value as Source)} data={SOURCES} />
                 </Group>
                 {latencyPoints.length > 0 ? (

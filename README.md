@@ -1,8 +1,10 @@
 # LANscape
 
+![LANscape: speed and latency history](docs/assets/gallery/1.jpg)
+
 Home network monitoring for [Umbrel](https://umbrel.com): internet speed and latency over time, every device on your network, and alerts when something changes.
 
-Installed through the [SZ Umbrel app store](https://github.com/SuarezLuis/umbrel-apps). User guide: [docs/HELP.md](docs/HELP.md), also shown on the app's Help page.
+Install it from an Umbrel app store: it's in the [SZ community app store](https://github.com/SuarezLuis/umbrel-apps) (add `https://github.com/SuarezLuis/umbrel-apps` under App Store → Community App Stores). User guide: [docs/HELP.md](docs/HELP.md), also on the app's Help page.
 
 ## Features
 
@@ -18,6 +20,15 @@ Installed through the [SZ Umbrel app store](https://github.com/SuarezLuis/umbrel
 - **CSV export** of speed tests, ping checks and devices.
 - **Password protection**, set on first run, with a Settings page to change it or sign out everywhere.
 - Light, dark and system themes; works on phones.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Every device on your network](docs/assets/gallery/2.jpg) | ![Alerts and rules](docs/assets/gallery/3.jpg) |
+| ![Alerts on your phone](docs/assets/gallery/4.jpg) | ![Automations](docs/assets/gallery/5.jpg) |
+
+Made from invented demo data with `scripts/demo/` (seed, capture, gallery).
 
 ## Stack
 

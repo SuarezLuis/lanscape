@@ -6,8 +6,13 @@ import remarkGfm from "remark-gfm";
 const REPO = "https://github.com/SuarezLuis/lanscape";
 const RAW = "https://raw.githubusercontent.com/SuarezLuis/lanscape/master";
 
-// Relative links in the repo's markdown ("docs/HELP.md") point at files on GitHub, not at pages in this app
-const resolveLink = (url: string) => (/^([a-z]+:|#)/i.test(url) ? url : `${REPO}/blob/master/${url.replace(/^\.?\//, "")}`);
+// Relative links in the repo's markdown ("docs/HELP.md") point at GitHub, not at pages in this app; images need the
+// raw file, links the page view
+const resolveLink = (url: string, key: string) => {
+  if (/^([a-z]+:|#)/i.test(url)) return url;
+  const path = url.replace(/^\.?\//, "");
+  return key === "src" ? `${RAW}/${path}` : `${REPO}/blob/master/${path}`;
+};
 
 /**
  * Renders a markdown file from the repo's master branch. Fetched by the browser, so the Help and About pages stay

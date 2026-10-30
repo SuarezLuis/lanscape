@@ -372,29 +372,21 @@ export const NotificationsPage = () => {
     <Stack gap="lg">
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
-          <Title order={3}>Where alerts go</Title>
-          <Text size="sm" c="dimmed">
-            Every alert goes to each channel you set up.
-          </Text>
-          <Accordion variant="separated">
-            {channels.data?.map((channel) => (
-              <Accordion.Item key={channel.id} value={channel.id}>
-                <Accordion.Control>
-                  <Group justify="space-between" pr="sm">
-                    <Text fw={500}>{CHANNEL_UI[channel.id].label}</Text>
-                    {channel.configured && (
-                      <Badge color={channel.status?.ok === false ? "red" : "teal"} variant="light">
-                        {channel.status?.ok === false ? "Failing" : "On"}
-                      </Badge>
-                    )}
-                  </Group>
-                </Accordion.Control>
-                <Accordion.Panel>
-                  <ChannelPanel channel={channel} onSaved={refresh} />
-                </Accordion.Panel>
-              </Accordion.Item>
-            ))}
-          </Accordion>
+          <Title order={3}>Recent alerts</Title>
+          {(list.data ?? []).length === 0 && <Text c="dimmed">No alerts yet.</Text>}
+          {list.data?.map((notification) => (
+            <Group key={notification.id} gap="sm" wrap="nowrap" align="flex-start">
+              <Badge color={KIND[notification.kind]?.color ?? "gray"} variant="light" miw={92}>
+                {KIND[notification.kind]?.label ?? notification.kind}
+              </Badge>
+              <Text size="sm" fw={notification.read ? undefined : 600} style={{ flex: 1 }}>
+                {notification.message}
+              </Text>
+              <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+                {notification.createdAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+              </Text>
+            </Group>
+          ))}
         </Stack>
       </Card>
 
@@ -429,21 +421,29 @@ export const NotificationsPage = () => {
 
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
-          <Title order={3}>Recent alerts</Title>
-          {(list.data ?? []).length === 0 && <Text c="dimmed">No alerts yet.</Text>}
-          {list.data?.map((notification) => (
-            <Group key={notification.id} gap="sm" wrap="nowrap" align="flex-start">
-              <Badge color={KIND[notification.kind]?.color ?? "gray"} variant="light" miw={92}>
-                {KIND[notification.kind]?.label ?? notification.kind}
-              </Badge>
-              <Text size="sm" fw={notification.read ? undefined : 600} style={{ flex: 1 }}>
-                {notification.message}
-              </Text>
-              <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
-                {notification.createdAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-              </Text>
-            </Group>
-          ))}
+          <Title order={3}>Where alerts go</Title>
+          <Text size="sm" c="dimmed">
+            Every alert goes to each channel you set up.
+          </Text>
+          <Accordion variant="separated">
+            {channels.data?.map((channel) => (
+              <Accordion.Item key={channel.id} value={channel.id}>
+                <Accordion.Control>
+                  <Group justify="space-between" pr="sm">
+                    <Text fw={500}>{CHANNEL_UI[channel.id].label}</Text>
+                    {channel.configured && (
+                      <Badge color={channel.status?.ok === false ? "red" : "teal"} variant="light">
+                        {channel.status?.ok === false ? "Failing" : "On"}
+                      </Badge>
+                    )}
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <ChannelPanel channel={channel} onSaved={refresh} />
+                </Accordion.Panel>
+              </Accordion.Item>
+            ))}
+          </Accordion>
         </Stack>
       </Card>
     </Stack>

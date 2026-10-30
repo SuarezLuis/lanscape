@@ -397,7 +397,7 @@ export const NetworkPage = () => {
             <Table striped highlightOnHover verticalSpacing="xs">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th w={90}>Status</Table.Th>
+                  <Table.Th>Status</Table.Th>
                   <Table.Th>Name</Table.Th>
                   <Table.Th>IP</Table.Th>
                   <Table.Th>Maker</Table.Th>
