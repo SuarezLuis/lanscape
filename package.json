@@ -1,0 +1,25 @@
+{
+  "name": "lanscape",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w web && npm run build -w server",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm test -w server"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.1": true,
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.28.2": true,
+    "prisma@7.10.1": true,
+    "fsevents@2.3.3": true
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}
