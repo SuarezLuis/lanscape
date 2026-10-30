@@ -27,3 +27,8 @@ test("turns text prefixes into bucket start times", () => {
   expect(bucketStart("2026-10-30T17")).toEqual(new Date("2026-10-30T17:00:00Z"));
   expect(bucketStart("2026-10-30")).toEqual(new Date("2026-10-30T00:00:00Z"));
 });
+
+test("rolls up pings older than 90 days, cut on the hour", async () => {
+  const { rollupCutoff } = await import("./retention");
+  expect(rollupCutoff(new Date("2026-10-30T19:42:10Z"))).toEqual(new Date("2026-08-01T19:00:00Z"));
+});

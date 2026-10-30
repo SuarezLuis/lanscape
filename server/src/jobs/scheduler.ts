@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import type { Automation } from "../generated/prisma/client";
 import { runDeviceScan } from "./devices";
+import { recordFailure, recordStatus } from "./status";
 import { DEFAULT_INTERNET_HOST, runPingCheck } from "./ping";
 import { runSpeedtest, speedtestRunning } from "./speedtest";
 
@@ -48,12 +49,19 @@ export const nextRun = (automation: Automation, from = new Date()) => {
   return null;
 };
 
-const run = (automation: Automation) => {
-  if (automation.job === "speedtest") return runSpeedtest("automation");
-  if (automation.job === "devices") return runDeviceScan();
+const ms = (value: number | null) => (value === null ? "no reply" : `${value.toFixed(1)} ms`);
+
+// Runs the job and says what happened in a line for the Automations page; undefined means it was skipped
+const run = async (automation: Automation): Promise<string | undefined> => {
+  if (automation.job === "speedtest") {
+    const test = await runSpeedtest("automation");
+    return test ? `${test.downloadMbps.toFixed(0)} down / ${test.uploadMbps.toFixed(0)} up Mbps` : "Cancelled";
+  }
+  if (automation.job === "devices") return `${(await runDeviceScan()).found} devices answered`;
   // A full test saturates the link, so pings taken during it would only measure the test
-  if (speedtestRunning()) return;
-  return runPingCheck("automation");
+  if (speedtestRunning()) return undefined;
+  const samples = await runPingCheck("automation");
+  return samples.map((sample) => `${sample.target === "router" ? "Router" : "Internet"} ${ms(sample.avgMs)}`).join(", ");
 };
 
 const logFailure = (job: string) => (error: unknown) =>
@@ -69,7 +77,12 @@ export const startScheduler = () => {
     loadAutomations()
       .then((automations) => {
         for (const automation of automations.filter((a) => isDue(a, now))) {
-          Promise.resolve(run(automation)).catch(logFailure(automation.job));
+          const name = `job.${automation.job}`;
+          run(automation)
+            .then(async (summary) => {
+              if (summary !== undefined) await recordStatus(name, { ok: true, summary });
+            })
+            .catch((error: unknown) => recordFailure(name, error));
         }
       })
       .catch(logFailure("tick"));

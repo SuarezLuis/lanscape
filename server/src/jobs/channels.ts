@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "../db";
+import { readStatus, recordFailure, recordStatus } from "./status";
 
 export type Alert = {
   kind: "problem" | "resolved" | "device" | "test";
@@ -97,6 +98,7 @@ export const describeChannels = async () =>
       return {
         id,
         configured: isConfigured(id, values),
+        status: await readStatus(`channel.${id}`),
         fields: Object.entries(CHANNELS[id].fields).map(([field, spec]) => ({
           field,
           secret: spec.secret,
@@ -127,18 +129,24 @@ const send = async (id: ChannelId, alert: Alert) => {
   return true;
 };
 
-export const sendTest = (id: ChannelId) =>
-  send(id, { kind: "test", title: "Test notification", message: "Notifications from LANscape will arrive here." });
+// Each delivery's outcome is kept per channel, so a revoked token shows up on the page
+const deliver = (id: ChannelId, alert: Alert) =>
+  send(id, alert).then(
+    () => recordStatus(`channel.${id}`, { ok: true }),
+    async (error: unknown) => {
+      await recordFailure(`channel.${id}`, error);
+      throw error;
+    },
+  );
+
+export const sendTest = async (id: ChannelId) => {
+  await deliver(id, { kind: "test", title: "Test notification", message: "Notifications from LANscape will arrive here." });
+  return true;
+};
 
 // Every configured channel gets every alert; one failing channel doesn't stop the rest
 export const sendAll = async (alert: Alert) => {
   const configured: ChannelId[] = [];
   for (const id of CHANNEL_IDS) if (isConfigured(id, await readValues(id))) configured.push(id);
-  const results = await Promise.allSettled(configured.map((id) => send(id, alert)));
-  results.forEach((result, i) => {
-    if (result.status === "rejected") {
-      const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
-      console.error(`${configured[i]} delivery failed:`, reason);
-    }
-  });
+  await Promise.allSettled(configured.map((id) => deliver(id, alert)));
 };

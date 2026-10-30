@@ -67,4 +67,5 @@ export const runPingCheck = async (trigger: Trigger) => {
   const samples = await pingTargets();
   await prisma.pingSample.createMany({ data: samples.map((sample) => ({ ...sample, trigger })) });
   await checkRules(pingValues(samples));
+  return samples;
 };

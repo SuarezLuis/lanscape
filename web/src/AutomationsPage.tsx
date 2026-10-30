@@ -40,10 +40,31 @@ const fromEvery = (every: number | null) => (every === null ? "off" : String(eve
 const nextRunText = (date: Date | null) =>
   date ? `Next run ${date.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}.` : "Not scheduled.";
 
+type Status = { at: string; ok: boolean; summary?: string; error?: string } | null;
+
+const ago = (iso: string) => {
+  const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} h ago` : new Date(iso).toLocaleDateString();
+};
+
+const LastRun = ({ status }: { status: Status }) =>
+  status ? (
+    <Text size="sm" c={status.ok ? "dimmed" : "red"}>
+      Last scheduled run {ago(status.at)}: {status.ok ? status.summary : `failed. ${status.error}`}
+    </Text>
+  ) : (
+    <Text size="sm" c="dimmed">
+      Hasn't run on schedule yet.
+    </Text>
+  );
+
 export const AutomationsPage = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const list = useQuery(trpc.automations.list.queryOptions());
+  const list = useQuery({ ...trpc.automations.list.queryOptions(), refetchInterval: 60_000 });
   const update = useMutation(
     trpc.automations.update.mutationOptions({
       onSuccess: () => queryClient.invalidateQueries(trpc.automations.list.queryFilter()),
@@ -102,6 +123,7 @@ export const AutomationsPage = () => {
           <Text size="sm" c="dimmed">
             {nextRunText(speedtest.nextRun)} {speedtest.everyMinutes ? `Times follow ${speedtest.timeZone}.` : ""}
           </Text>
+          <LastRun status={speedtest.status} />
         </Stack>
       </Card>
 
@@ -139,6 +161,7 @@ export const AutomationsPage = () => {
           <Text size="sm" c="dimmed">
             Router: {list.data?.router ?? "not found"}. {nextRunText(ping.nextRun)}
           </Text>
+          <LastRun status={ping.status} />
         </Stack>
       </Card>
 
@@ -161,6 +184,7 @@ export const AutomationsPage = () => {
           <Text size="sm" c="dimmed">
             {nextRunText(devices.nextRun)}
           </Text>
+          <LastRun status={devices.status} />
         </Stack>
       </Card>
     </Stack>

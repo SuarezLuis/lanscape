@@ -195,7 +195,7 @@ const ChannelPanel = ({ channel, onSaved }: { channel: Channel; onSaved: () => v
   // undefined = untouched, so saving only sends what changed and never round-trips secrets
   const [drafts, setDrafts] = useState<Record<string, string | undefined>>({});
   const save = useMutation(trpc.notifications.saveChannel.mutationOptions({ onSuccess: () => (setDrafts({}), onSaved()) }));
-  const test = useMutation(trpc.notifications.test.mutationOptions());
+  const test = useMutation(trpc.notifications.test.mutationOptions({ onSettled: onSaved }));
   const findChats = useMutation(
     trpc.notifications.findTelegramChats.mutationOptions({
       onSuccess: ({ chats }) => {
@@ -268,6 +268,13 @@ const ChannelPanel = ({ channel, onSaved }: { channel: Channel; onSaved: () => v
             </Group>
           )}
         </Stack>
+      )}
+      {channel.configured && channel.status && (
+        <Text size="sm" c={channel.status.ok ? "dimmed" : "red"}>
+          {channel.status.ok
+            ? `Last delivered ${new Date(channel.status.at).toLocaleString()}.`
+            : `Last delivery failed ${new Date(channel.status.at).toLocaleString()}: ${channel.status.error}`}
+        </Text>
       )}
       {save.isError && (
         <Text size="sm" c="red">
@@ -376,8 +383,8 @@ export const NotificationsPage = () => {
                   <Group justify="space-between" pr="sm">
                     <Text fw={500}>{CHANNEL_UI[channel.id].label}</Text>
                     {channel.configured && (
-                      <Badge color="teal" variant="light">
-                        On
+                      <Badge color={channel.status?.ok === false ? "red" : "teal"} variant="light">
+                        {channel.status?.ok === false ? "Failing" : "On"}
                       </Badge>
                     )}
                   </Group>

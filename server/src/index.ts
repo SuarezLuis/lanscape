@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import Fastify from "fastify";
+import { startRetention } from "./jobs/retention";
 import { startScheduler } from "./jobs/scheduler";
 import { startTelegramReplies } from "./jobs/telegram";
 import { appRouter } from "./router";
@@ -30,4 +31,5 @@ if (existsSync(webDist)) {
 
 await app.listen({ host: "0.0.0.0", port });
 startScheduler();
+startRetention();
 void startTelegramReplies();

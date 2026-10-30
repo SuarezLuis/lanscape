@@ -8,6 +8,7 @@ import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/cha
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, runDeviceScan } from "./jobs/devices";
 import { findGateway } from "./jobs/ping";
+import { readStatus } from "./jobs/status";
 import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
 import { cancelSpeedtest, currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
@@ -132,7 +133,14 @@ export const appRouter = t.router({
   automations: t.router({
     list: t.procedure.query(async () => {
       const [automations, router] = await Promise.all([loadAutomations(), findGateway()]);
-      return { automations: automations.map((automation) => ({ ...automation, nextRun: nextRun(automation) })), router };
+      const withStatus = await Promise.all(
+        automations.map(async (automation) => ({
+          ...automation,
+          nextRun: nextRun(automation),
+          status: await readStatus(`job.${automation.job}`),
+        })),
+      );
+      return { automations: withStatus, router };
     }),
     update: t.procedure
       .input(automationInput)
