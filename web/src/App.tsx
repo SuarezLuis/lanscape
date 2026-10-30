@@ -1,4 +1,4 @@
-import { AppShell, Badge, Burger, Group, NavLink, Title } from "@mantine/core";
+import { AppShell, Badge, Burger, Card, Group, NavLink, Text, Title } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -6,7 +6,21 @@ import { navigate, usePath } from "./route";
 import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
 
-const PAGES = [{ path: "/speedtests", label: "Speed tests", element: <SpeedTestCard /> }] as const;
+const PAGES = [
+  { path: "/speedtests", label: "Speed tests", element: <SpeedTestCard /> },
+  {
+    path: "/network",
+    label: "Network",
+    element: (
+      <Card withBorder padding="lg" radius="md">
+        <Title order={3} mb="sm">
+          Network
+        </Title>
+        <Text c="dimmed">Devices on your network will show up here.</Text>
+      </Card>
+    ),
+  },
+] as const;
 const [HOME] = PAGES;
 
 export const App = () => {
