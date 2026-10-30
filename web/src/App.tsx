@@ -20,6 +20,15 @@ import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
 
+const Placeholder = ({ title, text }: { title: string; text: string }) => (
+  <Card withBorder padding="md" radius="md">
+    <Title order={3} mb="sm">
+      {title}
+    </Title>
+    <Text c="dimmed">{text}</Text>
+  </Card>
+);
+
 const PAGES = [
   {
     path: "/speedtests",
@@ -34,14 +43,17 @@ const PAGES = [
   {
     path: "/network",
     label: "Network",
-    element: (
-      <Card withBorder padding="md" radius="md">
-        <Title order={3} mb="sm">
-          Network
-        </Title>
-        <Text c="dimmed">Devices on your network will show up here.</Text>
-      </Card>
-    ),
+    element: <Placeholder title="Network" text="Devices on your network will show up here." />,
+  },
+  {
+    path: "/automations",
+    label: "Automations",
+    element: <Placeholder title="Automations" text="Scheduled speed tests and other automations will live here." />,
+  },
+  {
+    path: "/notifications",
+    label: "Notifications",
+    element: <Placeholder title="Notifications" text="Alerts about your network will show up here." />,
   },
 ] as const;
 const [HOME] = PAGES;
