@@ -1,6 +1,8 @@
 import {
   Accordion,
   Anchor,
+  Code,
+  List,
   ActionIcon,
   Badge,
   Button,
@@ -18,7 +20,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@lanscape/server/router";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { XIcon } from "./icons/x";
 import { useTRPC } from "./trpc";
 
@@ -136,7 +138,7 @@ const KIND: Record<string, { label: string; color: string }> = {
 
 type Channel = inferRouterOutputs<AppRouter>["notifications"]["channels"][number];
 
-const CHANNEL_UI: Record<Channel["id"], { label: string; help: string; fields: Record<string, { label: string; placeholder?: string; description?: string }> }> = {
+const CHANNEL_UI: Record<Channel["id"], { label: string; help: ReactNode; fields: Record<string, { label: string; placeholder?: string; description?: string }> }> = {
   ntfy: {
     label: "ntfy",
     help: "Install the ntfy app and subscribe to a topic, on ntfy.sh or your own ntfy server. Pick a hard-to-guess topic name.",
@@ -147,7 +149,25 @@ const CHANNEL_UI: Record<Channel["id"], { label: string; help: string; fields: R
   },
   telegram: {
     label: "Telegram",
-    help: "Create a bot with @BotFather and paste its token. Message your bot (press Start), then use Find chat ID.",
+    help: (
+      <List type="ordered" size="sm" spacing={4}>
+        <List.Item>
+          In Telegram, open{" "}
+          <Anchor href="https://t.me/BotFather" target="_blank">
+            @BotFather
+          </Anchor>
+          , send <Code>/newbot</Code> and follow the prompts.
+        </List.Item>
+        <List.Item>Copy the token BotFather gives you and paste it below.</List.Item>
+        <List.Item>
+          Open your new bot (BotFather links it) and press <b>Start</b>. Alerts go to whichever chat messages it, so use the
+          account or group that should get them.
+        </List.Item>
+        <List.Item>
+          Click <b>Find chat ID</b>, then <b>Save</b> and <b>Send test</b>.
+        </List.Item>
+      </List>
+    ),
     fields: { token: { label: "Bot token", placeholder: "123456:ABC-DEF..." }, chatId: { label: "Chat ID", placeholder: "123456789" } },
   },
   discord: {
@@ -186,9 +206,13 @@ const ChannelPanel = ({ channel, onSaved }: { channel: Channel; onSaved: () => v
 
   return (
     <Stack gap="sm">
-      <Text size="sm" c="dimmed">
-        {ui.help}
-      </Text>
+      {typeof ui.help === "string" ? (
+        <Text size="sm" c="dimmed">
+          {ui.help}
+        </Text>
+      ) : (
+        ui.help
+      )}
       {channel.fields.map(({ field, secret, isSet, value }) => {
         const meta = ui.fields[field] ?? { label: field };
         const Input = secret ? PasswordInput : TextInput;
