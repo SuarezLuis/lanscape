@@ -2,7 +2,7 @@
 
 Home network monitoring for [Umbrel](https://umbrel.com): internet speed and latency over time, every device on your network, and alerts when something changes.
 
-Installed through the [SZ Umbrel app store](https://github.com/SuarezLuis/umbrel-apps). User guide: [docs/HELP.md](docs/HELP.md), also shown on the app's Help page.
+Install it from an Umbrel app store: it's in the [SZ community app store](https://github.com/SuarezLuis/umbrel-apps) (add `https://github.com/SuarezLuis/umbrel-apps` under App Store → Community App Stores). User guide: [docs/HELP.md](docs/HELP.md), also on the app's Help page.
 
 ## Features
 
