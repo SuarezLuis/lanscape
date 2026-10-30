@@ -25,7 +25,7 @@ import { GaugeIcon } from "./icons/gauge";
 import { MoonIcon } from "./icons/moon";
 import { RouterIcon } from "./icons/router";
 import { SunIcon } from "./icons/sun";
-import { MonitorCogIcon } from "./icons/monitor-cog";
+import { ContrastIcon } from "./icons/contrast";
 import { WorkflowIcon } from "./icons/workflow";
 import { navigate, usePath } from "./route";
 import { SpeedHistory } from "./SpeedHistory";
@@ -135,7 +135,7 @@ export const App = () => {
               data={[
                 { value: "light", label: <SchemeLabel icon={SunIcon} label="Light" /> },
                 { value: "dark", label: <SchemeLabel icon={MoonIcon} label="Dark" /> },
-                { value: "auto", label: <SchemeLabel icon={MonitorCogIcon} label="System" /> },
+                { value: "auto", label: <SchemeLabel icon={ContrastIcon} label="System" /> },
               ]}
               aria-label="Color scheme"
             />
