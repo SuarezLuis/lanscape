@@ -18,4 +18,96 @@ model SpeedTest {
   serverName       String
   serverSponsor    String
   serverDistanceKm Float
+  trigger          String   @default("manual") // "manual" | "automation"
+  // Pinged just before the test starts, so they show unloaded latency
+  routerPingMs     Float?
+  internetPingMs   Float?
+}
+
+// One row per scheduled job ("speedtest", "ping"); a missing row means the job's defaults
+model Automation {
+  job           String  @id
+  everyMinutes  Int? // null = off
+  offsetMinutes Int     @default(0) // runs line up with this many minutes after local midnight
+  timeZone      String  @default("UTC")
+  target        String? // ping: the internet host to check alongside the router
+}
+
+model PingSample {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  target    String // "router" | "internet"
+  host      String
+  sent      Int
+  received  Int
+  avgMs     Float? // null when every packet was lost
+  jitterMs  Float?
+  trigger   String   @default("automation") // "manual" | "automation"
+
+  @@index([createdAt])
+}
+
+model NotificationRule {
+  id             Int            @id @default(autoincrement())
+  metric         String // download | upload | testPing | jitter | internetPing | routerPing | internetLoss | routerLoss
+  direction      String // "above" | "below"
+  mode           String // "fixed" (value in the metric's unit) | "percent" (value % away from the 7-day median)
+  value          Float
+  sustainMinutes Int            @default(0) // how long the problem must last before it notifies
+  enabled        Boolean        @default(false)
+  // State: when the condition started holding, and whether a problem notification is out
+  pendingSince   DateTime?
+  alerting       Boolean        @default(false)
+  notifications  Notification[]
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  createdAt DateTime         @default(now())
+  ruleId    Int? // null for event alerts like a new device
+  rule      NotificationRule? @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  kind      String // "problem" | "resolved" | "device"
+  value     Float
+  baseline  Float? // the 7-day median at the time, for percent rules
+  message   String
+  read      Boolean          @default(false)
+
+  @@index([createdAt])
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model Device {
+  mac       String   @id
+  ip        String
+  vendor    String?
+  hostname  String? // discovered over mDNS
+  name      String? // set by the user; shown instead of hostname
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime // equals the last scan time while the device is online
+  known     Boolean  @default(false) // the user has acknowledged it
+  // Alert when offline this long; null = no offline alerts. offlineAlerted is the rule's state
+  alertOfflineMinutes Int?
+  offlineAlerted      Boolean       @default(false)
+  events              DeviceEvent[]
+}
+
+// A device going online or offline between scans
+model DeviceEvent {
+  id     Int      @id @default(autoincrement())
+  mac    String
+  device Device   @relation(fields: [mac], references: [mac], onDelete: Cascade)
+  at     DateTime
+  online Boolean
+
+  @@index([mac, at])
+}
+
+model Session {
+  tokenHash String   @id // sha256 of the cookie token, so a leaked database can't sign anyone in
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 }

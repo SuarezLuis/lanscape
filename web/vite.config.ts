@@ -4,6 +4,6 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: { "/trpc": "http://localhost:4545" },
+    proxy: { "/trpc": "http://localhost:4545", "/export": "http://localhost:4545" },
   },
 });
