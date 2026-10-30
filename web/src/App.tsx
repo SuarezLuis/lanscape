@@ -3,6 +3,7 @@ import {
   Badge,
   Burger,
   Card,
+  Center,
   Group,
   type MantineColorScheme,
   type NavLinkProps,
@@ -11,6 +12,7 @@ import {
   Stack,
   Text,
   Title,
+  Tooltip,
   useMantineColorScheme,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -77,13 +79,15 @@ const NavItem = ({ icon: Icon, ...props }: NavLinkProps & { icon: AnimatedIcon; 
   return <NavLink {...props} {...hover} leftSection={<Icon ref={ref} size={18} />} />;
 };
 
+// Icon only, so it fits the header on phones; the label goes to the tooltip and screen readers
 const SchemeLabel = ({ icon: Icon, label }: { icon: AnimatedIcon; label: string }) => {
   const { ref, hover } = useIconHover();
   return (
-    <Group gap={4} justify="center" wrap="nowrap" {...hover}>
-      <Icon ref={ref} size={14} />
-      {label}
-    </Group>
+    <Tooltip label={label} withArrow>
+      <Center {...hover} aria-label={label}>
+        <Icon ref={ref} size={16} />
+      </Center>
+    </Tooltip>
   );
 };
 
@@ -120,9 +124,22 @@ export const App = () => {
               </Title>
             </Group>
           </Group>
-          <Badge color={color} maw="50%">
-            {status}
-          </Badge>
+          <Group gap="sm" wrap="nowrap">
+            <Badge color={color} visibleFrom="sm">
+              {status}
+            </Badge>
+            <SegmentedControl
+              size="xs"
+              value={colorScheme}
+              onChange={(value) => setColorScheme(value as MantineColorScheme)}
+              data={[
+                { value: "light", label: <SchemeLabel icon={SunIcon} label="Light" /> },
+                { value: "dark", label: <SchemeLabel icon={MoonIcon} label="Dark" /> },
+                { value: "auto", label: <SchemeLabel icon={SunMoonIcon} label="Auto (system)" /> },
+              ]}
+              aria-label="Color scheme"
+            />
+          </Group>
         </Group>
       </AppShell.Header>
 
@@ -142,20 +159,6 @@ export const App = () => {
               }}
             />
           ))}
-        </AppShell.Section>
-        <AppShell.Section>
-          <SegmentedControl
-            fullWidth
-            size="xs"
-            value={colorScheme}
-            onChange={(value) => setColorScheme(value as MantineColorScheme)}
-            data={[
-              { value: "light", label: <SchemeLabel icon={SunIcon} label="Light" /> },
-              { value: "dark", label: <SchemeLabel icon={MoonIcon} label="Dark" /> },
-              { value: "auto", label: <SchemeLabel icon={SunMoonIcon} label="Auto" /> },
-            ]}
-            aria-label="Color scheme"
-          />
         </AppShell.Section>
       </AppShell.Navbar>
 

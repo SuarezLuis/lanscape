@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { prisma } from "../db";
+import type { Trigger } from "./speedtest";
 
 const execFileAsync = promisify(execFile);
 
@@ -49,12 +50,12 @@ const ping = async (host: string) => {
 export const findGateway = () =>
   readFile("/proc/net/route", "utf8").then(gatewayFromRoutes, () => null);
 
-export const runPingCheck = async (internetHost: string) => {
+export const runPingCheck = async (internetHost: string, trigger: Trigger) => {
   const router = await findGateway();
   const targets = [
     ...(router ? [{ target: "router", host: router }] : []),
     { target: "internet", host: internetHost },
   ];
   const samples = await Promise.all(targets.map(async (t) => ({ ...t, ...(await ping(t.host)) })));
-  await prisma.pingSample.createMany({ data: samples });
+  await prisma.pingSample.createMany({ data: samples.map((sample) => ({ ...sample, trigger })) });
 };

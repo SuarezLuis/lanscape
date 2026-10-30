@@ -138,11 +138,14 @@ let running: Promise<SpeedTest | null> | null = null;
 export const speedtestRunning = () => running !== null;
 
 // A second request while a test is running joins it instead of starting a competing test
-export const runSpeedtest = () => {
+export type Trigger = "manual" | "automation";
+
+// A test joined while running keeps the trigger of whoever started it
+export const runSpeedtest = (trigger: Trigger) => {
   if (running) return running;
   report(IDLE);
   running = measure()
-    .then((lines) => lines && prisma.speedTest.create({ data: parseSpeedtestSummary(lines) }))
+    .then((lines) => lines && prisma.speedTest.create({ data: { ...parseSpeedtestSummary(lines), trigger } }))
     .finally(() => {
       running = null;
       report(null);

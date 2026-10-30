@@ -54,7 +54,7 @@ export const appRouter = t.router({
     }),
     latency: t.procedure.input(rangeInput).query(({ input }) => latencyHistory(input.range)),
     // Resolves null when the test is cancelled
-    run: t.procedure.mutation(() => runSpeedtest()),
+    run: t.procedure.mutation(() => runSpeedtest("manual")),
     cancel: t.procedure.mutation(() => cancelSpeedtest()),
     // The current test's progress, then every update; null means no test is running
     progress: t.procedure.subscription(async function* ({ signal }): AsyncGenerator<SpeedtestProgress | null> {

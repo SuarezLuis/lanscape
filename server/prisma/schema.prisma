@@ -18,6 +18,7 @@ model SpeedTest {
   serverName       String
   serverSponsor    String
   serverDistanceKm Float
+  trigger          String   @default("manual") // "manual" | "automation"
 }
 
 // One row per scheduled job ("speedtest", "ping"); a missing row means the job's defaults
@@ -38,6 +39,7 @@ model PingSample {
   received  Int
   avgMs     Float? // null when every packet was lost
   jitterMs  Float?
+  trigger   String   @default("automation") // "manual" | "automation"
 
   @@index([createdAt])
 }

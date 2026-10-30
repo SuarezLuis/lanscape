@@ -23,6 +23,7 @@ const COLUMNS = [
   { key: "uploadMbps", label: "Upload", numeric: true, render: (test: SpeedTest) => `${test.uploadMbps.toFixed(0)} Mbps` },
   { key: "pingMs", label: "Ping", numeric: true, render: (test: SpeedTest) => `${test.pingMs.toFixed(0)} ms` },
   { key: "jitterMs", label: "Jitter", numeric: true, render: (test: SpeedTest) => `${test.jitterMs.toFixed(1)} ms` },
+  { key: "trigger", label: "Run by", numeric: false, render: (test: SpeedTest) => (test.trigger === "manual" ? "You" : "Schedule") },
   { key: "serverName", label: "Server", numeric: false, render: (test: SpeedTest) => `${test.serverSponsor} · ${test.serverName}` },
 ] as const;
 

@@ -46,10 +46,10 @@ export const nextRun = (automation: Automation, from = new Date()) => {
 };
 
 const run = (automation: Automation) => {
-  if (automation.job === "speedtest") return runSpeedtest();
+  if (automation.job === "speedtest") return runSpeedtest("automation");
   // A full test saturates the link, so pings taken during it would only measure the test
   if (speedtestRunning()) return;
-  return runPingCheck(automation.target ?? DEFAULTS.ping.target ?? "1.1.1.1");
+  return runPingCheck(automation.target ?? DEFAULTS.ping.target ?? "1.1.1.1", "automation");
 };
 
 const logFailure = (job: string) => (error: unknown) =>
