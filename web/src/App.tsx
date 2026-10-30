@@ -1,4 +1,17 @@
-import { AppShell, Badge, Burger, Card, Group, NavLink, Stack, Text, Title } from "@mantine/core";
+import {
+  AppShell,
+  Badge,
+  Burger,
+  Card,
+  Group,
+  type MantineColorScheme,
+  NavLink,
+  SegmentedControl,
+  Stack,
+  Text,
+  Title,
+  useMantineColorScheme,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -37,6 +50,8 @@ export const App = () => {
   const trpc = useTRPC();
   const health = useQuery(trpc.health.queryOptions());
   const [navOpen, nav] = useDisclosure();
+  // Auto follows the system; Mantine keeps the choice in localStorage
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
   const path = usePath();
   const page = PAGES.find((candidate) => candidate.path === path);
 
@@ -68,19 +83,35 @@ export const App = () => {
       </AppShell.Header>
 
       <AppShell.Navbar p="sm">
-        {PAGES.map((item) => (
-          <NavLink
-            key={item.path}
-            href={item.path}
-            label={item.label}
-            active={item.path === page?.path}
-            onClick={(event) => {
-              event.preventDefault();
-              navigate(item.path);
-              nav.close();
-            }}
+        <AppShell.Section grow>
+          {PAGES.map((item) => (
+            <NavLink
+              key={item.path}
+              href={item.path}
+              label={item.label}
+              active={item.path === page?.path}
+              onClick={(event) => {
+                event.preventDefault();
+                navigate(item.path);
+                nav.close();
+              }}
+            />
+          ))}
+        </AppShell.Section>
+        <AppShell.Section>
+          <SegmentedControl
+            fullWidth
+            size="xs"
+            value={colorScheme}
+            onChange={(value) => setColorScheme(value as MantineColorScheme)}
+            data={[
+              { value: "light", label: "Light" },
+              { value: "dark", label: "Dark" },
+              { value: "auto", label: "Auto" },
+            ]}
+            aria-label="Color scheme"
           />
-        ))}
+        </AppShell.Section>
       </AppShell.Navbar>
 
       <AppShell.Main>{(page ?? HOME).element}</AppShell.Main>
