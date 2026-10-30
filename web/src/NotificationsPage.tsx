@@ -158,10 +158,12 @@ const CHANNEL_UI: Record<Channel["id"], { label: string; help: ReactNode; fields
           </Anchor>
           , send <Code>/newbot</Code> and follow the prompts.
         </List.Item>
-        <List.Item>Copy the token BotFather gives you and paste it below.</List.Item>
         <List.Item>
-          Open your new bot (BotFather links it) and press <b>Start</b>. Alerts go to whichever chat messages it, so use the
-          account or group that should get them.
+          Paste the token BotFather gives you below and click <b>Save</b>.
+        </List.Item>
+        <List.Item>
+          Open your new bot (BotFather links it) and press <b>Start</b>. It replies with your chat ID. Use the account or
+          group that should get the alerts.
         </List.Item>
         <List.Item>
           Click <b>Find chat ID</b>, then <b>Save</b> and <b>Send test</b>.
@@ -230,7 +232,8 @@ const ChannelPanel = ({ channel, onSaved }: { channel: Channel; onSaved: () => v
       {channel.id === "telegram" && (
         <Stack gap={4}>
           <Group>
-            <Button variant="light" size="xs" loading={findChats.isPending} onClick={() => findChats.mutate({ token: drafts.token })}>
+            <Button variant="light" size="xs" loading={findChats.isPending} disabled={!channel.fields.find((field) => field.field === "token")?.isSet}
+              onClick={() => findChats.mutate()}>
               Find chat ID
             </Button>
             {findChats.isError && (
@@ -245,10 +248,15 @@ const ChannelPanel = ({ channel, onSaved }: { channel: Channel; onSaved: () => v
               <Anchor href={`https://t.me/${findChats.data.bot}`} target="_blank">
                 @{findChats.data.bot}
               </Anchor>
-              , press Start, then try again.
+              , press Start (it replies with your chat ID), then try again.
             </Text>
           )}
           {findChats.data?.chats.length === 1 && <Text size="sm">Found {findChats.data.chats[0]?.name}. Save to finish.</Text>}
+          {(findChats.data?.chats.length ?? 0) > 1 && (
+            <Text size="sm" c="dimmed">
+              Newest first. The bot's name is public, so only pick a chat you recognize.
+            </Text>
+          )}
           {(findChats.data?.chats.length ?? 0) > 1 && (
             <Group gap="xs">
               <Text size="sm">Pick a chat:</Text>

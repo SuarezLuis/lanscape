@@ -4,10 +4,11 @@ import superjson from "superjson";
 import { z } from "zod";
 import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
-import { CHANNEL_IDS, describeChannels, findTelegramChats, saveChannel, sendTest } from "./jobs/channels";
+import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, runDeviceScan } from "./jobs/devices";
 import { findGateway } from "./jobs/ping";
+import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
 import { cancelSpeedtest, currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
 
@@ -107,9 +108,7 @@ export const appRouter = t.router({
       .input(z.object({ channel: z.enum(CHANNEL_IDS), values: z.record(z.string(), z.string().max(1000).optional()) }))
       .mutation(({ input }) => saveChannel(input.channel, input.values)),
     test: t.procedure.input(z.object({ channel: z.enum(CHANNEL_IDS) })).mutation(({ input }) => sendTest(input.channel)),
-    findTelegramChats: t.procedure
-      .input(z.object({ token: z.string().max(200).optional() }))
-      .mutation(({ input }) => findTelegramChats(input.token)),
+    findTelegramChats: t.procedure.mutation(() => findTelegramChats()),
   }),
   devices: t.router({
     list: t.procedure.query(async () => {
