@@ -130,6 +130,34 @@ const send = async (id: ChannelId, alert: Alert) => {
 export const sendTest = (id: ChannelId) =>
   send(id, { kind: "test", title: "Test notification", message: "Notifications from LANscape will arrive here." });
 
+type TelegramResponse<T> = { ok: boolean; description?: string; result: T };
+type TelegramChat = { id: number; type: string; title?: string; first_name?: string; last_name?: string };
+type TelegramUpdate = { message?: { chat: TelegramChat }; channel_post?: { chat: TelegramChat }; my_chat_member?: { chat: TelegramChat } };
+
+const telegram = async <T>(token: string, method: string) => {
+  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const body = (await response.json()) as TelegramResponse<T>;
+  if (!body.ok) throw new Error(body.description ?? `Telegram refused ${method}`);
+  return body.result;
+};
+
+// The chats that have messaged the bot recently, so nobody has to dig through getUpdates by hand.
+// Takes the token being typed, or falls back to the saved one; the token itself never goes back to the page.
+export const findTelegramChats = async (typedToken?: string) => {
+  const token = typedToken || (await readValues("telegram")).token;
+  if (!token) throw new Error("Enter the bot token first");
+  const [bot, updates] = await Promise.all([
+    telegram<{ username: string }>(token, "getMe"),
+    telegram<TelegramUpdate[]>(token, "getUpdates"),
+  ]);
+  const chats = new Map<string, string>();
+  for (const update of updates) {
+    const chat = (update.message ?? update.channel_post ?? update.my_chat_member)?.chat;
+    if (chat) chats.set(String(chat.id), chat.title ?? [chat.first_name, chat.last_name].filter(Boolean).join(" "));
+  }
+  return { bot: bot.username, chats: [...chats].map(([id, name]) => ({ id, name })) };
+};
+
 // Every configured channel gets every alert; one failing channel doesn't stop the rest
 export const sendAll = async (alert: Alert) => {
   const configured: ChannelId[] = [];

@@ -1,5 +1,6 @@
 import {
   Accordion,
+  Anchor,
   ActionIcon,
   Badge,
   Button,
@@ -146,7 +147,7 @@ const CHANNEL_UI: Record<Channel["id"], { label: string; help: string; fields: R
   },
   telegram: {
     label: "Telegram",
-    help: "Create a bot with @BotFather and paste its token. Send your bot a message, then open api.telegram.org/bot<token>/getUpdates and copy the chat id.",
+    help: "Create a bot with @BotFather and paste its token. Message your bot (press Start), then use Find chat ID.",
     fields: { token: { label: "Bot token", placeholder: "123456:ABC-DEF..." }, chatId: { label: "Chat ID", placeholder: "123456789" } },
   },
   discord: {
@@ -173,6 +174,13 @@ const ChannelPanel = ({ channel, onSaved }: { channel: Channel; onSaved: () => v
   const [drafts, setDrafts] = useState<Record<string, string | undefined>>({});
   const save = useMutation(trpc.notifications.saveChannel.mutationOptions({ onSuccess: () => (setDrafts({}), onSaved()) }));
   const test = useMutation(trpc.notifications.test.mutationOptions());
+  const findChats = useMutation(
+    trpc.notifications.findTelegramChats.mutationOptions({
+      onSuccess: ({ chats }) => {
+        if (chats.length === 1 && chats[0]) setDrafts((current) => ({ ...current, chatId: chats[0]?.id }));
+      },
+    }),
+  );
   const changed = Object.values(drafts).some((value) => value !== undefined);
   const clearAll = Object.fromEntries(channel.fields.map(({ field }) => [field, ""]));
 
@@ -195,6 +203,40 @@ const ChannelPanel = ({ channel, onSaved }: { channel: Channel; onSaved: () => v
           />
         );
       })}
+      {channel.id === "telegram" && (
+        <Stack gap={4}>
+          <Group>
+            <Button variant="light" size="xs" loading={findChats.isPending} onClick={() => findChats.mutate({ token: drafts.token })}>
+              Find chat ID
+            </Button>
+            {findChats.isError && (
+              <Text size="sm" c="red">
+                {findChats.error.message}
+              </Text>
+            )}
+          </Group>
+          {findChats.data?.chats.length === 0 && (
+            <Text size="sm">
+              No messages yet. Open{" "}
+              <Anchor href={`https://t.me/${findChats.data.bot}`} target="_blank">
+                @{findChats.data.bot}
+              </Anchor>
+              , press Start, then try again.
+            </Text>
+          )}
+          {findChats.data?.chats.length === 1 && <Text size="sm">Found {findChats.data.chats[0]?.name}. Save to finish.</Text>}
+          {(findChats.data?.chats.length ?? 0) > 1 && (
+            <Group gap="xs">
+              <Text size="sm">Pick a chat:</Text>
+              {findChats.data?.chats.map((chat) => (
+                <Button key={chat.id} size="compact-xs" variant="default" onClick={() => setDrafts({ ...drafts, chatId: chat.id })}>
+                  {chat.name || chat.id}
+                </Button>
+              ))}
+            </Group>
+          )}
+        </Stack>
+      )}
       {save.isError && (
         <Text size="sm" c="red">
           {save.error.message}
