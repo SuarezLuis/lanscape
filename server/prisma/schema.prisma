@@ -19,3 +19,25 @@ model SpeedTest {
   serverSponsor    String
   serverDistanceKm Float
 }
+
+// One row per scheduled job ("speedtest", "ping"); a missing row means the job's defaults
+model Automation {
+  job           String  @id
+  everyMinutes  Int? // null = off
+  offsetMinutes Int     @default(0) // runs line up with this many minutes after local midnight
+  timeZone      String  @default("UTC")
+  target        String? // ping: the internet host to check alongside the router
+}
+
+model PingSample {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  target    String // "router" | "internet"
+  host      String
+  sent      Int
+  received  Int
+  avgMs     Float? // null when every packet was lost
+  jitterMs  Float?
+
+  @@index([createdAt])
+}

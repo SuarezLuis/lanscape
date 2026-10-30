@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import Fastify from "fastify";
+import { startScheduler } from "./jobs/scheduler";
 import { appRouter } from "./router";
 
 const port = Number(process.env.PORT ?? 4545);
@@ -27,3 +28,4 @@ if (existsSync(webDist)) {
 }
 
 await app.listen({ host: "0.0.0.0", port });
+startScheduler();

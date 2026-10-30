@@ -135,6 +135,7 @@ const measure = () =>
   });
 
 let running: Promise<SpeedTest | null> | null = null;
+export const speedtestRunning = () => running !== null;
 
 // A second request while a test is running joins it instead of starting a competing test
 export const runSpeedtest = () => {

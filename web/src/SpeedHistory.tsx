@@ -26,6 +26,51 @@ const COLUMNS = [
   { key: "serverName", label: "Server", numeric: false, render: (test: SpeedTest) => `${test.serverSponsor} · ${test.serverName}` },
 ] as const;
 
+type Source = "tests" | "pings" | "both";
+const SOURCES: { value: Source; label: string }[] = [
+  { value: "tests", label: "Full tests" },
+  { value: "pings", label: "Ping checks" },
+  { value: "both", label: "Both" },
+];
+const SPEED_SERIES = [
+  { name: "Download", color: "teal.7" },
+  { name: "Upload", color: "grape.6" },
+];
+const LATENCY_SERIES = {
+  tests: [
+    { name: "Ping", color: "blue.6" },
+    { name: "Jitter", color: "orange.8" },
+  ],
+  pings: [
+    { name: "Internet", color: "pink.6" },
+    { name: "Router", color: "lime.8" },
+  ],
+  both: [
+    { name: "Speed test ping", color: "blue.6" },
+    { name: "Internet", color: "pink.6" },
+    { name: "Router", color: "lime.8" },
+  ],
+} as const;
+
+const oneDecimal = (value: number | null) => (value === null ? null : Number(value.toFixed(1)));
+
+const Chart = (props: { data: Record<string, unknown>[]; unit: string; series: readonly { name: string; color: string }[] }) => (
+  <LineChart
+    h={220}
+    data={props.data}
+    dataKey="time"
+    series={[...props.series]}
+    unit={props.unit}
+    curveType="linear"
+    strokeWidth={2}
+    connectNulls
+    withLegend
+    legendProps={{ verticalAlign: "bottom" }}
+    gridAxis="y"
+    tickLine="none"
+  />
+);
+
 type SortKey = (typeof COLUMNS)[number]["key"];
 type Sort = { key: SortKey; desc: boolean };
 
@@ -41,24 +86,31 @@ export const SpeedHistory = () => {
   const trpc = useTRPC();
   const [range, setRange] = useState<Range>("week");
   const [sort, setSort] = useState<Sort>({ key: "createdAt", desc: true });
+  const [source, setSource] = useState<Source>("both");
   const history = useQuery({ ...trpc.speedtest.history.queryOptions({ range }), placeholderData: keepPreviousData });
+  const latency = useQuery({ ...trpc.speedtest.latency.queryOptions({ range }), placeholderData: keepPreviousData });
   const tests = history.data ?? [];
   const selected = RANGES.find((option) => option.value === range);
 
-  const points = tests.toReversed().map((test) => ({
+  const speedPoints = tests.toReversed().map((test) => ({
     time: when(test.createdAt),
     Download: Math.round(test.downloadMbps),
     Upload: Math.round(test.uploadMbps),
-    Ping: Math.round(test.pingMs),
-    Jitter: Number(test.jitterMs.toFixed(1)),
   }));
+  const latencySeries = LATENCY_SERIES[source];
+  // Buckets with nothing for the chosen source would only stretch the time axis
+  const latencyPoints = (latency.data ?? [])
+    .map((point) => ({
+      time: when(point.time),
+      Ping: oneDecimal(point.testPingMs),
+      "Speed test ping": oneDecimal(point.testPingMs),
+      Jitter: oneDecimal(point.testJitterMs),
+      Internet: oneDecimal(point.internetMs),
+      Router: oneDecimal(point.routerMs),
+    }))
+    .filter((point) => latencySeries.some((series) => point[series.name] !== null));
   const rows = tests.toSorted((a, b) => (sort.desc ? -1 : 1) * compare(a, b, sort.key));
-
-  // Mbps and ms never share an axis; color steps validated for light and dark
-  const charts = [
-    { title: "Speed", unit: " Mbps", series: [{ name: "Download", color: "teal.7" }, { name: "Upload", color: "grape.6" }] },
-    { title: "Latency", unit: " ms", series: [{ name: "Ping", color: "blue.6" }, { name: "Jitter", color: "orange.8" }] },
-  ];
+  const loading = history.isPending || latency.isPending;
 
   return (
     <Card withBorder padding="md" radius="md">
@@ -68,33 +120,40 @@ export const SpeedHistory = () => {
           <SegmentedControl size="xs" value={range} onChange={(value) => setRange(value as Range)} data={RANGES} />
         </Group>
 
-        {tests.length === 0 ? (
-          !history.isPending && <Text c="dimmed">No speed tests {selected?.empty}.</Text>
+        {tests.length === 0 && (latency.data ?? []).length === 0 ? (
+          !loading && <Text c="dimmed">No speed tests or ping checks {selected?.empty}.</Text>
         ) : (
           <>
+            {/* Mbps and ms never share an axis; color steps validated for light and dark */}
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-              {charts.map((chart) => (
-                <div key={chart.title}>
-                  <Text fw={600} mb="xs">
-                    {chart.title}
+              <div>
+                <Text fw={600} mb="xs" lh="30px">
+                  Speed
+                </Text>
+                {speedPoints.length > 0 ? (
+                  <Chart data={speedPoints} unit=" Mbps" series={SPEED_SERIES} />
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    No full speed tests {selected?.empty}.
                   </Text>
-                  <LineChart
-                    h={220}
-                    data={points}
-                    dataKey="time"
-                    series={chart.series}
-                    unit={chart.unit}
-                    curveType="linear"
-                    strokeWidth={2}
-                    withLegend
-                    legendProps={{ verticalAlign: "bottom" }}
-                    gridAxis="y"
-                    tickLine="none"
-                  />
-                </div>
-              ))}
+                )}
+              </div>
+              <div>
+                <Group justify="space-between" mb="xs">
+                  <Text fw={600}>Latency</Text>
+                  <SegmentedControl size="xs" value={source} onChange={(value) => setSource(value as Source)} data={SOURCES} />
+                </Group>
+                {latencyPoints.length > 0 ? (
+                  <Chart data={latencyPoints} unit=" ms" series={latencySeries} />
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Nothing to show {selected?.empty}.
+                  </Text>
+                )}
+              </div>
             </SimpleGrid>
 
+            {tests.length > 0 && (
             <Table.ScrollContainer minWidth={600}>
               <Table striped highlightOnHover>
                 <Table.Thead>
@@ -135,6 +194,7 @@ export const SpeedHistory = () => {
                 </Table.Tbody>
               </Table>
             </Table.ScrollContainer>
+            )}
           </>
         )}
       </Stack>

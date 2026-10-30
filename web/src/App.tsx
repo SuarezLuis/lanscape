@@ -16,6 +16,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { AutomationsPage } from "./AutomationsPage";
 import { type AnimatedIcon, useIconHover } from "./icons/animate";
 import { BellIcon } from "./icons/bell";
 import { GaugeIcon } from "./icons/gauge";
@@ -60,7 +61,7 @@ const PAGES = [
     path: "/automations",
     label: "Automations",
     icon: WorkflowIcon,
-    element: <Placeholder title="Automations" text="Scheduled speed tests and other automations will live here." />,
+    element: <AutomationsPage />,
   },
   {
     path: "/notifications",
@@ -112,9 +113,12 @@ export const App = () => {
         <Group h="100%" justify="space-between">
           <Group gap="sm">
             <Burger opened={navOpen} onClick={nav.toggle} hiddenFrom="sm" size="sm" aria-label="Toggle navigation" />
-            <Title order={2} size="h3">
-              LANscape
-            </Title>
+            <Group gap={8} wrap="nowrap">
+              <img src="/favicon.svg" alt="" width={28} height={28} style={{ borderRadius: 6 }} />
+              <Title order={2} size="h3">
+                LANscape
+              </Title>
+            </Group>
           </Group>
           <Badge color={color} maw="50%">
             {status}

@@ -37,6 +37,8 @@ ENV NODE_ENV=production \
     APP_VERSION=$APP_VERSION \
     DATABASE_URL=file:/data/lanscape.db \
     PORT=4545
+# Ping checks against the router and an internet host
+RUN apt-get update && apt-get install -y --no-install-recommends iputils-ping && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 # speedtest-go is a Go binary and reads the system CA store, which node:slim omits
 COPY --from=deps /etc/ssl/certs /etc/ssl/certs
