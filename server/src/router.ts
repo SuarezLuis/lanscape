@@ -1,7 +1,8 @@
+import { on } from "node:events";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import { prisma } from "./db";
-import { runSpeedtest } from "./jobs/speedtest";
+import { currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
 
 const t = initTRPC.create({ transformer: superjson });
 
@@ -13,6 +14,11 @@ export const appRouter = t.router({
   speedtest: t.router({
     latest: t.procedure.query(() => prisma.speedTest.findFirst({ orderBy: { createdAt: "desc" } })),
     run: t.procedure.mutation(() => runSpeedtest()),
+    // The current test's progress, then every update; null means no test is running
+    progress: t.procedure.subscription(async function* ({ signal }): AsyncGenerator<SpeedtestProgress | null> {
+      yield currentProgress();
+      for await (const [progress] of on(speedtestEvents, "progress", { signal })) yield progress;
+    }),
   }),
 });
 

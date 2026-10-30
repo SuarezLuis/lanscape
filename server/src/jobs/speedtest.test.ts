@@ -1,47 +1,50 @@
 import { expect, test } from "vitest";
-import { parseSpeedtestOutput } from "./speedtest";
+import { applyProgressLine, parseSpeedtestSummary, type SpeedtestProgress } from "./speedtest";
 
-const realRun = JSON.stringify({
-  timestamp: "2026-10-30 17:02:40.743",
-  user_info: { IP: "192.0.2.1", Lat: "0", Lon: "0", Isp: "Example ISP", Country: "US" },
-  servers: [
-    {
-      url: "https://server-68863.prod.hosts.ooklaserver.net:8080/speedtest/upload.php",
-      name: "San Antonio, TX",
-      country: "United States",
-      sponsor: "AT&T",
-      id: "68863",
-      distance: 141.45940721423543,
-      latency: 19358460,
-      max_latency: 22336774,
-      min_latency: 18660696,
-      jitter: 1083398,
-      dl_speed: 82129190.93628523,
-      ul_speed: 109613647.65883735,
-      cc: "US",
-    },
-  ],
-});
+// Lines as speedtest-go v1.8.3 prints them to a terminal, after ANSI codes are stripped
+const realRun = [
+  "⠋ Retrieving Servers",
+  "✓ Found 20 Public Servers",
+  "✓ Test Server: [74383] 68.89km San Marcos, TX (United States) by Brightspeed",
+  "⠴ Latency: --",
+  "⠼ Latency: 18.634528ms",
+  "✓ Latency: 16.731298ms Jitter: 1.020288ms Min: 15.951544ms Max: 19.397601ms",
+  "✓ Packet Loss Analyzer: Running in background (<= 30 Secs)",
+  "⠴ Download",
+  "⠏ Download: 350.17 Mbps (Latency: --)",
+  "✓ Download: 677.26 Mbps (Used: 1003.50MB) (Latency: 35ms Jitter: 58ms Min: 15ms Max: 120ms)",
+  "⠦ Upload: 0.00 Mbps (Latency: 20ms)",
+  "⠼ Upload: 294.93 Mbps (Latency: 28ms)",
+  "✓ Upload: 881.74 Mbps (Used: 1134.42MB Confirmed: 99.4%) (Latency: 27ms Jitter: 9ms Min: 11ms Max: 60ms)",
+  "✓ Packet Loss: 0.00% (Sent: 328/Dup: 0/Max: 327)",
+];
 
-test("converts speedtest-go units to Mbps and ms", () => {
-  const result = parseSpeedtestOutput(realRun);
-
-  expect(result.downloadMbps).toBeCloseTo(657.03, 2);
-  expect(result.uploadMbps).toBeCloseTo(876.91, 2);
-  expect(result.pingMs).toBeCloseTo(19.36, 2);
-  expect(result.jitterMs).toBeCloseTo(1.08, 2);
-  expect(result).toMatchObject({
-    serverId: "68863",
-    serverName: "San Antonio, TX",
-    serverSponsor: "AT&T",
-    serverDistanceKm: 141.45940721423543,
+test("parses the final summary", () => {
+  expect(parseSpeedtestSummary(realRun)).toEqual({
+    downloadMbps: 677.26,
+    uploadMbps: 881.74,
+    pingMs: 16.731298,
+    jitterMs: 1.020288,
+    serverId: "74383",
+    serverName: "San Marcos, TX",
+    serverSponsor: "Brightspeed",
+    serverDistanceKm: 68.89,
   });
 });
 
-test("rejects output with no server results", () => {
-  expect(() => parseSpeedtestOutput('{"servers":[]}')).toThrow("no server results");
+test("rejects output missing a result", () => {
+  expect(() => parseSpeedtestSummary(realRun.filter((line) => !line.startsWith("✓ Upload")))).toThrow(
+    "no upload result",
+  );
 });
 
-test("rejects output missing a measurement", () => {
-  expect(() => parseSpeedtestOutput('{"servers":[{"id":"1","name":"x","sponsor":"y","distance":1}]}')).toThrow();
+test("tracks phase and the latest value of each measurement", () => {
+  const start: SpeedtestProgress = { phase: "connecting", pingMs: null, downloadMbps: null, uploadMbps: null };
+  const seen = realRun.map((_, i) => realRun.slice(0, i + 1).reduce(applyProgressLine, start));
+
+  expect(seen[1]).toEqual(start);
+  expect(seen[4]).toMatchObject({ phase: "ping", pingMs: 18.634528 });
+  expect(seen[7]).toMatchObject({ phase: "download", pingMs: 16.731298, downloadMbps: null });
+  expect(seen[8]).toMatchObject({ phase: "download", downloadMbps: 350.17 });
+  expect(seen[11]).toEqual({ phase: "upload", pingMs: 16.731298, downloadMbps: 677.26, uploadMbps: 294.93 });
 });
