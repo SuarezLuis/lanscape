@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { parseArpScan, vendorFor } from "./devices";
+import { parseArpScan, selfOn, vendorFor } from "./devices";
 
 test("keeps one row per MAC from arp-scan output", () => {
   const stdout = [
@@ -26,4 +26,16 @@ test("drops ID-like mDNS names and trailing MACs", async () => {
   expect(cleanName("IzVRNzj8n14AAA")).toBeNull();
   expect(cleanName("Rachio-958438")).toBe("Rachio-958438");
   expect(cleanName("Play Room TV")).toBe("Play Room TV");
+});
+
+test("finds this machine on the scanned interface", () => {
+  const interfaces = {
+    lo: [{ address: "127.0.0.1", family: "IPv4", internal: true, mac: "00:00:00:00:00:00", netmask: "255.0.0.0", cidr: null }],
+    eno1: [
+      { address: "fe80::1", family: "IPv6", internal: false, mac: "AA:BB:CC:00:00:01", netmask: "ffff::", cidr: null, scopeid: 2 },
+      { address: "192.168.0.50", family: "IPv4", internal: false, mac: "AA:BB:CC:00:00:01", netmask: "255.255.255.0", cidr: null },
+    ],
+  } as const;
+  expect(selfOn("eno1", interfaces as never)).toEqual({ ip: "192.168.0.50", mac: "aa:bb:cc:00:00:01" });
+  expect(selfOn("wlan0", interfaces as never)).toBeNull();
 });

@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { createRequire } from "node:module";
+import { hostname, networkInterfaces } from "node:os";
 import { promisify } from "node:util";
 import { prisma } from "../db";
 import { sendAll } from "./channels";
@@ -37,6 +38,12 @@ export const parseArpScan = (stdout: string) => {
   return [...devices.values()];
 };
 
+// The scanning machine never answers its own ARP sweep, so it's added from its interface (the host's, in Docker host networking)
+export const selfOn = (iface: string, interfaces = networkInterfaces()) => {
+  const address = interfaces[iface]?.find((entry) => entry.family === "IPv4" && !entry.internal);
+  return address ? { ip: address.address, mac: address.mac.toLowerCase() } : null;
+};
+
 const scan = async () => {
   const route = await findDefaultRoute();
   if (!route) throw new Error("No default route, so there's no network to scan");
@@ -44,7 +51,10 @@ const scan = async () => {
     timeout: 60_000,
   });
   const found = parseArpScan(stdout);
+  const self = selfOn(route.iface);
+  if (self && !found.some((device) => device.mac === self.mac)) found.push(self);
   const names = await discoverNames(found.map((device) => device.ip));
+  if (self) names.set(self.ip, hostname());
 
   const scanAt = new Date();
   const [known, firstScan] = await Promise.all([
