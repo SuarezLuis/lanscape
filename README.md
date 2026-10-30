@@ -17,6 +17,8 @@ npm run typecheck
 npm test
 ```
 
+Speed tests need the [`speedtest-go`](https://github.com/showwin/speedtest-go/releases) binary on your `PATH`, or `SPEEDTEST_BIN` pointing at it. The Docker image includes it.
+
 Schema changes: edit `server/prisma/schema.prisma`, then `npm exec -w server -- prisma migrate dev --name <change>`. The container applies migrations on start.
 
 ## Release

@@ -1,5 +1,6 @@
-import { Badge, Container, Group, Title } from "@mantine/core";
+import { Badge, Container, Group, Stack, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
+import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
 
 export const App = () => {
@@ -11,10 +12,13 @@ export const App = () => {
 
   return (
     <Container py="xl">
-      <Group justify="space-between">
-        <Title order={1}>Lanscape</Title>
-        <Badge color={color}>{status}</Badge>
-      </Group>
+      <Stack gap="lg">
+        <Group justify="space-between">
+          <Title order={1}>Lanscape</Title>
+          <Badge color={color}>{status}</Badge>
+        </Group>
+        <SpeedTestCard />
+      </Stack>
     </Container>
   );
 };
