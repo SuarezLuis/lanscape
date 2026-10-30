@@ -1,7 +1,8 @@
 import { Button, Card, Group, SimpleGrid, Stack, Text, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { SpeedGauge } from "./SpeedGauge";
+import { gaugeMax, SpeedGauge } from "./SpeedGauge";
 import { useTRPC } from "./trpc";
 
 const COLORS = { download: "var(--mantine-color-teal-filled)", upload: "var(--mantine-color-grape-filled)" };
@@ -28,6 +29,11 @@ export const SpeedTestCard = () => {
   const live = progress ?? { pingMs: null, downloadMbps: null, uploadMbps: null };
 
   const result = latest.data;
+
+  // The dial starts sized for the last result and only grows during a test, so the needle never jumps back
+  const peak = useRef(0);
+  if (!testing) peak.current = result ? Math.max(result.downloadMbps, result.uploadMbps) : 0;
+  peak.current = Math.max(peak.current, live.downloadMbps ?? 0, live.uploadMbps ?? 0);
   const stats = result
     ? [
         ["Download", `${result.downloadMbps.toFixed(0)} Mbps`],
@@ -68,7 +74,7 @@ export const SpeedTestCard = () => {
 
       {testing ? (
         <Stack align="center" gap="md">
-          <SpeedGauge {...gauge} />
+          <SpeedGauge {...gauge} max={gaugeMax(peak.current)} />
           <SimpleGrid cols={3} w="100%" maw={420}>
             {steps.map((step) => (
               <div key={step.key} style={{ textAlign: "center", opacity: step.key === phase ? 1 : 0.6 }}>

@@ -1,16 +1,10 @@
-const TICKS = [0, 5, 10, 50, 100, 250, 500, 750, 1000];
+const SCALE_STEPS = [100, 250, 500, 1000, 2500, 5000, 10000];
+const TICK_COUNT = 5;
 const SWEEP_DEG = 240;
 const RADIUS = 80;
 
-// Each tick interval gets equal arc, so slow and fast links both move the needle visibly
-export const gaugeFraction = (mbps: number) => {
-  const next = TICKS.findIndex((tick) => mbps < tick);
-  if (next === -1) return 1;
-  if (next === 0) return 0;
-  const low = TICKS[next - 1] ?? 0;
-  const high = TICKS[next] ?? low;
-  return (next - 1 + (mbps - low) / (high - low)) / (TICKS.length - 1);
-};
+// Fixed steps so the dial rescales rarely and its labels stay round
+export const gaugeMax = (mbps: number) => SCALE_STEPS.find((step) => mbps <= step) ?? SCALE_STEPS.at(-1) ?? mbps;
 
 const angleDeg = (fraction: number) => (fraction - 0.5) * SWEEP_DEG;
 
@@ -22,10 +16,11 @@ const point = (fraction: number, radius: number) => {
 const ARC = `M ${point(0, RADIUS).join(" ")} A ${RADIUS} ${RADIUS} 0 1 1 ${point(1, RADIUS).join(" ")}`;
 const EASE = "0.4s ease-out";
 
-type Props = { mbps: number; color: string; value: string; unit: string };
+type Props = { mbps: number; max: number; color: string; value: string; unit: string };
 
-export const SpeedGauge = ({ mbps, color, value, unit }: Props) => {
-  const fraction = gaugeFraction(mbps);
+export const SpeedGauge = ({ mbps, max, color, value, unit }: Props) => {
+  const fraction = Math.min(Math.max(mbps / max, 0), 1);
+  const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) => (max / TICK_COUNT) * i);
 
   return (
     <svg viewBox="0 0 200 180" role="img" aria-label={`${value} ${unit}`} style={{ width: "100%", maxWidth: 320 }}>
@@ -40,8 +35,8 @@ export const SpeedGauge = ({ mbps, color, value, unit }: Props) => {
         strokeDasharray={`${fraction} 1`}
         style={{ transition: `stroke-dasharray ${EASE}, stroke ${EASE}` }}
       />
-      {TICKS.map((tick, i) => {
-        const [x, y] = point(i / (TICKS.length - 1), 62);
+      {ticks.map((tick, i) => {
+        const [x, y] = point(i / TICK_COUNT, 62);
         return (
           <text key={tick} x={x} y={y} fontSize={8} textAnchor="middle" dominantBaseline="middle" fill="var(--mantine-color-dimmed)">
             {tick}
