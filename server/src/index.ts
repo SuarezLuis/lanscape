@@ -18,6 +18,12 @@ await app.register(fastifyTRPCPlugin, { prefix: "/trpc", trpcOptions: { router: 
 const webDist = fileURLToPath(new URL("../../web/dist", import.meta.url));
 if (existsSync(webDist)) {
   await app.register(fastifyStatic, { root: webDist });
+  // Client-side routes like /speedtests load the app shell; unknown API paths still 404
+  app.setNotFoundHandler((request, reply) =>
+    request.method === "GET" && !request.url.startsWith("/trpc")
+      ? reply.sendFile("index.html")
+      : reply.code(404).send({ error: "Not found" }),
+  );
 }
 
 await app.listen({ host: "0.0.0.0", port });
