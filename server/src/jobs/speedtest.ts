@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
 import { prisma } from "../db";
 import type { SpeedTest } from "../generated/prisma/client";
 
@@ -79,19 +80,37 @@ const report = (next: SpeedtestProgress | null) => {
 
 let stop: (() => void) | null = null;
 
+// Linux only; elsewhere there is no /proc and only script's own group is killed
+const childPids = (pid: number) => {
+  try {
+    return readFileSync(`/proc/${pid}/task/${pid}/children`, "utf8").split(" ").filter(Boolean).map(Number);
+  } catch {
+    return [];
+  }
+};
+
 // Resolves null when the test is cancelled
 const measure = () =>
   new Promise<string[] | null>((resolve, reject) => {
     const command = process.env.SPEEDTEST_BIN ?? "speedtest-go";
     // speedtest-go only prints live progress to a terminal, so script(1) gives it one
     const args = process.platform === "darwin" ? ["-q", "/dev/null", command] : ["-qefc", command, "/dev/null"];
-    // Its own process group, so stopping it also stops speedtest-go under script
-    const child = spawn("script", args, { timeout: TIMEOUT_MS, detached: true });
-    let cancelled = false;
-    stop = () => {
-      cancelled = true;
-      if (child.pid) process.kill(-child.pid, "SIGTERM");
+    const child = spawn("script", args, { detached: true });
+    let ended: "cancelled" | "timed out" | null = null;
+    // script(1) runs the command in a session of its own, so killing script's group alone orphans speedtest-go
+    const kill = (reason: NonNullable<typeof ended>) => {
+      ended = reason;
+      if (!child.pid) return;
+      for (const pid of [...childPids(child.pid), child.pid]) {
+        try {
+          process.kill(-pid, "SIGTERM");
+        } catch {
+          // Already gone
+        }
+      }
     };
+    stop = () => kill("cancelled");
+    const timer = setTimeout(() => kill("timed out"), TIMEOUT_MS);
     const lines: string[] = [];
     let partial = "";
 
@@ -107,7 +126,9 @@ const measure = () =>
     // The output includes the public IP, so errors never quote it
     child.on("close", (code, signal) => {
       stop = null;
-      if (cancelled) resolve(null);
+      clearTimeout(timer);
+      if (ended === "cancelled") resolve(null);
+      else if (ended) reject(new Error(`speedtest-go ${ended}`));
       else if (code === 0) resolve([...lines, partial.trim()]);
       else reject(new Error(signal ? `speedtest-go was stopped (${signal})` : `speedtest-go exited with code ${code}`));
     });
