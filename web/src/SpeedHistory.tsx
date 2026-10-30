@@ -63,7 +63,11 @@ const Chart = (props: { data: Record<string, unknown>[]; unit: string; series: r
     data={props.data}
     dataKey="time"
     series={[...props.series]}
-    unit={props.unit}
+    // The unit goes on the axis label and in tooltips, so tick labels stay one line ("1000", not "1000 Mbps")
+    yAxisLabel={props.unit.trim()}
+    valueFormatter={(value) => `${value}${props.unit}`}
+    // Dots help on a few points and turn into a solid band on a month of them
+    withDots={props.data.length <= 60}
     curveType="linear"
     strokeWidth={2}
     connectNulls
