@@ -77,12 +77,21 @@ const report = (next: SpeedtestProgress | null) => {
   speedtestEvents.emit("progress", next);
 };
 
+let stop: (() => void) | null = null;
+
+// Resolves null when the test is cancelled
 const measure = () =>
-  new Promise<string[]>((resolve, reject) => {
+  new Promise<string[] | null>((resolve, reject) => {
     const command = process.env.SPEEDTEST_BIN ?? "speedtest-go";
     // speedtest-go only prints live progress to a terminal, so script(1) gives it one
     const args = process.platform === "darwin" ? ["-q", "/dev/null", command] : ["-qefc", command, "/dev/null"];
-    const child = spawn("script", args, { timeout: TIMEOUT_MS });
+    // Its own process group, so stopping it also stops speedtest-go under script
+    const child = spawn("script", args, { timeout: TIMEOUT_MS, detached: true });
+    let cancelled = false;
+    stop = () => {
+      cancelled = true;
+      if (child.pid) process.kill(-child.pid, "SIGTERM");
+    };
     const lines: string[] = [];
     let partial = "";
 
@@ -97,22 +106,30 @@ const measure = () =>
     child.on("error", reject);
     // The output includes the public IP, so errors never quote it
     child.on("close", (code, signal) => {
-      if (code === 0) resolve([...lines, partial.trim()]);
+      stop = null;
+      if (cancelled) resolve(null);
+      else if (code === 0) resolve([...lines, partial.trim()]);
       else reject(new Error(signal ? `speedtest-go was stopped (${signal})` : `speedtest-go exited with code ${code}`));
     });
   });
 
-let running: Promise<SpeedTest> | null = null;
+let running: Promise<SpeedTest | null> | null = null;
 
 // A second request while a test is running joins it instead of starting a competing test
 export const runSpeedtest = () => {
   if (running) return running;
   report(IDLE);
   running = measure()
-    .then((lines) => prisma.speedTest.create({ data: parseSpeedtestSummary(lines) }))
+    .then((lines) => lines && prisma.speedTest.create({ data: parseSpeedtestSummary(lines) }))
     .finally(() => {
       running = null;
       report(null);
     });
   return running;
+};
+
+export const cancelSpeedtest = () => {
+  if (!stop) return false;
+  stop();
+  return true;
 };

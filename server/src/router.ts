@@ -2,7 +2,7 @@ import { on } from "node:events";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import { prisma } from "./db";
-import { currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
+import { cancelSpeedtest, currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
 
 const t = initTRPC.create({ transformer: superjson });
 
@@ -13,7 +13,9 @@ export const appRouter = t.router({
   }),
   speedtest: t.router({
     latest: t.procedure.query(() => prisma.speedTest.findFirst({ orderBy: { createdAt: "desc" } })),
+    // Resolves null when the test is cancelled
     run: t.procedure.mutation(() => runSpeedtest()),
+    cancel: t.procedure.mutation(() => cancelSpeedtest()),
     // The current test's progress, then every update; null means no test is running
     progress: t.procedure.subscription(async function* ({ signal }): AsyncGenerator<SpeedtestProgress | null> {
       yield currentProgress();

@@ -14,6 +14,7 @@ export const SpeedTestCard = () => {
   const queryClient = useQueryClient();
   const latest = useQuery(trpc.speedtest.latest.queryOptions());
   const run = useMutation(trpc.speedtest.run.mutationOptions());
+  const cancel = useMutation(trpc.speedtest.cancel.mutationOptions());
   // Follows tests started from any tab; null once the test is saved
   const progress =
     useSubscription(
@@ -58,12 +59,16 @@ export const SpeedTestCard = () => {
         : { mbps: 0, color: COLORS.download, value: "…", unit: "Finding a server" };
 
   return (
-    <Card withBorder padding="lg" radius="md">
+    <Card withBorder padding="md" radius="md">
       <Group justify="space-between" mb="md">
         <Title order={3}>Speed test</Title>
-        <Button onClick={() => run.mutate()} loading={testing}>
-          Run speed test
-        </Button>
+        {testing ? (
+          <Button color="red" variant="light" onClick={() => cancel.mutate()} loading={cancel.isPending}>
+            Stop
+          </Button>
+        ) : (
+          <Button onClick={() => run.mutate()}>Run speed test</Button>
+        )}
       </Group>
 
       {run.isError && (

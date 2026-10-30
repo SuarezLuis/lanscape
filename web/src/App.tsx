@@ -12,7 +12,7 @@ const PAGES = [
     path: "/network",
     label: "Network",
     element: (
-      <Card withBorder padding="lg" radius="md">
+      <Card withBorder padding="md" radius="md">
         <Title order={3} mb="sm">
           Network
         </Title>
@@ -41,15 +41,19 @@ export const App = () => {
     <AppShell
       header={{ height: 60 }}
       navbar={{ width: 220, breakpoint: "sm", collapsed: { mobile: !navOpen } }}
-      padding="lg"
+      padding={{ base: "sm", sm: "lg" }}
     >
       <AppShell.Header px="md">
         <Group h="100%" justify="space-between">
           <Group gap="sm">
             <Burger opened={navOpen} onClick={nav.toggle} hiddenFrom="sm" size="sm" aria-label="Toggle navigation" />
-            <Title order={2}>Lanscape</Title>
+            <Title order={2} size="h3">
+              Lanscape
+            </Title>
           </Group>
-          <Badge color={color}>{status}</Badge>
+          <Badge color={color} maw="50%">
+            {status}
+          </Badge>
         </Group>
       </AppShell.Header>
 
