@@ -2,7 +2,7 @@ import { Badge, Button, Card, Group, Modal, Stack, Stepper, Table, Text, TextInp
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@lanscape/server/router";
 import type { inferRouterOutputs } from "@trpc/server";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useIconHover } from "./icons/animate";
 import { RouterIcon } from "./icons/router";
 import { useTRPC } from "./trpc";
@@ -67,6 +67,41 @@ const STEPS = [
     text: "A few devices went quiet at once. Turn it back on and wait until it's connected again (Wi-Fi devices can take a minute), then scan. Only the one that comes back is it.",
   },
 ];
+
+const DeviceDetails = ({ device }: { device: Device }) => {
+  const rows: [string, ReactNode][] = [
+    ["Your name", device.name ?? <Text span c="dimmed" fz="sm">None yet</Text>],
+    ["Discovered name", device.hostname ?? <Text span c="dimmed" fz="sm">None (the device doesn't announce one)</Text>],
+    [
+      "Manufacturer",
+      device.vendor === "Private address" ? (
+        <>
+          Hidden <Text span c="dimmed" fz="sm">(it uses a private MAC address, common on phones and laptops)</Text>
+        </>
+      ) : (
+        device.vendor ?? <Text span c="dimmed" fz="sm">Unknown</Text>
+      ),
+    ],
+    ["IP address", <Text span ff="monospace" fz="sm">{device.ip}</Text>],
+    ["MAC address", <Text span ff="monospace" fz="sm">{device.mac}</Text>],
+    ["First seen", when(device.firstSeen)],
+    ["Last seen", device.online ? "Now" : when(device.lastSeen)],
+  ];
+  return (
+    <Table withRowBorders={false} verticalSpacing={4} fz="sm">
+      <Table.Tbody>
+        {rows.map(([label, value]) => (
+          <Table.Tr key={label}>
+            <Table.Td c="dimmed" w={150} pl={0}>
+              {label}
+            </Table.Td>
+            <Table.Td>{value}</Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
+  );
+};
 
 // Off-then-on narrows it down: dozing phones and plugs can drop out of one scan, but rarely in step with you
 const IdentifyDevice = ({ opened, onClose, devices }: { opened: boolean; onClose: () => void; devices: Device[] }) => {
@@ -148,8 +183,8 @@ const IdentifyDevice = ({ opened, onClose, devices }: { opened: boolean; onClose
                   Still possible: {candidates.map((mac) => byMac(mac)).filter(Boolean).map((device) => deviceLabel(device as Device)).join(", ")}.
                   You can also pick one: {" "}
                   {candidates.map((mac) => (
-                    <Button key={mac} size="compact-xs" variant="default" mr={4} onClick={() => choose(mac)}>
-                      {byMac(mac) ? deviceLabel(byMac(mac) as Device) : mac}
+                    <Button key={mac} size="compact-xs" variant="default" mr={4} mb={4} onClick={() => choose(mac)}>
+                      {byMac(mac) ? `${deviceLabel(byMac(mac) as Device)} · ${byMac(mac)?.ip}` : mac}
                     </Button>
                   ))}
                 </Text>
@@ -175,9 +210,10 @@ const IdentifyDevice = ({ opened, onClose, devices }: { opened: boolean; onClose
         <Stepper.Completed>
           {found && (
             <Stack gap="sm" mt="md">
-              <Text size="sm">
-                It's the device at <b>{found.ip}</b> ({found.vendor ?? "unknown maker"}, {found.mac}).
+              <Text size="sm" fw={500}>
+                Found it:
               </Text>
+              <DeviceDetails device={found} />
               <TextInput
                 label="Name it"
                 placeholder={found.hostname ?? "Living room lamp"}
