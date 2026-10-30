@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Card, Group, Stack, Table, Text, TextInput, Title, Tooltip } from "@mantine/core";
+import { Badge, Button, Card, Group, Modal, Stack, Stepper, Table, Text, TextInput, Title, Tooltip } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@lanscape/server/router";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -57,6 +57,153 @@ const NameCell = ({ device }: { device: Device }) => {
   );
 };
 
+const deviceLabel = (device: Device) => device.name ?? device.hostname ?? device.vendor ?? "Unknown device";
+
+const STEPS = [
+  { label: "On", text: "Make sure the device is on and connected, then scan." },
+  { label: "Off", text: "Turn the device off or disconnect it from the network, wait about 10 seconds, then scan." },
+  {
+    label: "Back on",
+    text: "A few devices went quiet at once. Turn it back on and wait until it's connected again (Wi-Fi devices can take a minute), then scan. Only the one that comes back is it.",
+  },
+];
+
+// Off-then-on narrows it down: dozing phones and plugs can drop out of one scan, but rarely in step with you
+const IdentifyDevice = ({ opened, onClose, devices }: { opened: boolean; onClose: () => void; devices: Device[] }) => {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const scan = useMutation(trpc.devices.scan.mutationOptions());
+  const rename = useMutation(
+    trpc.devices.rename.mutationOptions({ onSuccess: () => queryClient.invalidateQueries(trpc.devices.list.queryFilter()) }),
+  );
+  const [step, setStep] = useState(0);
+  const [baseline, setBaseline] = useState<string[]>([]);
+  const [candidates, setCandidates] = useState<string[] | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [name, setName] = useState("");
+
+  const reset = () => {
+    setStep(0);
+    setBaseline([]);
+    setCandidates(null);
+    setNote(null);
+    setChosen(null);
+    setName("");
+  };
+  const close = () => {
+    reset();
+    onClose();
+  };
+  const choose = (mac: string) => {
+    setChosen(mac);
+    setName(devices.find((device) => device.mac === mac)?.name ?? "");
+    setStep(3);
+  };
+
+  const runStep = () =>
+    scan.mutate(
+      { thorough: true },
+      {
+        onSuccess: ({ online }) => {
+          setNote(null);
+          if (step === 0) {
+            setBaseline(online);
+            setStep(1);
+          } else if (step === 1) {
+            const gone = baseline.filter((mac) => !online.includes(mac));
+            if (gone.length === 0) setNote("Nothing went offline. Give it a few more seconds after turning it off, then scan again.");
+            else if (gone.length === 1 && gone[0]) choose(gone[0]);
+            else {
+              setCandidates(gone);
+              setStep(2);
+            }
+          } else {
+            const back = (candidates ?? []).filter((mac) => online.includes(mac));
+            if (back.length === 0) setNote("None of them are back yet. Wait a bit longer, then scan again.");
+            else if (back.length === 1 && back[0]) choose(back[0]);
+            else setCandidates(back);
+          }
+        },
+      },
+    );
+
+  const byMac = (mac: string) => devices.find((device) => device.mac === mac);
+  const found = chosen ? byMac(chosen) : undefined;
+
+  return (
+    <Modal opened={opened} onClose={close} title="Identify a device" size="lg">
+      <Stepper active={step} size="sm" allowNextStepsSelect={false}>
+        {STEPS.map((item) => (
+          <Stepper.Step key={item.label} label={item.label}>
+            <Stack gap="sm" mt="md">
+              <Text size="sm">{item.text}</Text>
+              {note && (
+                <Text size="sm" c="orange">
+                  {note}
+                </Text>
+              )}
+              {step === 2 && candidates && candidates.length > 1 && (
+                <Text size="sm" c="dimmed">
+                  Still possible: {candidates.map((mac) => byMac(mac)).filter(Boolean).map((device) => deviceLabel(device as Device)).join(", ")}.
+                  You can also pick one: {" "}
+                  {candidates.map((mac) => (
+                    <Button key={mac} size="compact-xs" variant="default" mr={4} onClick={() => choose(mac)}>
+                      {byMac(mac) ? deviceLabel(byMac(mac) as Device) : mac}
+                    </Button>
+                  ))}
+                </Text>
+              )}
+              <Group>
+                <Button onClick={runStep} loading={scan.isPending}>
+                  Scan
+                </Button>
+                {scan.isPending && (
+                  <Text size="sm" c="dimmed">
+                    Scanning twice to be sure, about 20 seconds.
+                  </Text>
+                )}
+              </Group>
+              {scan.isError && (
+                <Text size="sm" c="red">
+                  {scan.error.message}
+                </Text>
+              )}
+            </Stack>
+          </Stepper.Step>
+        ))}
+        <Stepper.Completed>
+          {found && (
+            <Stack gap="sm" mt="md">
+              <Text size="sm">
+                It's the device at <b>{found.ip}</b> ({found.vendor ?? "unknown maker"}, {found.mac}).
+              </Text>
+              <TextInput
+                label="Name it"
+                placeholder={found.hostname ?? "Living room lamp"}
+                value={name}
+                onChange={(event) => setName(event.currentTarget.value)}
+                autoFocus
+              />
+              <Group>
+                <Button
+                  loading={rename.isPending}
+                  onClick={() => rename.mutate({ mac: found.mac, name }, { onSuccess: close })}
+                >
+                  Save name
+                </Button>
+                <Button variant="default" onClick={reset}>
+                  Identify another
+                </Button>
+              </Group>
+            </Stack>
+          )}
+        </Stepper.Completed>
+      </Stepper>
+    </Modal>
+  );
+};
+
 export const NetworkPage = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -65,6 +212,7 @@ export const NetworkPage = () => {
     trpc.devices.scan.mutationOptions({ onSuccess: () => queryClient.invalidateQueries(trpc.devices.list.queryFilter()) }),
   );
   const [filter, setFilter] = useState("");
+  const [identifying, setIdentifying] = useState(false);
   const scanIcon = useIconHover();
 
   const devices = list.data?.devices ?? [];
@@ -88,15 +236,21 @@ export const NetworkPage = () => {
                 : "Not scanned yet"}
             </Text>
           </div>
+          <Group gap="xs">
+          <Button variant="default" onClick={() => setIdentifying(true)} disabled={devices.length === 0}>
+            Identify a device
+          </Button>
           <Button
-            onClick={() => scan.mutate()}
+            onClick={() => scan.mutate(undefined)}
             loading={scan.isPending}
             leftSection={<RouterIcon ref={scanIcon.ref} size={16} />}
             {...scanIcon.hover}
           >
             Scan now
           </Button>
+          </Group>
         </Group>
+        <IdentifyDevice opened={identifying} onClose={() => setIdentifying(false)} devices={devices} />
         {scan.isError && (
           <Text size="sm" c="red">
             The scan failed: {scan.error.message}

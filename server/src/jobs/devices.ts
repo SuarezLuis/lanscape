@@ -44,13 +44,20 @@ export const selfOn = (iface: string, interfaces = networkInterfaces()) => {
   return address ? { ip: address.address, mac: address.mac.toLowerCase() } : null;
 };
 
-const scan = async () => {
-  const route = await findDefaultRoute();
-  if (!route) throw new Error("No default route, so there's no network to scan");
-  const { stdout } = await execFileAsync("arp-scan", ["--interface", route.iface, "--localnet", "--plain", "--retry", "2"], {
+const sweep = async (iface: string, retries: number) => {
+  const { stdout } = await execFileAsync("arp-scan", ["--interface", iface, "--localnet", "--plain", "--retry", String(retries)], {
     timeout: 60_000,
   });
-  const found = parseArpScan(stdout);
+  return parseArpScan(stdout);
+};
+
+// Thorough scans sweep twice with more retries: dozing phones and plugs skip replies, and the identify tool
+// would read a skipped reply as "turned off"
+const scan = async (thorough: boolean) => {
+  const route = await findDefaultRoute();
+  if (!route) throw new Error("No default route, so there's no network to scan");
+  const sweeps = thorough ? [await sweep(route.iface, 4), await sweep(route.iface, 4)] : [await sweep(route.iface, 2)];
+  const found = [...new Map(sweeps.flat().map((device) => [device.mac, device])).values()];
   const self = selfOn(route.iface);
   if (self && !found.some((device) => device.mac === self.mac)) found.push(self);
   const names = await discoverNames(found.map((device) => device.ip));
@@ -94,14 +101,14 @@ const scan = async () => {
       await sendAll({ kind: "device", title: "New device", message });
     }
   }
-  return { found: found.length, added: added.length };
+  return { found: found.length, added: added.length, online: found.map((device) => device.mac) };
 };
 
 let scanning: ReturnType<typeof scan> | null = null;
 
 // A scan requested while one runs joins it
-export const runDeviceScan = () => {
-  scanning ??= scan().finally(() => {
+export const runDeviceScan = ({ thorough = false } = {}) => {
+  scanning ??= scan(thorough).finally(() => {
     scanning = null;
   });
   return scanning;

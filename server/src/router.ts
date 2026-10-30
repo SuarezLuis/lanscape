@@ -122,7 +122,9 @@ export const appRouter = t.router({
         devices: devices.map((device) => ({ ...device, online: scannedAt !== null && device.lastSeen >= scannedAt })),
       };
     }),
-    scan: t.procedure.mutation(() => runDeviceScan()),
+    scan: t.procedure
+      .input(z.object({ thorough: z.boolean() }).optional())
+      .mutation(({ input }) => runDeviceScan({ thorough: input?.thorough })),
     rename: t.procedure
       .input(z.object({ mac: z.string(), name: z.string().trim().max(60) }))
       .mutation(({ input }) => prisma.device.update({ where: { mac: input.mac }, data: { name: input.name || null } })),
