@@ -6,3 +6,16 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+model SpeedTest {
+  id               Int      @id @default(autoincrement())
+  createdAt        DateTime @default(now())
+  downloadMbps     Float
+  uploadMbps       Float
+  pingMs           Float
+  jitterMs         Float
+  serverId         String
+  serverName       String
+  serverSponsor    String
+  serverDistanceKm Float
+}
