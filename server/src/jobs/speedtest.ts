@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { prisma } from "../db";
 import type { SpeedTest } from "../generated/prisma/client";
+import { pingTargets } from "./ping";
 
 const TIMEOUT_MS = 120_000;
 const ANSI_ESCAPE = /\x1b\[[0-9;?]*[A-Za-z]/g;
@@ -134,27 +135,45 @@ const measure = () =>
     });
   });
 
-let running: Promise<SpeedTest | null> | null = null;
-export const speedtestRunning = () => running !== null;
-
-// A second request while a test is running joins it instead of starting a competing test
 export type Trigger = "manual" | "automation";
 
-// A test joined while running keeps the trigger of whoever started it
+let running: Promise<SpeedTest | null> | null = null;
+let cancelRequested = false;
+export const speedtestRunning = () => running !== null;
+
+const avgFor = (pings: { target: string; avgMs: number | null }[], target: string) =>
+  pings.find((ping) => ping.target === target)?.avgMs ?? null;
+
+// A second request while a test is running joins it, keeping the first trigger, instead of starting a competing test
 export const runSpeedtest = (trigger: Trigger) => {
   if (running) return running;
+  cancelRequested = false;
   report(IDLE);
-  running = measure()
-    .then((lines) => lines && prisma.speedTest.create({ data: { ...parseSpeedtestSummary(lines), trigger } }))
-    .finally(() => {
-      running = null;
-      report(null);
+  running = (async () => {
+    // Before the test, so they show unloaded latency; a failed ping shouldn't cost the whole test
+    const pings = await pingTargets().catch(() => []);
+    if (cancelRequested) return null;
+    const lines = await measure();
+    if (!lines) return null;
+    return prisma.speedTest.create({
+      data: {
+        ...parseSpeedtestSummary(lines),
+        trigger,
+        routerPingMs: avgFor(pings, "router"),
+        internetPingMs: avgFor(pings, "internet"),
+      },
     });
+  })().finally(() => {
+    running = null;
+    report(null);
+  });
   return running;
 };
 
+// Works in the pre-test ping phase too, before speedtest-go has started
 export const cancelSpeedtest = () => {
-  if (!stop) return false;
-  stop();
+  if (!running) return false;
+  cancelRequested = true;
+  stop?.();
   return true;
 };

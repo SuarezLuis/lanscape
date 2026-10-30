@@ -19,6 +19,9 @@ model SpeedTest {
   serverSponsor    String
   serverDistanceKm Float
   trigger          String   @default("manual") // "manual" | "automation"
+  // Pinged just before the test starts, so they show unloaded latency
+  routerPingMs     Float?
+  internetPingMs   Float?
 }
 
 // One row per scheduled job ("speedtest", "ping"); a missing row means the job's defaults

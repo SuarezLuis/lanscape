@@ -1,6 +1,6 @@
 import { prisma } from "../db";
 import type { Automation } from "../generated/prisma/client";
-import { runPingCheck } from "./ping";
+import { DEFAULT_INTERNET_HOST, runPingCheck } from "./ping";
 import { runSpeedtest, speedtestRunning } from "./speedtest";
 
 const MINUTE_MS = 60_000;
@@ -12,7 +12,7 @@ export type Job = (typeof JOBS)[number];
 // Full tests move ~2 GB each, so they start off; ping checks are nearly free
 export const DEFAULTS: Record<Job, Automation> = {
   speedtest: { job: "speedtest", everyMinutes: null, offsetMinutes: 4 * 60, timeZone: "UTC", target: null },
-  ping: { job: "ping", everyMinutes: 1, offsetMinutes: 0, timeZone: "UTC", target: "1.1.1.1" },
+  ping: { job: "ping", everyMinutes: 1, offsetMinutes: 0, timeZone: "UTC", target: DEFAULT_INTERNET_HOST },
 };
 
 export const loadAutomations = async () => {
@@ -49,7 +49,7 @@ const run = (automation: Automation) => {
   if (automation.job === "speedtest") return runSpeedtest("automation");
   // A full test saturates the link, so pings taken during it would only measure the test
   if (speedtestRunning()) return;
-  return runPingCheck(automation.target ?? DEFAULTS.ping.target ?? "1.1.1.1", "automation");
+  return runPingCheck("automation");
 };
 
 const logFailure = (job: string) => (error: unknown) =>

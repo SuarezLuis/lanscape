@@ -7,6 +7,7 @@ import type { Trigger } from "./speedtest";
 const execFileAsync = promisify(execFile);
 
 const COUNT = 5;
+export const DEFAULT_INTERNET_HOST = "1.1.1.1";
 // -W is seconds on Linux, milliseconds on macOS
 const ARGS = ["-c", String(COUNT), "-i", "0.2", "-W", process.platform === "darwin" ? "1000" : "1"];
 
@@ -50,12 +51,17 @@ const ping = async (host: string) => {
 export const findGateway = () =>
   readFile("/proc/net/route", "utf8").then(gatewayFromRoutes, () => null);
 
-export const runPingCheck = async (internetHost: string, trigger: Trigger) => {
-  const router = await findGateway();
-  const targets = [
-    ...(router ? [{ target: "router", host: router }] : []),
-    { target: "internet", host: internetHost },
-  ];
-  const samples = await Promise.all(targets.map(async (t) => ({ ...t, ...(await ping(t.host)) })));
+// The host set on the ping check automation, so full tests and ping checks measure the same thing
+export const internetHost = async () =>
+  (await prisma.automation.findUnique({ where: { job: "ping" } }))?.target ?? DEFAULT_INTERNET_HOST;
+
+export const pingTargets = async () => {
+  const [router, internet] = await Promise.all([findGateway(), internetHost()]);
+  const targets = [...(router ? [{ target: "router", host: router }] : []), { target: "internet", host: internet }];
+  return Promise.all(targets.map(async (t) => ({ ...t, ...(await ping(t.host)) })));
+};
+
+export const runPingCheck = async (trigger: Trigger) => {
+  const samples = await pingTargets();
   await prisma.pingSample.createMany({ data: samples.map((sample) => ({ ...sample, trigger })) });
 };
