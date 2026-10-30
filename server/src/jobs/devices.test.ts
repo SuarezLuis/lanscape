@@ -18,3 +18,12 @@ test("names makers from the OUI list, and flags private MACs", () => {
   expect(vendorFor("24:dc:c3:00:00:01")).toBe("Espressif Inc.");
   expect(vendorFor("da:a1:19:00:00:01")).toBe("Private address");
 });
+
+test("drops ID-like mDNS names and trailing MACs", async () => {
+  const { cleanName } = await import("./mdns");
+  expect(cleanName("pi2 [d8:3a:dd:31:a5:46]")).toBe("pi2");
+  expect(cleanName("96e837ebcc9c8cd8")).toBeNull();
+  expect(cleanName("IzVRNzj8n14AAA")).toBeNull();
+  expect(cleanName("Rachio-958438")).toBe("Rachio-958438");
+  expect(cleanName("Play Room TV")).toBe("Play Room TV");
+});

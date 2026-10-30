@@ -1,7 +1,22 @@
 import makeMdns from "multicast-dns";
 
-const LISTEN_MS = 3000;
+const LISTEN_MS = 5000;
 const SERVICES = "_services._dns-sd._udp.local";
+// Asked for directly too: some devices never answer the "list your services" query
+const COMMON_SERVICES = [
+  "_googlecast._tcp.local",
+  "_airplay._tcp.local",
+  "_raop._tcp.local",
+  "_companion-link._tcp.local",
+  "_hap._tcp.local",
+  "_ipp._tcp.local",
+  "_printer._tcp.local",
+  "_sonos._tcp.local",
+  "_spotify-connect._tcp.local",
+  "_workstation._tcp.local",
+  "_smb._tcp.local",
+  "_device-info._tcp.local",
+];
 
 const stripLocal = (name: string) => name.replace(/\.local\.?$/, "");
 const reverseName = (ip: string) => `${ip.split(".").reverse().join(".")}.in-addr.arpa`;
@@ -12,17 +27,27 @@ const friendlyName = (txt: unknown) => {
   return entries.find((entry) => entry.startsWith("fn="))?.slice(3) || null;
 };
 
+// Instance names are sometimes IDs ("96e837ebcc9c8cd8") or carry the MAC ("pi2 [d8:3a:dd:..]")
+export const cleanName = (raw: string) => {
+  const name = raw.replace(/\s*\[([\da-f]{2}:){5}[\da-f]{2}\]$/i, "").trim();
+  const looksLikeId = /^[\da-f]{12,}$/i.test(name) || (/^[A-Za-z\d]{12,}$/.test(name) && /\d/.test(name) && /[A-Z]/.test(name) && /[a-z]/.test(name));
+  return name && !looksLikeId ? name : null;
+};
+
+// A display name beats a service instance name, which beats a bare hostname
+const RANK = { friendly: 3, instance: 2, hostname: 1 };
+
 /**
- * Asks the LAN over mDNS for names: every advertised service (printers, speakers, TVs) and a reverse
- * lookup per IP. Friendly service names win over hostnames.
+ * Asks the LAN over mDNS for names: advertised services (speakers, TVs, printers) and a reverse lookup per IP.
  */
 export const discoverNames = (ips: string[]) =>
   new Promise<Map<string, string>>((resolve) => {
     const mdns = makeMdns({ reuseAddr: true });
-    const askedTypes = new Set<string>();
+    const askedTypes = new Set<string>(COMMON_SERVICES);
     const hostIp = new Map<string, string>();
     const instanceHost = new Map<string, string>();
-    const instanceName = new Map<string, string>();
+    const friendly = new Map<string, string>();
+    const instances = new Set<string>();
     const hostnames = new Map<string, string>();
 
     mdns.on("response", (packet) => {
@@ -31,23 +56,24 @@ export const discoverNames = (ips: string[]) =>
         if (record.type === "SRV") instanceHost.set(record.name, record.data.target);
         if (record.type === "TXT") {
           const fn = friendlyName(record.data);
-          if (fn) instanceName.set(record.name, fn);
+          if (fn) friendly.set(record.name, fn);
         }
         if (record.type !== "PTR") continue;
-        if (record.name === SERVICES && !askedTypes.has(record.data)) {
+        if (record.name === SERVICES) {
+          if (askedTypes.has(record.data)) continue;
           askedTypes.add(record.data);
           mdns.query({ questions: [{ name: record.data, type: "PTR" }] });
         } else if (record.name.endsWith(".in-addr.arpa")) {
           const ip = record.name.replace(".in-addr.arpa", "").split(".").reverse().join(".");
           hostnames.set(ip, stripLocal(record.data));
-        } else if (!instanceName.has(record.data)) {
-          instanceName.set(record.data, record.data.split("._")[0] ?? record.data);
+        } else {
+          instances.add(record.data);
         }
       }
     });
     mdns.on("error", () => {});
 
-    mdns.query({ questions: [{ name: SERVICES, type: "PTR" }] });
+    mdns.query({ questions: [{ name: SERVICES, type: "PTR" }, ...COMMON_SERVICES.map((name) => ({ name, type: "PTR" as const }))] });
     mdns.query({ questions: ips.map((ip) => ({ name: reverseName(ip), type: "PTR" as const })) });
     // Some devices answer a service without its address; ask for those hosts once more
     setTimeout(() => {
@@ -57,12 +83,19 @@ export const discoverNames = (ips: string[]) =>
 
     setTimeout(() => {
       mdns.destroy();
-      const names = new Map(hostnames);
-      for (const [instance, host] of instanceHost) {
-        const ip = hostIp.get(host);
-        const name = instanceName.get(instance) ?? instance.split("._")[0];
-        if (ip && name) names.set(ip, name);
+      const best = new Map<string, { name: string; rank: number }>();
+      const offer = (ip: string | undefined, raw: string | undefined, rank: number) => {
+        const name = raw && cleanName(raw);
+        if (ip && name && rank > (best.get(ip)?.rank ?? 0)) best.set(ip, { name, rank });
+      };
+      for (const [ip, hostname] of hostnames) offer(ip, hostname, RANK.hostname);
+      for (const instance of new Set([...instances, ...instanceHost.keys()])) {
+        const host = instanceHost.get(instance);
+        const ip = host ? hostIp.get(host) : undefined;
+        offer(ip, instance.split("._")[0], RANK.instance);
+        offer(ip, friendly.get(instance), RANK.friendly);
+        if (host) offer(ip, stripLocal(host), RANK.hostname);
       }
-      resolve(names);
+      resolve(new Map([...best].map(([ip, { name }]) => [ip, name])));
     }, LISTEN_MS);
   });
