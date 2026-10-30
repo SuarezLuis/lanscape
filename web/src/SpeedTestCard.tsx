@@ -2,6 +2,9 @@ import { Button, Card, Group, SimpleGrid, Stack, Text, Title } from "@mantine/co
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { useSubscription } from "@trpc/tanstack-react-query";
+import { useIconHover } from "./icons/animate";
+import { PlayIcon } from "./icons/play";
+import { XIcon } from "./icons/x";
 import { gaugeMax, SpeedGauge } from "./SpeedGauge";
 import { useTRPC } from "./trpc";
 
@@ -16,6 +19,8 @@ export const SpeedTestCard = () => {
   const latest = useQuery(trpc.speedtest.latest.queryOptions());
   const run = useMutation(trpc.speedtest.run.mutationOptions());
   const cancel = useMutation(trpc.speedtest.cancel.mutationOptions());
+  const runIcon = useIconHover();
+  const stopIcon = useIconHover();
   // Follows tests started from any tab; null once the test is saved
   const progress =
     useSubscription(
@@ -64,11 +69,20 @@ export const SpeedTestCard = () => {
       <Group justify="space-between" mb="md">
         <Title order={3}>Speed test</Title>
         {testing ? (
-          <Button color="red" variant="light" onClick={() => cancel.mutate()} loading={cancel.isPending}>
+          <Button
+            color="red"
+            variant="light"
+            onClick={() => cancel.mutate()}
+            loading={cancel.isPending}
+            leftSection={<XIcon ref={stopIcon.ref} size={16} />}
+            {...stopIcon.hover}
+          >
             Stop
           </Button>
         ) : (
-          <Button onClick={() => run.mutate()}>Run speed test</Button>
+          <Button onClick={() => run.mutate()} leftSection={<PlayIcon ref={runIcon.ref} size={16} />} {...runIcon.hover}>
+            Run speed test
+          </Button>
         )}
       </Group>
 

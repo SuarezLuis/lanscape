@@ -5,6 +5,7 @@ import {
   Card,
   Group,
   type MantineColorScheme,
+  type NavLinkProps,
   NavLink,
   SegmentedControl,
   Stack,
@@ -15,6 +16,14 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { type AnimatedIcon, useIconHover } from "./icons/animate";
+import { BellIcon } from "./icons/bell";
+import { GaugeIcon } from "./icons/gauge";
+import { MoonIcon } from "./icons/moon";
+import { RouterIcon } from "./icons/router";
+import { SunIcon } from "./icons/sun";
+import { SunMoonIcon } from "./icons/sun-moon";
+import { WorkflowIcon } from "./icons/workflow";
 import { navigate, usePath } from "./route";
 import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
@@ -33,6 +42,7 @@ const PAGES = [
   {
     path: "/speedtests",
     label: "Speed tests",
+    icon: GaugeIcon,
     element: (
       <Stack gap="lg">
         <SpeedTestCard />
@@ -43,20 +53,38 @@ const PAGES = [
   {
     path: "/network",
     label: "Network",
+    icon: RouterIcon,
     element: <Placeholder title="Network" text="Devices on your network will show up here." />,
   },
   {
     path: "/automations",
     label: "Automations",
+    icon: WorkflowIcon,
     element: <Placeholder title="Automations" text="Scheduled speed tests and other automations will live here." />,
   },
   {
     path: "/notifications",
     label: "Notifications",
+    icon: BellIcon,
     element: <Placeholder title="Notifications" text="Alerts about your network will show up here." />,
   },
 ] as const;
 const [HOME] = PAGES;
+
+const NavItem = ({ icon: Icon, ...props }: NavLinkProps & { icon: AnimatedIcon; href: string; onClick: (event: React.MouseEvent) => void }) => {
+  const { ref, hover } = useIconHover();
+  return <NavLink {...props} {...hover} leftSection={<Icon ref={ref} size={18} />} />;
+};
+
+const SchemeLabel = ({ icon: Icon, label }: { icon: AnimatedIcon; label: string }) => {
+  const { ref, hover } = useIconHover();
+  return (
+    <Group gap={4} justify="center" wrap="nowrap" {...hover}>
+      <Icon ref={ref} size={14} />
+      {label}
+    </Group>
+  );
+};
 
 export const App = () => {
   const trpc = useTRPC();
@@ -97,8 +125,9 @@ export const App = () => {
       <AppShell.Navbar p="sm">
         <AppShell.Section grow>
           {PAGES.map((item) => (
-            <NavLink
+            <NavItem
               key={item.path}
+              icon={item.icon}
               href={item.path}
               label={item.label}
               active={item.path === page?.path}
@@ -117,9 +146,9 @@ export const App = () => {
             value={colorScheme}
             onChange={(value) => setColorScheme(value as MantineColorScheme)}
             data={[
-              { value: "light", label: "Light" },
-              { value: "dark", label: "Dark" },
-              { value: "auto", label: "Auto" },
+              { value: "light", label: <SchemeLabel icon={SunIcon} label="Light" /> },
+              { value: "dark", label: <SchemeLabel icon={MoonIcon} label="Dark" /> },
+              { value: "auto", label: <SchemeLabel icon={SunMoonIcon} label="Auto" /> },
             ]}
             aria-label="Color scheme"
           />
