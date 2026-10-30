@@ -27,6 +27,7 @@ import { RouterIcon } from "./icons/router";
 import { SunIcon } from "./icons/sun";
 import { ContrastIcon } from "./icons/contrast";
 import { WorkflowIcon } from "./icons/workflow";
+import { NotificationsPage } from "./NotificationsPage";
 import { navigate, usePath } from "./route";
 import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
@@ -69,7 +70,7 @@ const PAGES = [
     path: "/notifications",
     label: "Notifications",
     icon: BellIcon,
-    element: <Placeholder title="Notifications" text="Alerts about your network will show up here." />,
+    element: <NotificationsPage />,
   },
 ] as const;
 const [HOME] = PAGES;
@@ -94,6 +95,7 @@ const SchemeLabel = ({ icon: Icon, label }: { icon: AnimatedIcon; label: string 
 export const App = () => {
   const trpc = useTRPC();
   const health = useQuery(trpc.health.queryOptions());
+  const unread = useQuery({ ...trpc.notifications.unread.queryOptions(), refetchInterval: 60_000 });
   const [navOpen, nav] = useDisclosure();
   // Auto follows the system; Mantine keeps the choice in localStorage
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -150,6 +152,13 @@ export const App = () => {
               key={item.path}
               icon={item.icon}
               href={item.path}
+              rightSection={
+                item.path === "/notifications" && unread.data ? (
+                  <Badge size="sm" color="red" variant="filled">
+                    {unread.data}
+                  </Badge>
+                ) : undefined
+              }
               label={item.label}
               active={item.path === page?.path}
               onClick={(event) => {

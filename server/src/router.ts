@@ -4,6 +4,7 @@ import superjson from "superjson";
 import { z } from "zod";
 import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
+import { METRIC_KEYS, METRICS, NTFY_TOKEN, NTFY_URL, readSettings, sendNtfy } from "./jobs/notify";
 import { findGateway } from "./jobs/ping";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
 import { cancelSpeedtest, currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
@@ -23,6 +24,19 @@ const validTimeZone = (timeZone: string) => {
 
 // The host goes straight into ping's arguments, so only addresses and hostnames get through
 const pingHost = z.union([z.ipv4(), z.ipv6(), z.hostname()]).refine((host) => !host.startsWith("-"));
+
+const ruleInput = z.object({
+  id: z.int().optional(),
+  metric: z.enum(METRIC_KEYS),
+  direction: z.enum(["above", "below"]),
+  mode: z.enum(["fixed", "percent"]),
+  value: z.number().positive().max(100_000),
+  sustainMinutes: z.int().min(0).max(60),
+  enabled: z.boolean(),
+});
+
+const saveSetting = (key: string, value: string) =>
+  prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
 
 const automationInput = z.discriminatedUnion("job", [
   z.object({
@@ -61,6 +75,42 @@ export const appRouter = t.router({
       yield currentProgress();
       for await (const [progress] of on(speedtestEvents, "progress", { signal })) yield progress;
     }),
+  }),
+  notifications: t.router({
+    rules: t.procedure.query(async () => ({
+      rules: await prisma.notificationRule.findMany({ orderBy: { id: "asc" } }),
+      metrics: METRICS,
+    })),
+    // Any edit starts the rule's state over, so a changed threshold can't inherit an old alert
+    saveRule: t.procedure.input(ruleInput).mutation(({ input: { id, ...rule } }) => {
+      const data = { ...rule, pendingSince: null, alerting: false };
+      return id ? prisma.notificationRule.update({ where: { id }, data }) : prisma.notificationRule.create({ data });
+    }),
+    deleteRule: t.procedure.input(z.object({ id: z.int() })).mutation(({ input }) =>
+      prisma.notificationRule.delete({ where: { id: input.id } }),
+    ),
+    list: t.procedure.query(() => prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 200 })),
+    unread: t.procedure.query(() => prisma.notification.count({ where: { read: false } })),
+    markAllRead: t.procedure.mutation(() => prisma.notification.updateMany({ where: { read: false }, data: { read: true } })),
+    // The token never leaves the server; the page only learns whether one is set
+    channel: t.procedure.query(async () => {
+      const { url, token } = await readSettings();
+      return { url, hasToken: token !== null };
+    }),
+    saveChannel: t.procedure
+      .input(
+        z.object({
+          url: z.union([z.url({ protocol: /^https?$/ }), z.literal("")]),
+          token: z.string().max(500).optional(), // undefined keeps the saved token, "" clears it
+        }),
+      )
+      .mutation(async ({ input }) => {
+        await saveSetting(NTFY_URL, input.url);
+        if (input.token !== undefined) await saveSetting(NTFY_TOKEN, input.token);
+      }),
+    test: t.procedure.mutation(() =>
+      sendNtfy("Test notification", "Notifications from LANscape will arrive here.", false),
+    ),
   }),
   automations: t.router({
     list: t.procedure.query(async () => {

@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { prisma } from "../db";
 import type { SpeedTest } from "../generated/prisma/client";
+import { checkRules, testValues } from "./notify";
 import { pingTargets } from "./ping";
 
 const TIMEOUT_MS = 120_000;
@@ -155,7 +156,7 @@ export const runSpeedtest = (trigger: Trigger) => {
     if (cancelRequested) return null;
     const lines = await measure();
     if (!lines) return null;
-    return prisma.speedTest.create({
+    const test = await prisma.speedTest.create({
       data: {
         ...parseSpeedtestSummary(lines),
         trigger,
@@ -163,6 +164,10 @@ export const runSpeedtest = (trigger: Trigger) => {
         internetPingMs: avgFor(pings, "internet"),
       },
     });
+    await checkRules(testValues(test)).catch((error: unknown) => {
+      console.error("Checking notification rules failed:", error instanceof Error ? error.message : error);
+    });
+    return test;
   })().finally(() => {
     running = null;
     report(null);

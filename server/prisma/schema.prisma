@@ -46,3 +46,36 @@ model PingSample {
 
   @@index([createdAt])
 }
+
+model NotificationRule {
+  id             Int            @id @default(autoincrement())
+  metric         String // download | upload | testPing | jitter | internetPing | routerPing | internetLoss | routerLoss
+  direction      String // "above" | "below"
+  mode           String // "fixed" (value in the metric's unit) | "percent" (value % away from the 7-day median)
+  value          Float
+  sustainMinutes Int            @default(0) // how long the problem must last before it notifies
+  enabled        Boolean        @default(false)
+  // State: when the condition started holding, and whether a problem notification is out
+  pendingSince   DateTime?
+  alerting       Boolean        @default(false)
+  notifications  Notification[]
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  createdAt DateTime         @default(now())
+  ruleId    Int
+  rule      NotificationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  kind      String // "problem" | "resolved"
+  value     Float
+  baseline  Float? // the 7-day median at the time, for percent rules
+  message   String
+  read      Boolean          @default(false)
+
+  @@index([createdAt])
+}
+
+model Setting {
+  key   String @id
+  value String
+}

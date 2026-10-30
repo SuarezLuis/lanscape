@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { prisma } from "../db";
+import { checkRules, pingValues } from "./notify";
 import type { Trigger } from "./speedtest";
 
 const execFileAsync = promisify(execFile);
@@ -64,4 +65,5 @@ export const pingTargets = async () => {
 export const runPingCheck = async (trigger: Trigger) => {
   const samples = await pingTargets();
   await prisma.pingSample.createMany({ data: samples.map((sample) => ({ ...sample, trigger })) });
+  await checkRules(pingValues(samples));
 };
