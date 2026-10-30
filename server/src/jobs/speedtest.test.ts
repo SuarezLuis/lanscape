@@ -63,3 +63,10 @@ test("lists servers and skips the line with the public IP", () => {
     { id: "72771", name: "Austin, TX", country: "United States", sponsor: "Fiberfirst", distanceKm: 24.12, latencyMs: null },
   ]);
 });
+
+test("parses the server line when a server is chosen, which has no country", () => {
+  const chosen = realRun.map((line) =>
+    line.startsWith("✓ Test Server") ? "✓ Test Server: [5342] 23.71km Georgetown, TX by Optimum Online" : line,
+  );
+  expect(parseSpeedtestSummary(chosen)).toMatchObject({ serverId: "5342", serverName: "Georgetown, TX", serverSponsor: "Optimum Online" });
+});

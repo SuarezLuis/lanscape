@@ -50,7 +50,7 @@ export const parseSpeedtestSummary = (lines: string[]) => {
   const text = lines.join("\n");
   const [, serverId = "", distance = "", serverName = "", serverSponsor = ""] = required(
     text,
-    /^✓ Test Server: \[(\d+)\] ([\d.]+)km (.+) \([^)]*\) by (.+)$/m,
+    /^✓ Test Server: \[(\d+)\] ([\d.]+)km (.+?)(?: \([^)]*\))? by (.+)$/m,
     "test server",
   );
   const [, ping = "", jitter = ""] = required(text, /^✓ Latency: (\S+) Jitter: (\S+)/m, "latency");

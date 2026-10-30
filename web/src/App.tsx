@@ -28,7 +28,8 @@ import { WorkflowIcon } from "./icons/workflow";
 import { NetworkPage } from "./NetworkPage";
 import { NotificationsPage } from "./NotificationsPage";
 import { AuthScreen } from "./AuthScreen";
-import { HelpPage } from "./HelpPage";
+import { GitHubDoc } from "./GitHubDoc";
+import { BookTextIcon } from "./icons/book-text";
 import { CircleHelpIcon } from "./icons/circle-help";
 import { SettingsIcon } from "./icons/settings";
 import { navigate, usePath } from "./route";
@@ -68,7 +69,8 @@ const PAGES = [
     element: <NotificationsPage />,
   },
   { path: "/settings", label: "Settings", icon: SettingsIcon, element: <SettingsPage />, bottom: true },
-  { path: "/help", label: "Help", icon: CircleHelpIcon, element: <HelpPage />, bottom: true },
+  { path: "/help", label: "Help", icon: CircleHelpIcon, element: <GitHubDoc path="docs/HELP.md" />, bottom: true },
+  { path: "/about", label: "About", icon: BookTextIcon, element: <GitHubDoc path="README.md" />, bottom: true },
 ] as const;
 const [HOME] = PAGES;
 
