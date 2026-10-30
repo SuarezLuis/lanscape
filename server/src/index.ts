@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
-import { readSessionCookie, resetPasswordIfRequested, sessionValid } from "./auth";
+import { preparePassword, readSessionCookie, sessionValid } from "./auth";
 import { EXPORTS, isExportName } from "./export";
 import { startRetention } from "./jobs/retention";
 import { startScheduler } from "./jobs/scheduler";
@@ -17,7 +17,7 @@ if (!Number.isInteger(port) || port <= 0) {
 
 const app = Fastify({ logger: true });
 
-await resetPasswordIfRequested();
+await preparePassword();
 
 await app.register(fastifyTRPCPlugin, {
   prefix: "/trpc",

@@ -92,16 +92,43 @@ export const recordLogin = (ip: string, ok: boolean) => {
   failures.set(ip, { count: count >= MAX_FAILURES ? 0 : count, lockedUntil: count >= MAX_FAILURES ? Date.now() + LOCKOUT_MS : 0 });
 };
 
+// On Umbrel, APP_PASSWORD is the per-install password the dashboard shows for LANscape (deterministicPassword)
+export const umbrelPassword = () => process.env.APP_PASSWORD || null;
+
+// "umbrel": use Umbrel's password; "clear": back to first-run setup; null: leave it
+export const passwordAction = (state: { hasPassword: boolean; onUmbrel: boolean; resetSetting: boolean; resetFile: boolean }) => {
+  if (state.resetFile) return state.onUmbrel ? "umbrel" : "clear";
+  if (state.onUmbrel && (state.resetSetting || !state.hasPassword)) return "umbrel";
+  return null;
+};
+
 /**
- * Forgotten password: put an empty file named reset-password next to the database and restart.
- * On Umbrel that's ~/umbrel/app-data/sz-lanscape/data/reset-password.
+ * Runs on start. On Umbrel a new install starts with Umbrel's password, so there's no first-run screen for someone
+ * else on the LAN to reach first. Two ways back to it when forgotten: the RESET_PASSWORD app setting (umbrelOS 2.0),
+ * or an empty reset-password file next to the database (~/umbrel/app-data/sz-lanscape/data/reset-password).
  */
-export const resetPasswordIfRequested = async () => {
+export const preparePassword = async () => {
   const database = (process.env.DATABASE_URL ?? "file:./dev.db").replace(/^file:/, "");
   const flag = join(dirname(resolve(database)), "reset-password");
-  if (!existsSync(flag)) return;
-  await prisma.setting.deleteMany({ where: { key: PASSWORD } });
-  await endAllSessions();
-  unlinkSync(flag);
-  console.warn("Password cleared by reset-password file; the next visitor sets a new one");
+  const resetFile = existsSync(flag);
+  const umbrel = umbrelPassword();
+  const action = passwordAction({
+    hasPassword: await passwordIsSet(),
+    onUmbrel: umbrel !== null,
+    resetSetting: process.env.RESET_PASSWORD === "yes",
+    resetFile,
+  });
+  if (resetFile) unlinkSync(flag);
+
+  if (action === "clear") {
+    await prisma.setting.deleteMany({ where: { key: PASSWORD } });
+    await endAllSessions();
+    console.warn("Password cleared by reset-password file; the next visitor sets a new one");
+  }
+  // Left on, the reset setting only signs people out when the password actually changes
+  if (action === "umbrel" && umbrel && !(await checkPassword(umbrel))) {
+    await setPassword(umbrel);
+    await endAllSessions();
+    console.warn("Password set to the one Umbrel shows for LANscape");
+  }
 };

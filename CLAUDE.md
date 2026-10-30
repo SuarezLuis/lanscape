@@ -25,7 +25,7 @@ Node 26 LTS, npm workspaces (`server/`, `web/`), Fastify + tRPC v11 with superjs
 
 ## How it runs on Umbrel
 
-One container on the host network (device discovery needs the real LAN), port 4545, SQLite at `/data/lanscape.db` (mounted from `${APP_DATA_DIR}/data`). Prisma migrations run on container start. Host-network apps skip Umbrel's login, so LANscape has its own: a password set on first run, sessions in an HttpOnly cookie (`server/src/auth.ts`). Every tRPC procedure except `health` and `auth.*` requires a session. A `reset-password` file next to the database clears the password on start. The compose file needs `init: true` (Node is PID 1 and must not leave zombie `script`/`speedtest-go` processes).
+One container on the host network (device discovery needs the real LAN), port 4545, SQLite at `/data/lanscape.db` (mounted from `${APP_DATA_DIR}/data`). Prisma migrations run on container start. Host-network apps skip Umbrel's login, so LANscape has its own (`server/src/auth.ts`), with sessions in an HttpOnly cookie. Every tRPC procedure except `health` and `auth.*` requires a session. On Umbrel the compose passes `APP_PASSWORD` (Umbrel's per-install password, shown via `deterministicPassword`), which seeds the password when none is set; the `RESET_PASSWORD=yes` app setting or a `reset-password` file next to the database resets to it. Without `APP_PASSWORD` (plain Docker) the first visit sets the password. The compose file needs `init: true` (Node is PID 1 and must not leave zombie `script`/`speedtest-go` processes).
 
 Umbrel can't build images. CI (`.github/workflows/ci.yml`) builds amd64 + arm64 and pushes `ghcr.io/suarezluis/lanscape`: `edge` on every `master` push, `X.Y.Z` on a `vX.Y.Z` tag.
 

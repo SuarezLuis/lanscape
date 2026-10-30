@@ -2,11 +2,13 @@
 
 LANscape watches your home network from your Umbrel: internet speed, latency, the devices on your network, and alerts when something changes.
 
-## First run
+## Signing in
 
-The first time you open LANscape it asks you to set a password. Umbrel's own login doesn't cover apps on the host network, so without one anyone on your Wi-Fi could open LANscape. You can change the password later in **Settings**.
+Umbrel's own login doesn't cover apps on the host network, so LANscape has its own password. On Umbrel it starts with the password Umbrel generated for it: open LANscape's menu on the Umbrel home screen to see it. You can change it in **Settings**, and **Reset to the Umbrel password** there switches back.
 
-**Forgot it?** Create an empty file named `reset-password` in LANscape's data folder, `~/umbrel/app-data/sz-lanscape/data`, then restart the app. The password is cleared and the next visit asks for a new one.
+**Forgot it?** In Umbrel, open LANscape's settings, set `RESET_PASSWORD` to `yes` and restart the app. The password goes back to the one Umbrel shows. Clear the setting afterwards, or each restart resets it again.
+
+Running LANscape outside Umbrel, the first visit asks you to set a password. To clear a forgotten one, create an empty file named `reset-password` next to the database and restart.
 
 ## Speed tests
 

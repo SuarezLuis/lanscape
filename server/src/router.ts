@@ -13,6 +13,7 @@ import {
   sessionCookie,
   sessionValid,
   setPassword,
+  umbrelPassword,
 } from "./auth";
 import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
@@ -95,6 +96,7 @@ export const appRouter = t.router({
     status: publicProcedure.query(async ({ ctx }) => ({
       passwordSet: await passwordIsSet(),
       signedIn: await sessionValid(ctx.token),
+      onUmbrel: umbrelPassword() !== null,
     })),
     // First run only: whoever opens LANscape first sets the password, like Umbrel's own setup
     setup: publicProcedure.input(z.object({ password })).mutation(async ({ ctx, input }) => {
@@ -120,6 +122,13 @@ export const appRouter = t.router({
       recordLogin(ctx.ip, ok);
       if (!ok) throw new TRPCError({ code: "BAD_REQUEST", message: "The current password is wrong" });
       await setPassword(input.next);
+      await endAllSessions(ctx.token ?? undefined);
+    }),
+    // Back to the password Umbrel shows on its dashboard; other browsers are signed out
+    resetToUmbrel: procedure.mutation(async ({ ctx }) => {
+      const umbrel = umbrelPassword();
+      if (!umbrel) throw new TRPCError({ code: "BAD_REQUEST", message: "Not running on Umbrel" });
+      await setPassword(umbrel);
       await endAllSessions(ctx.token ?? undefined);
     }),
     logoutEverywhere: procedure.mutation(async ({ ctx }) => {
