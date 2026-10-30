@@ -112,7 +112,10 @@ export const SpeedHistory = () => {
                             fz="sm"
                             onClick={() => setSort({ key: column.key, desc: active ? !sort.desc : column.numeric || column.key === "createdAt" })}
                           >
-                            {column.label} {active ? (sort.desc ? "↓" : "↑") : ""}
+                            {column.label}{" "}
+                            <Text span inherit c={active ? undefined : "dimmed"} aria-hidden>
+                              {active ? (sort.desc ? "↓" : "↑") : "↕"}
+                            </Text>
                           </UnstyledButton>
                         </Table.Th>
                       );
