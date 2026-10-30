@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Lanscape
 
 Personal home-network monitoring app for Umbrel. Owner: SuarezLuis.
@@ -9,9 +13,14 @@ Personal home-network monitoring app for Umbrel. Owner: SuarezLuis.
 
 Node 26 LTS, npm workspaces (`server/`, `web/`), Fastify + tRPC v11 with superjson, Prisma 7 + SQLite via `@prisma/adapter-better-sqlite3`, React 19 + Vite + Mantine + TanStack Query, Vitest, TypeScript 7.
 
+- The whole API is `server/src/router.ts`. Procedures call Prisma or a job; the web reaches them through `useTRPC()` from `web/src/trpc.ts`.
 - Background work (speed tests, later device scans) lives in `server/src/jobs/`, separate from the API.
 - The server is bundled with esbuild. The web app imports only the `AppRouter` type from `@lanscape/server/router`.
-- Checks: `npm run typecheck`, `npm test`, `npm run build`. Dev: `npm run dev`.
+- In production Fastify serves `web/dist` next to `/trpc`. In dev, Vite on :5173 proxies `/trpc` to the server on :4545.
+- The Prisma client is generated into `server/src/generated/prisma` (gitignored) by the server's `postinstall`. Re-run `npm install` or `npm exec -w server -- prisma generate` after a schema change.
+- Local DB defaults to `server/dev.db`. Tests run against `file::memory:` (`server/vitest.config.ts`), and router tests call procedures through `appRouter.createCaller({})`.
+- Speed tests locally need `speedtest-go` on `PATH`, or `SPEEDTEST_BIN` pointing at it.
+- Checks: `npm run typecheck`, `npm test`, `npm run build`. One test file: `npm test -w server -- src/jobs/speedtest.test.ts` (add `-t "<name>"` for one test). Dev: `npm run dev`.
 - Schema change: edit `server/prisma/schema.prisma`, then `npm exec -w server -- prisma migrate dev --name <change>` against a throwaway `DATABASE_URL`.
 
 ## How it runs on Umbrel
