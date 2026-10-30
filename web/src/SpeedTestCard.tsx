@@ -30,9 +30,9 @@ export const SpeedTestCard = () => {
 
   const result = latest.data;
 
-  // The dial starts sized for the last result and only grows during a test, so the needle never jumps back
+  // The dial starts at the smallest scale and only grows during a test, so the needle never jumps back
   const peak = useRef(0);
-  if (!testing) peak.current = result ? Math.max(result.downloadMbps, result.uploadMbps) : 0;
+  if (!testing) peak.current = 0;
   peak.current = Math.max(peak.current, live.downloadMbps ?? 0, live.uploadMbps ?? 0);
   const stats = result
     ? [
