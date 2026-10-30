@@ -10,6 +10,9 @@ const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
 
 export const LAST_SCAN = "devices.lastScan";
+const FIRST_SCAN = "devices.firstScan";
+// Sleeping phones and plugs miss early scans; joining in the first day isn't news
+const LEARNING_MS = 24 * 60 * 60 * 1000;
 export const NEW_DEVICE_ALERTS = "notify.newDevice";
 
 let oui: Record<string, string> | null = null;
@@ -44,9 +47,13 @@ const scan = async () => {
   const names = await discoverNames(found.map((device) => device.ip));
 
   const scanAt = new Date();
-  const [known, lastScan] = await Promise.all([
+  const [known, firstScan] = await Promise.all([
     prisma.device.findMany({ select: { mac: true } }),
-    prisma.setting.findUnique({ where: { key: LAST_SCAN } }),
+    prisma.setting.upsert({
+      where: { key: FIRST_SCAN },
+      create: { key: FIRST_SCAN, value: scanAt.toISOString() },
+      update: {},
+    }),
   ]);
   const knownMacs = new Set(known.map((device) => device.mac));
   const added = [];
@@ -68,9 +75,9 @@ const scan = async () => {
     update: { value: scanAt.toISOString() },
   });
 
-  // The first scan finds everything; only devices that show up after it are news
+  const learning = scanAt.getTime() - new Date(firstScan.value).getTime() < LEARNING_MS;
   const alertsOn = (await prisma.setting.findUnique({ where: { key: NEW_DEVICE_ALERTS } }))?.value !== "off";
-  if (lastScan && alertsOn) {
+  if (!learning && alertsOn) {
     for (const device of added) {
       const message = `${device.label} joined your network at ${device.ip} (${device.mac}).`;
       await prisma.notification.create({ data: { kind: "device", value: 0, message } });

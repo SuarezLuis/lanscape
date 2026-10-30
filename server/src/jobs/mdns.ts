@@ -18,6 +18,8 @@ const COMMON_SERVICES = [
   "_device-info._tcp.local",
 ];
 
+const GROUP = { port: 5353, address: "224.0.0.251" };
+
 const stripLocal = (name: string) => name.replace(/\.local\.?$/, "");
 const reverseName = (ip: string) => `${ip.split(".").reverse().join(".")}.in-addr.arpa`;
 
@@ -42,7 +44,13 @@ const RANK = { friendly: 3, instance: 2, hostname: 1 };
  */
 export const discoverNames = (ips: string[]) =>
   new Promise<Map<string, string>>((resolve) => {
-    const mdns = makeMdns({ reuseAddr: true });
+    // Two sockets: the shared 5353 one hears answers sent to the group, but the host's own mDNS daemon (avahi on
+    // Umbrel) also holds 5353; querying from a random port makes devices answer us directly instead
+    const sockets = [makeMdns({ reuseAddr: true }), makeMdns({ port: 0, multicast: false })] as const;
+    const ask = (questions: { name: string; type: "PTR" | "A" }[]) => {
+      sockets[0].query({ questions });
+      sockets[1].query({ questions }, GROUP);
+    };
     const askedTypes = new Set<string>(COMMON_SERVICES);
     const hostIp = new Map<string, string>();
     const instanceHost = new Map<string, string>();
@@ -50,7 +58,7 @@ export const discoverNames = (ips: string[]) =>
     const instances = new Set<string>();
     const hostnames = new Map<string, string>();
 
-    mdns.on("response", (packet) => {
+    const onResponse = (packet: makeMdns.ResponsePacket) => {
       for (const record of [...packet.answers, ...(packet.additionals ?? [])]) {
         if (record.type === "A") hostIp.set(record.name, record.data);
         if (record.type === "SRV") instanceHost.set(record.name, record.data.target);
@@ -62,7 +70,7 @@ export const discoverNames = (ips: string[]) =>
         if (record.name === SERVICES) {
           if (askedTypes.has(record.data)) continue;
           askedTypes.add(record.data);
-          mdns.query({ questions: [{ name: record.data, type: "PTR" }] });
+          ask([{ name: record.data, type: "PTR" }]);
         } else if (record.name.endsWith(".in-addr.arpa")) {
           const ip = record.name.replace(".in-addr.arpa", "").split(".").reverse().join(".");
           hostnames.set(ip, stripLocal(record.data));
@@ -70,19 +78,22 @@ export const discoverNames = (ips: string[]) =>
           instances.add(record.data);
         }
       }
-    });
-    mdns.on("error", () => {});
+    };
+    for (const socket of sockets) {
+      socket.on("response", onResponse);
+      socket.on("error", () => {});
+    }
 
-    mdns.query({ questions: [{ name: SERVICES, type: "PTR" }, ...COMMON_SERVICES.map((name) => ({ name, type: "PTR" as const }))] });
-    mdns.query({ questions: ips.map((ip) => ({ name: reverseName(ip), type: "PTR" as const })) });
+    ask([{ name: SERVICES, type: "PTR" }, ...COMMON_SERVICES.map((name) => ({ name, type: "PTR" as const }))]);
+    ask(ips.map((ip) => ({ name: reverseName(ip), type: "PTR" as const })));
     // Some devices answer a service without its address; ask for those hosts once more
     setTimeout(() => {
       const missing = [...new Set(instanceHost.values())].filter((host) => !hostIp.has(host));
-      if (missing.length) mdns.query({ questions: missing.map((name) => ({ name, type: "A" as const })) });
+      if (missing.length) ask(missing.map((name) => ({ name, type: "A" as const })));
     }, LISTEN_MS / 2);
 
     setTimeout(() => {
-      mdns.destroy();
+      for (const socket of sockets) socket.destroy();
       const best = new Map<string, { name: string; rank: number }>();
       const offer = (ip: string | undefined, raw: string | undefined, rank: number) => {
         const name = raw && cleanName(raw);
