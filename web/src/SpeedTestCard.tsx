@@ -5,7 +5,8 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import { gaugeMax, SpeedGauge } from "./SpeedGauge";
 import { useTRPC } from "./trpc";
 
-const COLORS = { download: "var(--mantine-color-teal-filled)", upload: "var(--mantine-color-grape-filled)" };
+// Same steps as the history charts; validated for both color schemes
+const COLORS = { download: "var(--mantine-color-teal-7)", upload: "var(--mantine-color-grape-6)" };
 
 const mbps = (value: number | null) => (value === null ? "—" : value.toFixed(0));
 
@@ -20,7 +21,7 @@ export const SpeedTestCard = () => {
     useSubscription(
       trpc.speedtest.progress.subscriptionOptions(undefined, {
         onData: (data) => {
-          if (!data) void queryClient.invalidateQueries({ queryKey: trpc.speedtest.latest.queryKey() });
+          if (!data) void queryClient.invalidateQueries(trpc.speedtest.pathFilter());
         },
       }),
     ).data ?? null;

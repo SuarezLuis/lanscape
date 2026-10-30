@@ -1,13 +1,23 @@
-import { AppShell, Badge, Burger, Card, Group, NavLink, Text, Title } from "@mantine/core";
+import { AppShell, Badge, Burger, Card, Group, NavLink, Stack, Text, Title } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { navigate, usePath } from "./route";
+import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
 
 const PAGES = [
-  { path: "/speedtests", label: "Speed tests", element: <SpeedTestCard /> },
+  {
+    path: "/speedtests",
+    label: "Speed tests",
+    element: (
+      <Stack gap="lg">
+        <SpeedTestCard />
+        <SpeedHistory />
+      </Stack>
+    ),
+  },
   {
     path: "/network",
     label: "Network",

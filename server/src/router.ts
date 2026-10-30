@@ -13,6 +13,7 @@ export const appRouter = t.router({
   }),
   speedtest: t.router({
     latest: t.procedure.query(() => prisma.speedTest.findFirst({ orderBy: { createdAt: "desc" } })),
+    history: t.procedure.query(() => prisma.speedTest.findMany({ orderBy: { createdAt: "desc" }, take: 500 })),
     // Resolves null when the test is cancelled
     run: t.procedure.mutation(() => runSpeedtest()),
     cancel: t.procedure.mutation(() => cancelSpeedtest()),
