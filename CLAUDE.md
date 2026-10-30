@@ -2,12 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# Lanscape
+# LANscape
 
 Personal home-network monitoring app for Umbrel. Owner: SuarezLuis.
 
 - App source: this repo (github.com/SuarezLuis/lanscape)
-- Umbrel community app store: `~/Projects/umbrel-apps` (github.com/SuarezLuis/umbrel-apps). Store id `sz`, app folder `sz-lanscape/` (`umbrel-app.yml`, `docker-compose.yml`, `icon.svg`)
+- Umbrel community app store (lists the app as "LANscape"): `~/Projects/umbrel-apps` (github.com/SuarezLuis/umbrel-apps). Store id `sz`, app folder `sz-lanscape/` (`umbrel-app.yml`, `docker-compose.yml`, `icon.svg`)
 
 ## Stack
 

@@ -1,4 +1,4 @@
-# Lanscape
+# LANscape
 
 Home network monitoring for Umbrel: speed test history, device discovery and a network overview.
 

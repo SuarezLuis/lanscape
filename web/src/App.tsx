@@ -58,7 +58,7 @@ export const App = () => {
           <Group gap="sm">
             <Burger opened={navOpen} onClick={nav.toggle} hiddenFrom="sm" size="sm" aria-label="Toggle navigation" />
             <Title order={2} size="h3">
-              Lanscape
+              LANscape
             </Title>
           </Group>
           <Badge color={color} maw="50%">
