@@ -64,9 +64,9 @@ model NotificationRule {
 model Notification {
   id        Int              @id @default(autoincrement())
   createdAt DateTime         @default(now())
-  ruleId    Int
-  rule      NotificationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  kind      String // "problem" | "resolved"
+  ruleId    Int? // null for event alerts like a new device
+  rule      NotificationRule? @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  kind      String // "problem" | "resolved" | "device"
   value     Float
   baseline  Float? // the 7-day median at the time, for percent rules
   message   String
@@ -78,4 +78,14 @@ model Notification {
 model Setting {
   key   String @id
   value String
+}
+
+model Device {
+  mac       String   @id
+  ip        String
+  vendor    String?
+  hostname  String? // discovered over mDNS
+  name      String? // set by the user; shown instead of hostname
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime // equals the last scan time while the device is online
 }

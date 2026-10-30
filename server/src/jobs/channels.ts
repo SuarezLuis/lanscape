@@ -2,7 +2,7 @@ import { z } from "zod";
 import { prisma } from "../db";
 
 export type Alert = {
-  kind: "problem" | "resolved" | "test";
+  kind: "problem" | "resolved" | "device" | "test";
   title: string;
   message: string;
   metric?: string;
@@ -38,7 +38,7 @@ export const CHANNELS = {
         body: alert.message,
         headers: {
           Title: `LANscape: ${alert.title}`,
-          Tags: alert.kind === "problem" ? "warning" : "white_check_mark",
+          Tags: { problem: "warning", resolved: "white_check_mark", device: "new", test: "white_check_mark" }[alert.kind],
           Priority: alert.kind === "problem" ? "high" : "default",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -123,7 +123,8 @@ export const saveChannel = async (id: ChannelId, changes: Record<string, string 
 const send = async (id: ChannelId, alert: Alert) => {
   const values = await readValues(id);
   if (!isConfigured(id, values)) throw new Error("This channel isn't set up yet");
-  return (CHANNELS[id] as Channel<Fields>).send(values, alert);
+  await (CHANNELS[id] as Channel<Fields>).send(values, alert);
+  return true;
 };
 
 export const sendTest = (id: ChannelId) =>

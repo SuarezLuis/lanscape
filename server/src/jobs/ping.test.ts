@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { gatewayFromRoutes, parsePingOutput } from "./ping";
+import { defaultRoute, parsePingOutput } from "./ping";
 
 test("reads the default gateway from /proc/net/route", () => {
   const routes = [
@@ -8,8 +8,8 @@ test("reads the default gateway from /proc/net/route", () => {
     "wlan0\t00000000\t0101A8C0\t0003\t0\t0\t600\t00000000\t0\t0\t0",
     "eno1\t0000A8C0\t00000000\t0001\t0\t0\t100\t00FFFFFF\t0\t0\t0",
   ].join("\n");
-  expect(gatewayFromRoutes(routes)).toBe("192.168.0.1");
-  expect(gatewayFromRoutes(routes.split("\n").slice(0, 1).join("\n"))).toBeNull();
+  expect(defaultRoute(routes)).toEqual({ iface: "eno1", gateway: "192.168.0.1" });
+  expect(defaultRoute(routes.split("\n").slice(0, 1).join("\n"))).toBeNull();
 });
 
 test("parses Linux ping summaries, including total loss", () => {

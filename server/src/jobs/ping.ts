@@ -13,15 +13,16 @@ export const DEFAULT_INTERNET_HOST = "1.1.1.1";
 const ARGS = ["-c", String(COUNT), "-i", "0.2", "-W", process.platform === "darwin" ? "1000" : "1"];
 
 // The default route with the lowest metric; /proc/net/route stores IPv4 addresses as little-endian hex
-export const gatewayFromRoutes = (routes: string) => {
+export const defaultRoute = (routes: string) => {
   const defaults = routes
     .split("\n")
     .slice(1)
     .map((line) => line.trim().split(/\s+/))
     .filter((fields) => fields[1] === "00000000" && fields[2] && fields[2] !== "00000000")
     .toSorted((a, b) => Number(a[6]) - Number(b[6]));
-  const hex = defaults[0]?.[2];
-  return hex ? (hex.match(/../g) ?? []).reverse().map((byte) => parseInt(byte, 16)).join(".") : null;
+  const [iface, , hex] = defaults[0] ?? [];
+  if (!iface || !hex) return null;
+  return { iface, gateway: (hex.match(/../g) ?? []).reverse().map((byte) => parseInt(byte, 16)).join(".") };
 };
 
 // Linux and macOS summaries; jitter is ping's mdev/stddev, the spread of round-trip times
@@ -49,8 +50,8 @@ const ping = async (host: string) => {
   }
 };
 
-export const findGateway = () =>
-  readFile("/proc/net/route", "utf8").then(gatewayFromRoutes, () => null);
+export const findDefaultRoute = () => readFile("/proc/net/route", "utf8").then(defaultRoute, () => null);
+export const findGateway = async () => (await findDefaultRoute())?.gateway ?? null;
 
 // The host set on the ping check automation, so full tests and ping checks measure the same thing
 export const internetHost = async () =>

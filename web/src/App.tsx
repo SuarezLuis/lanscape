@@ -2,7 +2,6 @@ import {
   AppShell,
   Badge,
   Burger,
-  Card,
   Center,
   Group,
   type MantineColorScheme,
@@ -10,7 +9,6 @@ import {
   NavLink,
   SegmentedControl,
   Stack,
-  Text,
   Title,
   Tooltip,
   useMantineColorScheme,
@@ -27,20 +25,12 @@ import { RouterIcon } from "./icons/router";
 import { SunIcon } from "./icons/sun";
 import { ContrastIcon } from "./icons/contrast";
 import { WorkflowIcon } from "./icons/workflow";
+import { NetworkPage } from "./NetworkPage";
 import { NotificationsPage } from "./NotificationsPage";
 import { navigate, usePath } from "./route";
 import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
-
-const Placeholder = ({ title, text }: { title: string; text: string }) => (
-  <Card withBorder padding="md" radius="md">
-    <Title order={3} mb="sm">
-      {title}
-    </Title>
-    <Text c="dimmed">{text}</Text>
-  </Card>
-);
 
 const PAGES = [
   {
@@ -58,7 +48,7 @@ const PAGES = [
     path: "/network",
     label: "Network",
     icon: RouterIcon,
-    element: <Placeholder title="Network" text="Devices on your network will show up here." />,
+    element: <NetworkPage />,
   },
   {
     path: "/automations",

@@ -8,6 +8,7 @@ import { useTRPC } from "./trpc";
 type AutomationInput = inferRouterInputs<AppRouter>["automations"]["update"];
 type SpeedtestInput = Extract<AutomationInput, { job: "speedtest" }>;
 type PingInput = Extract<AutomationInput, { job: "ping" }>;
+type DevicesInput = Extract<AutomationInput, { job: "devices" }>;
 
 const SPEEDTEST_EVERY = [
   { value: "off", label: "Off" },
@@ -20,6 +21,13 @@ const PING_EVERY = [
   { value: "off", label: "Off" },
   { value: "1", label: "Every minute" },
   { value: "5", label: "Every 5 minutes" },
+];
+const DEVICES_EVERY = [
+  { value: "off", label: "Off" },
+  { value: "5", label: "Every 5 minutes" },
+  { value: "15", label: "Every 15 minutes" },
+  { value: "30", label: "Every 30 minutes" },
+  { value: "60", label: "Every hour" },
 ];
 const HOURS = Array.from({ length: 24 }, (_, hour) => ({
   value: String(hour * 60),
@@ -45,7 +53,8 @@ export const AutomationsPage = () => {
 
   const speedtest = list.data?.automations.find((a) => a.job === "speedtest");
   const ping = list.data?.automations.find((a) => a.job === "ping");
-  if (!speedtest || !ping) return null;
+  const devices = list.data?.automations.find((a) => a.job === "devices");
+  if (!speedtest || !ping || !devices) return null;
 
   const savedTarget = ping.target ?? "1.1.1.1";
   const draftTarget = target ?? savedTarget;
@@ -129,6 +138,28 @@ export const AutomationsPage = () => {
           </Group>
           <Text size="sm" c="dimmed">
             Router: {list.data?.router ?? "not found"}. {nextRunText(ping.nextRun)}
+          </Text>
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="md" radius="md">
+        <Stack gap="sm">
+          <Title order={3}>Device scan</Title>
+          <Text size="sm" c="dimmed">
+            Sweeps your network with ARP to keep the device list current and spot new devices. Takes a few seconds and a
+            few KB.
+          </Text>
+          <Select
+            label="How often"
+            data={DEVICES_EVERY}
+            value={fromEvery(devices.everyMinutes)}
+            onChange={(value) =>
+              update.mutate({ job: "devices", everyMinutes: toEvery(value) as DevicesInput["everyMinutes"] })
+            }
+            allowDeselect={false}
+          />
+          <Text size="sm" c="dimmed">
+            {nextRunText(devices.nextRun)}
           </Text>
         </Stack>
       </Card>

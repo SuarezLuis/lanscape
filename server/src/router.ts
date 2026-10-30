@@ -6,6 +6,7 @@ import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
+import { LAST_SCAN, NEW_DEVICE_ALERTS, runDeviceScan } from "./jobs/devices";
 import { findGateway } from "./jobs/ping";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
 import { cancelSpeedtest, currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
@@ -42,6 +43,10 @@ const automationInput = z.discriminatedUnion("job", [
     everyMinutes: z.union([z.literal(60), z.literal(360), z.literal(720), z.literal(1440)]).nullable(),
     offsetMinutes: z.int().min(0).max(1439),
     timeZone: z.string().refine(validTimeZone, "Unknown time zone"),
+  }),
+  z.object({
+    job: z.literal("devices"),
+    everyMinutes: z.union([z.literal(5), z.literal(15), z.literal(30), z.literal(60)]).nullable(),
   }),
   z.object({
     job: z.literal("ping"),
@@ -91,10 +96,34 @@ export const appRouter = t.router({
     unread: t.procedure.query(() => prisma.notification.count({ where: { read: false } })),
     markAllRead: t.procedure.mutation(() => prisma.notification.updateMany({ where: { read: false }, data: { read: true } })),
     channels: t.procedure.query(() => describeChannels()),
+    newDeviceAlerts: t.procedure.query(
+      async () => (await prisma.setting.findUnique({ where: { key: NEW_DEVICE_ALERTS } }))?.value !== "off",
+    ),
+    setNewDeviceAlerts: t.procedure.input(z.boolean()).mutation(({ input }) => {
+      const value = input ? "on" : "off";
+      return prisma.setting.upsert({ where: { key: NEW_DEVICE_ALERTS }, create: { key: NEW_DEVICE_ALERTS, value }, update: { value } });
+    }),
     saveChannel: t.procedure
       .input(z.object({ channel: z.enum(CHANNEL_IDS), values: z.record(z.string(), z.string().max(1000).optional()) }))
       .mutation(({ input }) => saveChannel(input.channel, input.values)),
     test: t.procedure.input(z.object({ channel: z.enum(CHANNEL_IDS) })).mutation(({ input }) => sendTest(input.channel)),
+  }),
+  devices: t.router({
+    list: t.procedure.query(async () => {
+      const [devices, lastScan] = await Promise.all([
+        prisma.device.findMany(),
+        prisma.setting.findUnique({ where: { key: LAST_SCAN } }),
+      ]);
+      const scannedAt = lastScan ? new Date(lastScan.value) : null;
+      return {
+        lastScan: scannedAt,
+        devices: devices.map((device) => ({ ...device, online: scannedAt !== null && device.lastSeen >= scannedAt })),
+      };
+    }),
+    scan: t.procedure.mutation(() => runDeviceScan()),
+    rename: t.procedure
+      .input(z.object({ mac: z.string(), name: z.string().trim().max(60) }))
+      .mutation(({ input }) => prisma.device.update({ where: { mac: input.mac }, data: { name: input.name || null } })),
   }),
   automations: t.router({
     list: t.procedure.query(async () => {

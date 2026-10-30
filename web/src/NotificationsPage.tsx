@@ -127,6 +127,12 @@ const RuleRow = ({ rule, metrics, save, remove }: { rule: Rule; metrics: Metrics
   );
 };
 
+const KIND: Record<string, { label: string; color: string }> = {
+  problem: { label: "Problem", color: "red" },
+  resolved: { label: "Resolved", color: "teal" },
+  device: { label: "New device", color: "blue" },
+};
+
 type Channel = inferRouterOutputs<AppRouter>["notifications"]["channels"][number];
 
 const CHANNEL_UI: Record<Channel["id"], { label: string; help: string; fields: Record<string, { label: string; placeholder?: string; description?: string }> }> = {
@@ -228,6 +234,8 @@ export const NotificationsPage = () => {
   const deleteRule = useMutation(trpc.notifications.deleteRule.mutationOptions({ onSuccess: refresh }));
   const markAllRead = useMutation(trpc.notifications.markAllRead.mutationOptions({ onSuccess: refresh }));
 
+  const newDeviceAlerts = useQuery(trpc.notifications.newDeviceAlerts.queryOptions());
+  const setNewDeviceAlerts = useMutation(trpc.notifications.setNewDeviceAlerts.mutationOptions({ onSuccess: refresh }));
   const unread = (list.data ?? []).some((notification) => !notification.read);
   // Seeing the page counts as reading it; this view keeps the bold until the next visit
   useEffect(() => {
@@ -277,6 +285,11 @@ export const NotificationsPage = () => {
             Each rule notifies once when a problem starts and once when it clears. "Normal" is the median of the last 7
             days, and needs at least 5 speed tests or an hour of ping checks.
           </Text>
+          <Switch
+            label="New device joins the network"
+            checked={newDeviceAlerts.data ?? true}
+            onChange={(event) => setNewDeviceAlerts.mutate(event.currentTarget.checked)}
+          />
           {rules.data?.rules.map((rule) => (
             <RuleRow
               key={rule.id}
@@ -295,8 +308,8 @@ export const NotificationsPage = () => {
           {(list.data ?? []).length === 0 && <Text c="dimmed">No alerts yet.</Text>}
           {list.data?.map((notification) => (
             <Group key={notification.id} gap="sm" wrap="nowrap" align="flex-start">
-              <Badge color={notification.kind === "problem" ? "red" : "teal"} variant="light" miw={84}>
-                {notification.kind === "problem" ? "Problem" : "Resolved"}
+              <Badge color={KIND[notification.kind]?.color ?? "gray"} variant="light" miw={92}>
+                {KIND[notification.kind]?.label ?? notification.kind}
               </Badge>
               <Text size="sm" fw={notification.read ? undefined : 600} style={{ flex: 1 }}>
                 {notification.message}
