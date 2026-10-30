@@ -14,7 +14,7 @@ Personal home-network monitoring app for Umbrel. Owner: SuarezLuis.
 Node 26 LTS, npm workspaces (`server/`, `web/`), Fastify + tRPC v11 with superjson, Prisma 7 + SQLite via `@prisma/adapter-better-sqlite3`, React 19 + Vite + Mantine + TanStack Query, Vitest, TypeScript 7.
 
 - The whole API is `server/src/router.ts`. Procedures call Prisma or a job; the web reaches them through `useTRPC()` from `web/src/trpc.ts`.
-- Background work (speed tests, later device scans) lives in `server/src/jobs/`, separate from the API.
+- Background work lives in `server/src/jobs/`: speed tests, ping checks, device scans (arp-scan + mDNS), notification rules and channels, the Telegram poller, and data retention. `scheduler.ts` runs the jobs each minute in the time zone saved with each automation (the Umbrel itself runs on UTC).
 - The server is bundled with esbuild. The web app imports only the `AppRouter` type from `@lanscape/server/router`.
 - In production Fastify serves `web/dist` next to `/trpc`. In dev, Vite on :5173 proxies `/trpc` to the server on :4545.
 - The Prisma client is generated into `server/src/generated/prisma` (gitignored) by the server's `postinstall`. Re-run `npm install` or `npm exec -w server -- prisma generate` after a schema change.
@@ -25,7 +25,7 @@ Node 26 LTS, npm workspaces (`server/`, `web/`), Fastify + tRPC v11 with superjs
 
 ## How it runs on Umbrel
 
-One container on the host network (device discovery needs the real LAN), port 4545, SQLite at `/data/lanscape.db` (mounted from `${APP_DATA_DIR}/data`). Prisma migrations run on container start. No auth for now, by choice: host-network apps skip Umbrel's login, so anyone on the LAN can open it.
+One container on the host network (device discovery needs the real LAN), port 4545, SQLite at `/data/lanscape.db` (mounted from `${APP_DATA_DIR}/data`). Prisma migrations run on container start. Host-network apps skip Umbrel's login, so LANscape has its own: a password set on first run, sessions in an HttpOnly cookie (`server/src/auth.ts`). Every tRPC procedure except `health` and `auth.*` requires a session. A `reset-password` file next to the database clears the password on start. The compose file needs `init: true` (Node is PID 1 and must not leave zombie `script`/`speedtest-go` processes).
 
 Umbrel can't build images. CI (`.github/workflows/ci.yml`) builds amd64 + arm64 and pushes `ghcr.io/suarezluis/lanscape`: `edge` on every `master` push, `X.Y.Z` on a `vX.Y.Z` tag.
 
@@ -62,6 +62,10 @@ Portainer on this box runs its own nested Docker daemon (`portainer_docker_1`), 
 - PR descriptions: what changed and what was checked by hand. Skip what CI already shows.
 - Leave one small test behind for any non-trivial logic.
 
+## Docs
+
+User-facing help is `docs/HELP.md`. The app's Help page fetches it from `master` on GitHub, so keep it current when features change. Pre-v1, work happens on a feature branch and is tested on the Umbrel test container (port 4547).
+
 ## Roadmap
 
-Scheduled speed tests with a history chart, device discovery (`arp-scan`, `bonjour-service` for mDNS names, `oui-data` for MAC vendors), per-device activity from the Pi-hole on the same Umbrel.
+Offline alerts for chosen devices, known devices with per-device online history, CSV export, choosing the speed test server, optional Pi-hole names, HTTPS and browser push.

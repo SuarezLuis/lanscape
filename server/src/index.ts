@@ -2,11 +2,12 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
-import Fastify from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
+import { readSessionCookie, resetPasswordIfRequested } from "./auth";
 import { startRetention } from "./jobs/retention";
 import { startScheduler } from "./jobs/scheduler";
 import { startTelegramReplies } from "./jobs/telegram";
-import { appRouter } from "./router";
+import { appRouter, type Context } from "./router";
 
 const port = Number(process.env.PORT ?? 4545);
 if (!Number.isInteger(port) || port <= 0) {
@@ -15,7 +16,19 @@ if (!Number.isInteger(port) || port <= 0) {
 
 const app = Fastify({ logger: true });
 
-await app.register(fastifyTRPCPlugin, { prefix: "/trpc", trpcOptions: { router: appRouter } });
+await resetPasswordIfRequested();
+
+await app.register(fastifyTRPCPlugin, {
+  prefix: "/trpc",
+  trpcOptions: {
+    router: appRouter,
+    createContext: ({ req, res }: { req: FastifyRequest; res: FastifyReply }): Context => ({
+      token: readSessionCookie(req.headers.cookie),
+      ip: req.ip,
+      setCookie: (cookie) => res.header("set-cookie", cookie),
+    }),
+  },
+});
 
 // In dev, Vite serves the page and web/dist may not exist yet
 const webDist = fileURLToPath(new URL("../../web/dist", import.meta.url));

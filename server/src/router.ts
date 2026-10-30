@@ -1,7 +1,19 @@
 import { on } from "node:events";
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z } from "zod";
+import {
+  assertNotLockedOut,
+  checkPassword,
+  createSession,
+  endAllSessions,
+  endSession,
+  passwordIsSet,
+  recordLogin,
+  sessionCookie,
+  sessionValid,
+  setPassword,
+} from "./auth";
 import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
@@ -13,7 +25,23 @@ import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
 import { cancelSpeedtest, currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
 
-const t = initTRPC.create({ transformer: superjson });
+export type Context = { token: string | null; ip: string; setCookie: (cookie: string) => void };
+
+const t = initTRPC.context<Context>().create({ transformer: superjson });
+
+const publicProcedure = t.procedure;
+// Everything except signing in needs a session; host-network apps skip Umbrel's own login
+const procedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!(await sessionValid(ctx.token))) throw new TRPCError({ code: "UNAUTHORIZED", message: "Sign in first" });
+  return next();
+});
+
+const password = z.string().min(8, "Use at least 8 characters").max(200);
+
+const startSession = async (ctx: Context) => {
+  const token = await createSession();
+  ctx.setCookie(sessionCookie(token));
+};
 
 const rangeInput = z.object({ range: z.enum(RANGES) });
 
@@ -58,61 +86,97 @@ const automationInput = z.discriminatedUnion("job", [
 ]);
 
 export const appRouter = t.router({
-  health: t.procedure.query(async () => {
+  auth: t.router({
+    status: publicProcedure.query(async ({ ctx }) => ({
+      passwordSet: await passwordIsSet(),
+      signedIn: await sessionValid(ctx.token),
+    })),
+    // First run only: whoever opens LANscape first sets the password, like Umbrel's own setup
+    setup: publicProcedure.input(z.object({ password })).mutation(async ({ ctx, input }) => {
+      if (await passwordIsSet()) throw new TRPCError({ code: "FORBIDDEN", message: "A password is already set" });
+      await setPassword(input.password);
+      await startSession(ctx);
+    }),
+    login: publicProcedure.input(z.object({ password: z.string().max(200) })).mutation(async ({ ctx, input }) => {
+      assertNotLockedOut(ctx.ip);
+      const ok = await checkPassword(input.password);
+      recordLogin(ctx.ip, ok);
+      if (!ok) throw new TRPCError({ code: "UNAUTHORIZED", message: "Wrong password" });
+      await startSession(ctx);
+    }),
+    logout: publicProcedure.mutation(async ({ ctx }) => {
+      await endSession(ctx.token);
+      ctx.setCookie(sessionCookie(null));
+    }),
+    // Changing the password signs out every other browser
+    changePassword: procedure.input(z.object({ current: z.string().max(200), next: password })).mutation(async ({ ctx, input }) => {
+      assertNotLockedOut(ctx.ip);
+      const ok = await checkPassword(input.current);
+      recordLogin(ctx.ip, ok);
+      if (!ok) throw new TRPCError({ code: "BAD_REQUEST", message: "The current password is wrong" });
+      await setPassword(input.next);
+      await endAllSessions(ctx.token ?? undefined);
+    }),
+    logoutEverywhere: procedure.mutation(async ({ ctx }) => {
+      await endAllSessions();
+      ctx.setCookie(sessionCookie(null));
+    }),
+  }),
+  health: publicProcedure.query(async () => {
     await prisma.$queryRaw`SELECT 1`;
     return { ok: true, version: process.env.APP_VERSION ?? "dev" };
   }),
   speedtest: t.router({
-    latest: t.procedure.query(() => prisma.speedTest.findFirst({ orderBy: { createdAt: "desc" } })),
-    history: t.procedure.input(rangeInput).query(({ input }) => {
+    latest: procedure.query(() => prisma.speedTest.findFirst({ orderBy: { createdAt: "desc" } })),
+    history: procedure.input(rangeInput).query(({ input }) => {
       const from = since(input.range);
       return prisma.speedTest.findMany({
         where: from ? { createdAt: { gte: from } } : {},
         orderBy: { createdAt: "desc" },
       });
     }),
-    latency: t.procedure.input(rangeInput).query(({ input }) => latencyHistory(input.range)),
+    latency: procedure.input(rangeInput).query(({ input }) => latencyHistory(input.range)),
     // Resolves null when the test is cancelled
-    run: t.procedure.mutation(() => runSpeedtest("manual")),
-    cancel: t.procedure.mutation(() => cancelSpeedtest()),
+    run: procedure.mutation(() => runSpeedtest("manual")),
+    cancel: procedure.mutation(() => cancelSpeedtest()),
     // The current test's progress, then every update; null means no test is running
-    progress: t.procedure.subscription(async function* ({ signal }): AsyncGenerator<SpeedtestProgress | null> {
+    progress: procedure.subscription(async function* ({ signal }): AsyncGenerator<SpeedtestProgress | null> {
       yield currentProgress();
       for await (const [progress] of on(speedtestEvents, "progress", { signal })) yield progress;
     }),
   }),
   notifications: t.router({
-    rules: t.procedure.query(async () => ({
+    rules: procedure.query(async () => ({
       rules: await prisma.notificationRule.findMany({ orderBy: { id: "asc" } }),
       metrics: METRICS,
     })),
     // Any edit starts the rule's state over, so a changed threshold can't inherit an old alert
-    saveRule: t.procedure.input(ruleInput).mutation(({ input: { id, ...rule } }) => {
+    saveRule: procedure.input(ruleInput).mutation(({ input: { id, ...rule } }) => {
       const data = { ...rule, pendingSince: null, alerting: false };
       return id ? prisma.notificationRule.update({ where: { id }, data }) : prisma.notificationRule.create({ data });
     }),
-    deleteRule: t.procedure.input(z.object({ id: z.int() })).mutation(({ input }) =>
+    deleteRule: procedure.input(z.object({ id: z.int() })).mutation(({ input }) =>
       prisma.notificationRule.delete({ where: { id: input.id } }),
     ),
-    list: t.procedure.query(() => prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 200 })),
-    unread: t.procedure.query(() => prisma.notification.count({ where: { read: false } })),
-    markAllRead: t.procedure.mutation(() => prisma.notification.updateMany({ where: { read: false }, data: { read: true } })),
-    channels: t.procedure.query(() => describeChannels()),
-    newDeviceAlerts: t.procedure.query(
+    list: procedure.query(() => prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 200 })),
+    unread: procedure.query(() => prisma.notification.count({ where: { read: false } })),
+    markAllRead: procedure.mutation(() => prisma.notification.updateMany({ where: { read: false }, data: { read: true } })),
+    channels: procedure.query(() => describeChannels()),
+    newDeviceAlerts: procedure.query(
       async () => (await prisma.setting.findUnique({ where: { key: NEW_DEVICE_ALERTS } }))?.value !== "off",
     ),
-    setNewDeviceAlerts: t.procedure.input(z.boolean()).mutation(({ input }) => {
+    setNewDeviceAlerts: procedure.input(z.boolean()).mutation(({ input }) => {
       const value = input ? "on" : "off";
       return prisma.setting.upsert({ where: { key: NEW_DEVICE_ALERTS }, create: { key: NEW_DEVICE_ALERTS, value }, update: { value } });
     }),
-    saveChannel: t.procedure
+    saveChannel: procedure
       .input(z.object({ channel: z.enum(CHANNEL_IDS), values: z.record(z.string(), z.string().max(1000).optional()) }))
       .mutation(({ input }) => saveChannel(input.channel, input.values)),
-    test: t.procedure.input(z.object({ channel: z.enum(CHANNEL_IDS) })).mutation(({ input }) => sendTest(input.channel)),
-    findTelegramChats: t.procedure.mutation(() => findTelegramChats()),
+    test: procedure.input(z.object({ channel: z.enum(CHANNEL_IDS) })).mutation(({ input }) => sendTest(input.channel)),
+    findTelegramChats: procedure.mutation(() => findTelegramChats()),
   }),
   devices: t.router({
-    list: t.procedure.query(async () => {
+    list: procedure.query(async () => {
       const [devices, lastScan] = await Promise.all([
         prisma.device.findMany(),
         prisma.setting.findUnique({ where: { key: LAST_SCAN } }),
@@ -123,15 +187,15 @@ export const appRouter = t.router({
         devices: devices.map((device) => ({ ...device, online: scannedAt !== null && device.lastSeen >= scannedAt })),
       };
     }),
-    scan: t.procedure
+    scan: procedure
       .input(z.object({ thorough: z.boolean() }).optional())
       .mutation(({ input }) => runDeviceScan({ thorough: input?.thorough })),
-    rename: t.procedure
+    rename: procedure
       .input(z.object({ mac: z.string(), name: z.string().trim().max(60) }))
       .mutation(({ input }) => prisma.device.update({ where: { mac: input.mac }, data: { name: input.name || null } })),
   }),
   automations: t.router({
-    list: t.procedure.query(async () => {
+    list: procedure.query(async () => {
       const [automations, router] = await Promise.all([loadAutomations(), findGateway()]);
       const withStatus = await Promise.all(
         automations.map(async (automation) => ({
@@ -142,7 +206,7 @@ export const appRouter = t.router({
       );
       return { automations: withStatus, router };
     }),
-    update: t.procedure
+    update: procedure
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
   }),

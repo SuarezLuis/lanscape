@@ -1,0 +1,6 @@
+-- CreateTable
+CREATE TABLE "Session" (
+    "tokenHash" TEXT NOT NULL PRIMARY KEY,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" DATETIME NOT NULL
+);

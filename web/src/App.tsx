@@ -27,7 +27,12 @@ import { ContrastIcon } from "./icons/contrast";
 import { WorkflowIcon } from "./icons/workflow";
 import { NetworkPage } from "./NetworkPage";
 import { NotificationsPage } from "./NotificationsPage";
+import { AuthScreen } from "./AuthScreen";
+import { HelpPage } from "./HelpPage";
+import { CircleHelpIcon } from "./icons/circle-help";
+import { SettingsIcon } from "./icons/settings";
 import { navigate, usePath } from "./route";
+import { SettingsPage } from "./SettingsPage";
 import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
@@ -62,6 +67,8 @@ const PAGES = [
     icon: BellIcon,
     element: <NotificationsPage />,
   },
+  { path: "/settings", label: "Settings", icon: SettingsIcon, element: <SettingsPage />, bottom: true },
+  { path: "/help", label: "Help", icon: CircleHelpIcon, element: <HelpPage />, bottom: true },
 ] as const;
 const [HOME] = PAGES;
 
@@ -82,7 +89,17 @@ const SchemeLabel = ({ icon: Icon, label }: { icon: AnimatedIcon; label: string 
   );
 };
 
+// Nothing but the sign-in screen loads until there's a session
 export const App = () => {
+  const trpc = useTRPC();
+  const auth = useQuery(trpc.auth.status.queryOptions());
+  if (!auth.data) return null;
+  if (!auth.data.passwordSet) return <AuthScreen mode="setup" />;
+  if (!auth.data.signedIn) return <AuthScreen mode="login" />;
+  return <Shell />;
+};
+
+const Shell = () => {
   const trpc = useTRPC();
   const health = useQuery(trpc.health.queryOptions());
   const unread = useQuery({ ...trpc.notifications.unread.queryOptions(), refetchInterval: 60_000 });
@@ -136,8 +153,9 @@ export const App = () => {
       </AppShell.Header>
 
       <AppShell.Navbar p="sm">
-        <AppShell.Section grow>
-          {PAGES.map((item) => (
+        {[PAGES.filter((item) => !("bottom" in item)), PAGES.filter((item) => "bottom" in item)].map((items, section) => (
+        <AppShell.Section key={section} grow={section === 0}>
+          {items.map((item) => (
             <NavItem
               key={item.path}
               icon={item.icon}
@@ -159,6 +177,7 @@ export const App = () => {
             />
           ))}
         </AppShell.Section>
+        ))}
       </AppShell.Navbar>
 
       <AppShell.Main>{(page ?? HOME).element}</AppShell.Main>

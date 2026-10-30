@@ -89,3 +89,9 @@ model Device {
   firstSeen DateTime @default(now())
   lastSeen  DateTime // equals the last scan time while the device is online
 }
+
+model Session {
+  tokenHash String   @id // sha256 of the cookie token, so a leaked database can't sign anyone in
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
