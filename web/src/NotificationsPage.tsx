@@ -304,12 +304,56 @@ export const NotificationsPage = () => {
   const rules = useQuery(trpc.notifications.rules.queryOptions());
   const list = useQuery(trpc.notifications.list.queryOptions());
   const channels = useQuery(trpc.notifications.channels.queryOptions());
-  const saveRule = useMutation(trpc.notifications.saveRule.mutationOptions({ onSuccess: refresh }));
-  const deleteRule = useMutation(trpc.notifications.deleteRule.mutationOptions({ onSuccess: refresh }));
+  // Rule edits show at once and roll back if the server says no, instead of waiting on a save and a refetch
+  const rulesKey = trpc.notifications.rules.queryKey();
+  const editRules = (change: (rules: Rule[]) => Rule[]) => {
+    const previous = queryClient.getQueryData(rulesKey);
+    queryClient.setQueryData(rulesKey, (data) => data && { ...data, rules: change(data.rules) });
+    return { previous };
+  };
+  const rollback = (_error: unknown, _input: unknown, context?: { previous?: RulesData }) =>
+    queryClient.setQueryData(rulesKey, context?.previous);
+  const saveRule = useMutation(
+    trpc.notifications.saveRule.mutationOptions({
+      onMutate: async (input) => {
+        await queryClient.cancelQueries({ queryKey: rulesKey });
+        return editRules((current) =>
+          current.map((rule) => (rule.id === input.id ? { ...rule, ...input, pendingSince: null, alerting: false } : rule)),
+        );
+      },
+      onError: rollback,
+      // New rules have no id until the server answers, so they're added from its reply
+      onSuccess: (saved) =>
+        editRules((current) =>
+          current.some((rule) => rule.id === saved.id)
+            ? current.map((rule) => (rule.id === saved.id ? saved : rule))
+            : [...current, saved],
+        ),
+    }),
+  );
+  const deleteRule = useMutation(
+    trpc.notifications.deleteRule.mutationOptions({
+      onMutate: async ({ id }) => {
+        await queryClient.cancelQueries({ queryKey: rulesKey });
+        return editRules((current) => current.filter((rule) => rule.id !== id));
+      },
+      onError: rollback,
+    }),
+  );
   const markAllRead = useMutation(trpc.notifications.markAllRead.mutationOptions({ onSuccess: refresh }));
 
   const newDeviceAlerts = useQuery(trpc.notifications.newDeviceAlerts.queryOptions());
-  const setNewDeviceAlerts = useMutation(trpc.notifications.setNewDeviceAlerts.mutationOptions({ onSuccess: refresh }));
+  const newDeviceKey = trpc.notifications.newDeviceAlerts.queryKey();
+  const setNewDeviceAlerts = useMutation(
+    trpc.notifications.setNewDeviceAlerts.mutationOptions({
+      onMutate: (enabled) => {
+        const previous = queryClient.getQueryData(newDeviceKey);
+        queryClient.setQueryData(newDeviceKey, enabled);
+        return { previous };
+      },
+      onError: (_error, _input, context) => queryClient.setQueryData(newDeviceKey, context?.previous),
+    }),
+  );
   const unread = (list.data ?? []).some((notification) => !notification.read);
   // Seeing the page counts as reading it; this view keeps the bold until the next visit
   useEffect(() => {
@@ -351,7 +395,7 @@ export const NotificationsPage = () => {
         <Stack gap="sm">
           <Group justify="space-between">
             <Title order={3}>Rules</Title>
-            <Button variant="light" size="xs" onClick={() => saveRule.mutate(NEW_RULE)}>
+            <Button variant="light" size="xs" loading={saveRule.isPending && !saveRule.variables?.id} onClick={() => saveRule.mutate(NEW_RULE)}>
               Add rule
             </Button>
           </Group>
