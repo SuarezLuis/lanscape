@@ -97,7 +97,7 @@ export const App = () => {
   const auth = useQuery(trpc.auth.status.queryOptions());
   if (!auth.data) return null;
   if (!auth.data.passwordSet) return <AuthScreen mode="setup" />;
-  if (!auth.data.signedIn) return <AuthScreen mode="login" />;
+  if (!auth.data.signedIn) return <AuthScreen mode="login" onUmbrel={auth.data.onUmbrel} />;
   return <Shell />;
 };
 

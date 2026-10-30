@@ -1,5 +1,5 @@
 import { Button, Card, Code, Group, PasswordInput, Stack, Text, Title } from "@mantine/core";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTRPC } from "./trpc";
 
@@ -7,7 +7,10 @@ export const SettingsPage = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const signedOut = () => queryClient.invalidateQueries();
+  const status = useQuery(trpc.auth.status.queryOptions());
+  const onUmbrel = status.data?.onUmbrel ?? false;
   const change = useMutation(trpc.auth.changePassword.mutationOptions());
+  const resetToUmbrel = useMutation(trpc.auth.resetToUmbrel.mutationOptions());
   const logout = useMutation(trpc.auth.logout.mutationOptions({ onSuccess: signedOut }));
   const logoutEverywhere = useMutation(trpc.auth.logoutEverywhere.mutationOptions({ onSuccess: signedOut }));
   const [current, setCurrent] = useState("");
@@ -70,6 +73,24 @@ export const SettingsPage = () => {
         </form>
       </Card>
 
+      {onUmbrel && (
+        <Card withBorder padding="md" radius="md">
+          <Stack gap="sm" maw={560}>
+            <Title order={3}>Umbrel password</Title>
+            <Text size="sm" c="dimmed">
+              LANscape starts with the password Umbrel shows for it in the app's menu on the Umbrel home screen. If you
+              changed it here, this switches back so the two match again. Other browsers are signed out.
+            </Text>
+            {resetToUmbrel.isSuccess && <Text size="sm">Done. Your password is now the one Umbrel shows.</Text>}
+            <Group>
+              <Button variant="default" loading={resetToUmbrel.isPending} onClick={() => resetToUmbrel.mutate()}>
+                Reset to the Umbrel password
+              </Button>
+            </Group>
+          </Stack>
+        </Card>
+      )}
+
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
           <Title order={3}>Sessions</Title>
@@ -110,11 +131,17 @@ export const SettingsPage = () => {
       <Card withBorder padding="md" radius="md">
         <Stack gap="xs">
           <Title order={3}>Forgot your password?</Title>
-          <Text size="sm">
-            Create an empty file named <Code>reset-password</Code> in LANscape's data folder and restart the app. On Umbrel that
-            folder is <Code>~/umbrel/app-data/sz-lanscape/data</Code>. The password is cleared, and the next visit asks for a new
-            one.
-          </Text>
+          {onUmbrel ? (
+            <Text size="sm">
+              In Umbrel, open LANscape's settings, set <Code>RESET_PASSWORD</Code> to <Code>yes</Code> and restart the app. The
+              password goes back to the one Umbrel shows. Set it back to empty afterwards, or each restart resets it again.
+            </Text>
+          ) : (
+            <Text size="sm">
+              Create an empty file named <Code>reset-password</Code> in LANscape's data folder and restart. The password is
+              cleared, and the next visit asks for a new one.
+            </Text>
+          )}
         </Stack>
       </Card>
     </Stack>
