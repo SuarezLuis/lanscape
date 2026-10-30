@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import type { NotificationRule, PingSample, SpeedTest } from "../generated/prisma/client";
+import { sendAll } from "./channels";
 
 const MINUTE_MS = 60_000;
 const BASELINE_DAYS = 7;
@@ -104,33 +105,6 @@ export const describe = (rule: NotificationRule, kind: "problem" | "resolved", v
   return { title: `${label} is ${rule.direction === "above" ? "high" : "low"}`, message };
 };
 
-export const NTFY_URL = "ntfy.url";
-export const NTFY_TOKEN = "ntfy.token";
-
-export const readSettings = async () => {
-  const rows = await prisma.setting.findMany({ where: { key: { in: [NTFY_URL, NTFY_TOKEN] } } });
-  const get = (key: string) => rows.find((row) => row.key === key)?.value || null;
-  return { url: get(NTFY_URL), token: get(NTFY_TOKEN) };
-};
-
-export const sendNtfy = async (title: string, message: string, problem: boolean) => {
-  const { url, token } = await readSettings();
-  if (!url) return false;
-  const response = await fetch(url, {
-    method: "POST",
-    body: message,
-    headers: {
-      Title: `LANscape: ${title}`,
-      Tags: problem ? "warning" : "white_check_mark",
-      Priority: problem ? "high" : "default",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error(`ntfy answered ${response.status} ${response.statusText}`);
-  return true;
-};
-
 // Runs after each saved speed test or ping check, against whichever metrics that run measured
 export const checkRules = async (values: Values) => {
   const now = new Date();
@@ -151,8 +125,6 @@ export const checkRules = async (values: Values) => {
 
     const { title, message } = describe(rule, next.fire, value, baseline);
     await prisma.notification.create({ data: { ruleId: rule.id, kind: next.fire, value, baseline, message } });
-    await sendNtfy(title, message, next.fire === "problem").catch((error: unknown) => {
-      console.error("ntfy delivery failed:", error instanceof Error ? error.message : error);
-    });
+    await sendAll({ kind: next.fire, title, message, metric, value, baseline });
   }
 };

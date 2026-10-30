@@ -4,7 +4,8 @@ import superjson from "superjson";
 import { z } from "zod";
 import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
-import { METRIC_KEYS, METRICS, NTFY_TOKEN, NTFY_URL, readSettings, sendNtfy } from "./jobs/notify";
+import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
+import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { findGateway } from "./jobs/ping";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
 import { cancelSpeedtest, currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
@@ -34,9 +35,6 @@ const ruleInput = z.object({
   sustainMinutes: z.int().min(0).max(60),
   enabled: z.boolean(),
 });
-
-const saveSetting = (key: string, value: string) =>
-  prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
 
 const automationInput = z.discriminatedUnion("job", [
   z.object({
@@ -92,25 +90,11 @@ export const appRouter = t.router({
     list: t.procedure.query(() => prisma.notification.findMany({ orderBy: { createdAt: "desc" }, take: 200 })),
     unread: t.procedure.query(() => prisma.notification.count({ where: { read: false } })),
     markAllRead: t.procedure.mutation(() => prisma.notification.updateMany({ where: { read: false }, data: { read: true } })),
-    // The token never leaves the server; the page only learns whether one is set
-    channel: t.procedure.query(async () => {
-      const { url, token } = await readSettings();
-      return { url, hasToken: token !== null };
-    }),
+    channels: t.procedure.query(() => describeChannels()),
     saveChannel: t.procedure
-      .input(
-        z.object({
-          url: z.union([z.url({ protocol: /^https?$/ }), z.literal("")]),
-          token: z.string().max(500).optional(), // undefined keeps the saved token, "" clears it
-        }),
-      )
-      .mutation(async ({ input }) => {
-        await saveSetting(NTFY_URL, input.url);
-        if (input.token !== undefined) await saveSetting(NTFY_TOKEN, input.token);
-      }),
-    test: t.procedure.mutation(() =>
-      sendNtfy("Test notification", "Notifications from LANscape will arrive here.", false),
-    ),
+      .input(z.object({ channel: z.enum(CHANNEL_IDS), values: z.record(z.string(), z.string().max(1000).optional()) }))
+      .mutation(({ input }) => saveChannel(input.channel, input.values)),
+    test: t.procedure.input(z.object({ channel: z.enum(CHANNEL_IDS) })).mutation(({ input }) => sendTest(input.channel)),
   }),
   automations: t.router({
     list: t.procedure.query(async () => {

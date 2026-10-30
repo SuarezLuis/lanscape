@@ -1,4 +1,5 @@
 import {
+  Accordion,
   ActionIcon,
   Badge,
   Button,
@@ -126,20 +127,106 @@ const RuleRow = ({ rule, metrics, save, remove }: { rule: Rule; metrics: Metrics
   );
 };
 
+type Channel = inferRouterOutputs<AppRouter>["notifications"]["channels"][number];
+
+const CHANNEL_UI: Record<Channel["id"], { label: string; help: string; fields: Record<string, { label: string; placeholder?: string; description?: string }> }> = {
+  ntfy: {
+    label: "ntfy",
+    help: "Install the ntfy app and subscribe to a topic, on ntfy.sh or your own ntfy server. Pick a hard-to-guess topic name.",
+    fields: {
+      url: { label: "Topic URL", placeholder: "https://ntfy.sh/your-secret-topic" },
+      token: { label: "Access token", description: "Only for protected topics." },
+    },
+  },
+  telegram: {
+    label: "Telegram",
+    help: "Create a bot with @BotFather and paste its token. Send your bot a message, then open api.telegram.org/bot<token>/getUpdates and copy the chat id.",
+    fields: { token: { label: "Bot token", placeholder: "123456:ABC-DEF..." }, chatId: { label: "Chat ID", placeholder: "123456789" } },
+  },
+  discord: {
+    label: "Discord",
+    help: "In a channel's settings: Integrations, Webhooks, New Webhook, Copy Webhook URL.",
+    fields: { url: { label: "Webhook URL", placeholder: "https://discord.com/api/webhooks/..." } },
+  },
+  slack: {
+    label: "Slack",
+    help: "Add an Incoming Webhook to a Slack app and paste its URL.",
+    fields: { url: { label: "Webhook URL", placeholder: "https://hooks.slack.com/services/..." } },
+  },
+  webhook: {
+    label: "Webhook",
+    help: "LANscape POSTs JSON with app, time, kind (problem, resolved or test), title, message, metric, value and baseline. Works with Home Assistant, n8n and similar tools.",
+    fields: { url: { label: "URL", placeholder: "http://homeassistant.local:8123/api/webhook/..." } },
+  },
+};
+
+const ChannelPanel = ({ channel, onSaved }: { channel: Channel; onSaved: () => void }) => {
+  const trpc = useTRPC();
+  const ui = CHANNEL_UI[channel.id];
+  // undefined = untouched, so saving only sends what changed and never round-trips secrets
+  const [drafts, setDrafts] = useState<Record<string, string | undefined>>({});
+  const save = useMutation(trpc.notifications.saveChannel.mutationOptions({ onSuccess: () => (setDrafts({}), onSaved()) }));
+  const test = useMutation(trpc.notifications.test.mutationOptions());
+  const changed = Object.values(drafts).some((value) => value !== undefined);
+  const clearAll = Object.fromEntries(channel.fields.map(({ field }) => [field, ""]));
+
+  return (
+    <Stack gap="sm">
+      <Text size="sm" c="dimmed">
+        {ui.help}
+      </Text>
+      {channel.fields.map(({ field, secret, isSet, value }) => {
+        const meta = ui.fields[field] ?? { label: field };
+        const Input = secret ? PasswordInput : TextInput;
+        return (
+          <Input
+            key={field}
+            label={meta.label}
+            description={meta.description}
+            placeholder={secret && isSet ? "Saved. Type to replace." : meta.placeholder}
+            value={drafts[field] ?? (secret ? "" : (value ?? ""))}
+            onChange={(event) => setDrafts({ ...drafts, [field]: event.currentTarget.value.trim() })}
+          />
+        );
+      })}
+      {save.isError && (
+        <Text size="sm" c="red">
+          {save.error.message}
+        </Text>
+      )}
+      <Group>
+        <Button disabled={!changed} loading={save.isPending} onClick={() => save.mutate({ channel: channel.id, values: drafts })}>
+          Save
+        </Button>
+        <Button variant="default" disabled={!channel.configured} loading={test.isPending} onClick={() => test.mutate({ channel: channel.id })}>
+          Send test
+        </Button>
+        {channel.configured && (
+          <Button variant="subtle" color="red" onClick={() => save.mutate({ channel: channel.id, values: clearAll })}>
+            Remove
+          </Button>
+        )}
+        {test.isSuccess && <Text size="sm">Sent.</Text>}
+        {test.isError && (
+          <Text size="sm" c="red">
+            {test.error.message}
+          </Text>
+        )}
+      </Group>
+    </Stack>
+  );
+};
+
 export const NotificationsPage = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries(trpc.notifications.pathFilter());
   const rules = useQuery(trpc.notifications.rules.queryOptions());
   const list = useQuery(trpc.notifications.list.queryOptions());
-  const channel = useQuery(trpc.notifications.channel.queryOptions());
+  const channels = useQuery(trpc.notifications.channels.queryOptions());
   const saveRule = useMutation(trpc.notifications.saveRule.mutationOptions({ onSuccess: refresh }));
   const deleteRule = useMutation(trpc.notifications.deleteRule.mutationOptions({ onSuccess: refresh }));
   const markAllRead = useMutation(trpc.notifications.markAllRead.mutationOptions({ onSuccess: refresh }));
-  const saveChannel = useMutation(trpc.notifications.saveChannel.mutationOptions({ onSuccess: refresh }));
-  const sendTest = useMutation(trpc.notifications.test.mutationOptions());
-  const [url, setUrl] = useState<string | null>(null);
-  const [token, setToken] = useState("");
 
   const unread = (list.data ?? []).some((notification) => !notification.read);
   // Seeing the page counts as reading it; this view keeps the bold until the next visit
@@ -147,54 +234,34 @@ export const NotificationsPage = () => {
     if (unread) markAllRead.mutate();
   }, [unread]);
 
-  const savedUrl = channel.data?.url ?? "";
-  const draftUrl = url ?? savedUrl;
 
   return (
     <Stack gap="lg">
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
-          <Title order={3}>Push notifications</Title>
+          <Title order={3}>Where alerts go</Title>
           <Text size="sm" c="dimmed">
-            Alerts go to an ntfy topic. Install the ntfy app on your phone and subscribe to the same topic, on ntfy.sh or
-            your own ntfy server.
+            Every alert goes to each channel you set up.
           </Text>
-          <TextInput
-            label="Topic URL"
-            placeholder="https://ntfy.sh/your-secret-topic"
-            value={draftUrl}
-            onChange={(event) => setUrl(event.currentTarget.value.trim())}
-            error={saveChannel.isError ? "Enter an http(s) URL" : null}
-          />
-          <PasswordInput
-            label="Access token"
-            description="Only for protected topics."
-            placeholder={channel.data?.hasToken ? "Saved. Type to replace, or clear and save to remove." : "None"}
-            value={token}
-            onChange={(event) => setToken(event.currentTarget.value)}
-          />
-          <Group>
-            <Button
-              loading={saveChannel.isPending}
-              onClick={() =>
-                saveChannel.mutate(
-                  { url: draftUrl, ...(token || channel.data?.hasToken === false ? { token } : {}) },
-                  { onSuccess: () => (setUrl(null), setToken("")) },
-                )
-              }
-            >
-              Save
-            </Button>
-            <Button variant="default" disabled={!savedUrl} loading={sendTest.isPending} onClick={() => sendTest.mutate()}>
-              Send test
-            </Button>
-            {sendTest.isSuccess && <Text size="sm">Sent.</Text>}
-            {sendTest.isError && (
-              <Text size="sm" c="red">
-                {sendTest.error.message}
-              </Text>
-            )}
-          </Group>
+          <Accordion variant="separated">
+            {channels.data?.map((channel) => (
+              <Accordion.Item key={channel.id} value={channel.id}>
+                <Accordion.Control>
+                  <Group justify="space-between" pr="sm">
+                    <Text fw={500}>{CHANNEL_UI[channel.id].label}</Text>
+                    {channel.configured && (
+                      <Badge color="teal" variant="light">
+                        On
+                      </Badge>
+                    )}
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <ChannelPanel channel={channel} onSaved={refresh} />
+                </Accordion.Panel>
+              </Accordion.Item>
+            ))}
+          </Accordion>
         </Stack>
       </Card>
 
