@@ -1,4 +1,4 @@
-import { Button, Card, Group, Select, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Button, Card, Group, Loader, Select, Stack, Text, TextInput, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@lanscape/server/router";
 import type { inferRouterInputs } from "@trpc/server";
@@ -71,6 +71,11 @@ export const AutomationsPage = () => {
     }),
   );
   const [target, setTarget] = useState<string | null>(null);
+  const servers = useQuery({ ...trpc.speedtest.servers.queryOptions(), staleTime: 60 * 60 * 1000 });
+  const server = useQuery(trpc.speedtest.server.queryOptions());
+  const setServer = useMutation(
+    trpc.speedtest.setServer.mutationOptions({ onSuccess: () => queryClient.invalidateQueries(trpc.speedtest.server.queryFilter()) }),
+  );
 
   const speedtest = list.data?.automations.find((a) => a.job === "speedtest");
   const ping = list.data?.automations.find((a) => a.job === "ping");
@@ -123,6 +128,24 @@ export const AutomationsPage = () => {
           <Text size="sm" c="dimmed">
             {nextRunText(speedtest.nextRun)} {speedtest.everyMinutes ? `Times follow ${speedtest.timeZone}.` : ""}
           </Text>
+          <Select
+            label="Server"
+            description="Used for every test, manual or scheduled. A fixed server keeps results comparable over time."
+            data={[
+              { value: "", label: "Automatic (nearest)" },
+              ...(servers.data ?? []).map((option) => ({
+                value: option.id,
+                label: `${option.sponsor}, ${option.name} (${option.distanceKm.toFixed(0)} km${option.latencyMs ? `, ${option.latencyMs} ms` : ""})`,
+              })),
+            ]}
+            value={server.data ?? ""}
+            onChange={(value) => setServer.mutate({ id: value ?? "" })}
+            placeholder={servers.isPending ? "Finding nearby servers…" : undefined}
+            rightSection={servers.isPending ? <Loader size="xs" /> : undefined}
+            searchable
+            allowDeselect={false}
+            error={servers.isError ? "Couldn't list servers. Automatic still works." : null}
+          />
           <LastRun status={speedtest.status} />
         </Stack>
       </Card>

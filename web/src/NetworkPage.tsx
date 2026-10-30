@@ -1,4 +1,21 @@
-import { Badge, Button, Card, Group, Modal, Stack, Stepper, Table, Text, TextInput, Title, Tooltip } from "@mantine/core";
+import {
+  Badge,
+  Button,
+  Card,
+  Drawer,
+  Group,
+  Modal,
+  Select,
+  Stack,
+  Stepper,
+  Switch,
+  Table,
+  Text,
+  TextInput,
+  Timeline,
+  Title,
+  Tooltip,
+} from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@lanscape/server/router";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -49,7 +66,10 @@ const NameCell = ({ device }: { device: Device }) => {
         fw={shown ? 500 : undefined}
         c={shown ? undefined : "dimmed"}
         style={{ cursor: "text" }}
-        onClick={() => setDraft(device.name ?? "")}
+        onClick={(event) => {
+          event.stopPropagation(); // the row opens details; the name renames
+          setDraft(device.name ?? "");
+        }}
       >
         {shown ?? "Unnamed"}
       </Text>
@@ -240,6 +260,67 @@ const IdentifyDevice = ({ opened, onClose, devices }: { opened: boolean; onClose
   );
 };
 
+const OFFLINE_ALERT = [
+  { value: "off", label: "Off" },
+  { value: "5", label: "Offline 5 minutes" },
+  { value: "10", label: "Offline 10 minutes" },
+  { value: "30", label: "Offline 30 minutes" },
+  { value: "60", label: "Offline 1 hour" },
+];
+
+const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () => void }) => {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const history = useQuery({ ...trpc.devices.history.queryOptions({ mac: device?.mac ?? "" }), enabled: device !== null });
+  const update = useMutation(
+    trpc.devices.update.mutationOptions({ onSuccess: () => queryClient.invalidateQueries(trpc.devices.list.queryFilter()) }),
+  );
+
+  return (
+    <Drawer opened={device !== null} onClose={onClose} position="right" title={device ? deviceLabel(device) : ""}>
+      {device && (
+        <Stack gap="md">
+          <DeviceDetails device={device} />
+          <Switch
+            label="Known device"
+            description="Mark devices you recognize. Unknown ones show a New badge."
+            checked={device.known}
+            onChange={(event) => update.mutate({ mac: device.mac, known: event.currentTarget.checked })}
+          />
+          <Select
+            label="Alert when offline"
+            description="Sends one alert when it goes quiet and one when it's back, through your alert channels."
+            data={OFFLINE_ALERT}
+            value={device.alertOfflineMinutes ? String(device.alertOfflineMinutes) : "off"}
+            onChange={(value) =>
+              update.mutate({
+                mac: device.mac,
+                alertOfflineMinutes: value && value !== "off" ? (Number(value) as 5 | 10 | 30 | 60) : null,
+              })
+            }
+            allowDeselect={false}
+          />
+          <Title order={5}>History</Title>
+          {history.data?.length === 0 && (
+            <Text size="sm" c="dimmed">
+              No changes recorded yet.
+            </Text>
+          )}
+          <Timeline bulletSize={12} lineWidth={2}>
+            {history.data?.map((event) => (
+              <Timeline.Item key={event.id} color={event.online ? "teal" : "gray"} title={event.online ? "Came online" : "Went offline"}>
+                <Text size="xs" c="dimmed">
+                  {when(event.at)}
+                </Text>
+              </Timeline.Item>
+            ))}
+          </Timeline>
+        </Stack>
+      )}
+    </Drawer>
+  );
+};
+
 export const NetworkPage = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -259,6 +340,11 @@ export const NetworkPage = () => {
     )
     .toSorted((a, b) => Number(b.online) - Number(a.online) || ipOrder(a.ip) - ipOrder(b.ip));
   const online = devices.filter((device) => device.online).length;
+  const unknown = devices.filter((device) => !device.known).length;
+  const [openMac, setOpenMac] = useState<string | null>(null);
+  const markAllKnown = useMutation(
+    trpc.devices.markAllKnown.mutationOptions({ onSuccess: () => queryClient.invalidateQueries(trpc.devices.list.queryFilter()) }),
+  );
 
   return (
     <Card withBorder padding="md" radius="md">
@@ -273,6 +359,14 @@ export const NetworkPage = () => {
             </Text>
           </div>
           <Group gap="xs">
+          {unknown > 0 && (
+            <Button variant="subtle" loading={markAllKnown.isPending} onClick={() => markAllKnown.mutate()}>
+              Mark all {unknown} known
+            </Button>
+          )}
+          <Button component="a" href="/export/devices.csv" variant="subtle">
+            Export CSV
+          </Button>
           <Button variant="default" onClick={() => setIdentifying(true)} disabled={devices.length === 0}>
             Identify a device
           </Button>
@@ -287,6 +381,7 @@ export const NetworkPage = () => {
           </Group>
         </Group>
         <IdentifyDevice opened={identifying} onClose={() => setIdentifying(false)} devices={devices} />
+        <DeviceDrawer device={devices.find((device) => device.mac === openMac) ?? null} onClose={() => setOpenMac(null)} />
         {scan.isError && (
           <Text size="sm" c="red">
             The scan failed: {scan.error.message}
@@ -313,14 +408,28 @@ export const NetworkPage = () => {
               </Table.Thead>
               <Table.Tbody>
                 {rows.map((device) => (
-                  <Table.Tr key={device.mac}>
+                  <Table.Tr key={device.mac} onClick={() => setOpenMac(device.mac)} style={{ cursor: "pointer" }}>
                     <Table.Td>
                       <Badge variant="dot" color={device.online ? "teal" : "gray"}>
                         {device.online ? "Online" : "Away"}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
-                      <NameCell device={device} />
+                      <Group gap={6} wrap="nowrap">
+                        <NameCell device={device} />
+                        {!device.known && (
+                          <Badge size="xs" color="blue" variant="light">
+                            New
+                          </Badge>
+                        )}
+                        {device.alertOfflineMinutes && (
+                          <Tooltip label={`Alerts after ${device.alertOfflineMinutes} minutes offline`}>
+                            <Badge size="xs" color="orange" variant="light">
+                              Watched
+                            </Badge>
+                          </Tooltip>
+                        )}
+                      </Group>
                     </Table.Td>
                     <Table.Td ff="monospace" fz="sm">
                       {device.ip}

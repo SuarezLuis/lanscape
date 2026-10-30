@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { parseArpScan, selfOn, vendorFor } from "./devices";
+import { offlineStep, parseArpScan, selfOn, vendorFor } from "./devices";
 
 test("keeps one row per MAC from arp-scan output", () => {
   const stdout = [
@@ -38,4 +38,15 @@ test("finds this machine on the scanned interface", () => {
   } as const;
   expect(selfOn("eno1", interfaces as never)).toEqual({ ip: "192.168.0.50", mac: "aa:bb:cc:00:00:01" });
   expect(selfOn("wlan0", interfaces as never)).toBeNull();
+});
+
+test("offline alerts wait for the chosen time, then report the return once", () => {
+  const lastSeen = new Date("2026-10-30T12:00:00Z");
+  const at = (minutes: number) => new Date(lastSeen.getTime() + minutes * 60_000);
+  const watched = { alertOfflineMinutes: 10, offlineAlerted: false, lastSeen };
+  expect(offlineStep(watched, false, at(5))).toBeNull();
+  expect(offlineStep(watched, false, at(10))).toBe("offline");
+  expect(offlineStep({ ...watched, offlineAlerted: true }, false, at(15))).toBeNull();
+  expect(offlineStep({ ...watched, offlineAlerted: true }, true, at(20))).toBe("back");
+  expect(offlineStep({ ...watched, alertOfflineMinutes: null }, false, at(60))).toBeNull();
 });

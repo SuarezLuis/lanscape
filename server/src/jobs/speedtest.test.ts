@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { applyProgressLine, parseSpeedtestSummary, type SpeedtestProgress } from "./speedtest";
+import { applyProgressLine, parseServerList, parseSpeedtestSummary, type SpeedtestProgress } from "./speedtest";
 
 // Lines as speedtest-go v1.8.3 prints them to a terminal, after ANSI codes are stripped
 const realRun = [
@@ -47,4 +47,19 @@ test("tracks phase and the latest value of each measurement", () => {
   expect(seen[7]).toMatchObject({ phase: "download", pingMs: 16.731298, downloadMbps: null });
   expect(seen[8]).toMatchObject({ phase: "download", downloadMbps: 350.17 });
   expect(seen[11]).toEqual({ phase: "upload", pingMs: 16.731298, downloadMbps: 677.26, uploadMbps: 294.93 });
+});
+
+test("lists servers and skips the line with the public IP", () => {
+  const stdout = [
+    "    speedtest-go v1.8.3 (git-df849ca) @showwin",
+    "",
+    "ISP: 192.0.2.1 (Example ISP) [30.0, -97.0] ",
+    "Found 20 Public Servers",
+    "[ 5342]     23.71km 30ms \tGeorgetown, TX (United States) by Optimum Online ",
+    "[72771]     24.12km -    \tAustin, TX (United States) by Fiberfirst ",
+  ].join("\n");
+  expect(parseServerList(stdout)).toEqual([
+    { id: "5342", name: "Georgetown, TX", country: "United States", sponsor: "Optimum Online", distanceKm: 23.71, latencyMs: 30 },
+    { id: "72771", name: "Austin, TX", country: "United States", sponsor: "Fiberfirst", distanceKm: 24.12, latencyMs: null },
+  ]);
 });

@@ -88,6 +88,22 @@ model Device {
   name      String? // set by the user; shown instead of hostname
   firstSeen DateTime @default(now())
   lastSeen  DateTime // equals the last scan time while the device is online
+  known     Boolean  @default(false) // the user has acknowledged it
+  // Alert when offline this long; null = no offline alerts. offlineAlerted is the rule's state
+  alertOfflineMinutes Int?
+  offlineAlerted      Boolean       @default(false)
+  events              DeviceEvent[]
+}
+
+// A device going online or offline between scans
+model DeviceEvent {
+  id     Int      @id @default(autoincrement())
+  mac    String
+  device Device   @relation(fields: [mac], references: [mac], onDelete: Cascade)
+  at     DateTime
+  online Boolean
+
+  @@index([mac, at])
 }
 
 model Session {

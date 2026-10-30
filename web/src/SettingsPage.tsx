@@ -88,6 +88,26 @@ export const SettingsPage = () => {
       </Card>
 
       <Card withBorder padding="md" radius="md">
+        <Stack gap="sm">
+          <Title order={3}>Export data</Title>
+          <Text size="sm" c="dimmed">
+            Everything LANscape has recorded, as CSV files for a spreadsheet.
+          </Text>
+          <Group>
+            <Button component="a" href="/export/speedtests.csv" variant="default">
+              Speed tests
+            </Button>
+            <Button component="a" href="/export/pings.csv" variant="default">
+              Ping checks
+            </Button>
+            <Button component="a" href="/export/devices.csv" variant="default">
+              Devices
+            </Button>
+          </Group>
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="md" radius="md">
         <Stack gap="xs">
           <Title order={3}>Forgot your password?</Title>
           <Text size="sm">

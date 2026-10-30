@@ -10,9 +10,12 @@ Installed through the [SZ Umbrel app store](https://github.com/SuarezLuis/umbrel
 - **Ping checks** every minute to your router and an internet host (1.1.1.1 by default), tracking latency and packet loss with almost no data. Raw samples older than 90 days are kept as hourly averages.
 - **Device list** from ARP scans every 5 minutes: IP, MAC, maker (from the IEEE OUI registry), names announced over mDNS, and your own names. Includes the Umbrel itself.
 - **Identify a device** by switching it off and on between scans.
+- **Per-device history and offline alerts:** mark devices as known, see when each came and went, and get alerted when a chosen device has been offline for a while.
 - **Notification rules** on any measurement, against a fixed value or a percentage from the 7-day median, with a "how long" window. Each rule alerts once when a problem starts and once when it clears. Also alerts when a new device joins.
 - **Alert channels:** ntfy, Telegram (the bot answers messages with your chat ID), Discord, Slack and a generic JSON webhook.
 - **Automations page** to schedule speed tests, ping checks and device scans, showing each job's last run and errors.
+- **Choose the speed test server**, or let it pick the nearest.
+- **CSV export** of speed tests, ping checks and devices.
 - **Password protection**, set on first run, with a Settings page to change it or sign out everywhere.
 - Light, dark and system themes; works on phones.
 

@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { promisify } from "node:util";
 import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { prisma } from "../db";
@@ -92,11 +93,13 @@ const childPids = (pid: number) => {
 };
 
 // Resolves null when the test is cancelled
-const measure = () =>
+const measure = (serverId: string | null) =>
   new Promise<string[] | null>((resolve, reject) => {
-    const command = process.env.SPEEDTEST_BIN ?? "speedtest-go";
+    // serverId is digits only (checked when saved), so it's safe inside script's command string
+    const command = [process.env.SPEEDTEST_BIN ?? "speedtest-go", ...(serverId ? ["--server", serverId] : [])].join(" ");
     // speedtest-go only prints live progress to a terminal, so script(1) gives it one
-    const args = process.platform === "darwin" ? ["-q", "/dev/null", command] : ["-qefc", command, "/dev/null"];
+    const args =
+      process.platform === "darwin" ? ["-q", "/dev/null", ...command.split(" ")] : ["-qefc", command, "/dev/null"];
     const child = spawn("script", args, { detached: true });
     let ended: "cancelled" | "timed out" | null = null;
     // script(1) runs the command in a session of its own, so killing script's group alone orphans speedtest-go
@@ -154,7 +157,7 @@ export const runSpeedtest = (trigger: Trigger) => {
     // Before the test, so they show unloaded latency; a failed ping shouldn't cost the whole test
     const pings = await pingTargets().catch(() => []);
     if (cancelRequested) return null;
-    const lines = await measure();
+    const lines = await measure(await chosenServer());
     if (!lines) return null;
     const test = await prisma.speedTest.create({
       data: {
@@ -181,4 +184,37 @@ export const cancelSpeedtest = () => {
   cancelRequested = true;
   stop?.();
   return true;
+};
+
+export const SERVER_SETTING = "speedtest.server";
+
+const chosenServer = async () => {
+  const value = (await prisma.setting.findUnique({ where: { key: SERVER_SETTING } }))?.value;
+  return value && /^\d+$/.test(value) ? value : null;
+};
+
+// "[ 5342]     23.71km 30ms \tGeorgetown, TX (United States) by Optimum Online"; the ISP line above them holds the
+// public IP and location, which is never kept
+export const parseServerList = (stdout: string) =>
+  stdout
+    .split("\n")
+    .map((line) => /^\[\s*(\d+)\]\s+([\d.]+)km\s+(?:(\d+)ms|-)\s+(.+?) \(([^)]*)\) by (.+?)\s*$/.exec(line.trim()))
+    .filter((match) => match !== null)
+    .map(([, id = "", km = "", latency, name = "", country = "", sponsor = ""]) => ({
+      id,
+      name,
+      country,
+      sponsor,
+      distanceKm: Number(km),
+      latencyMs: latency ? Number(latency) : null,
+    }));
+
+let servers: { at: number; list: ReturnType<typeof parseServerList> } | null = null;
+
+// Cached for an hour: listing pings every candidate server
+export const listServers = async () => {
+  if (servers && Date.now() - servers.at < 60 * 60 * 1000) return servers.list;
+  const { stdout } = await promisify(execFile)(process.env.SPEEDTEST_BIN ?? "speedtest-go", ["--list"], { timeout: 60_000 });
+  servers = { at: Date.now(), list: parseServerList(stdout) };
+  return servers.list;
 };

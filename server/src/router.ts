@@ -23,7 +23,12 @@ import { findGateway } from "./jobs/ping";
 import { readStatus } from "./jobs/status";
 import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
-import { cancelSpeedtest, currentProgress, runSpeedtest, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
+import {
+  cancelSpeedtest,
+  currentProgress,
+  listServers,
+  runSpeedtest,
+  SERVER_SETTING, type SpeedtestProgress, speedtestEvents } from "./jobs/speedtest";
 
 export type Context = { token: string | null; ip: string; setCookie: (cookie: string) => void };
 
@@ -136,6 +141,17 @@ export const appRouter = t.router({
       });
     }),
     latency: procedure.input(rangeInput).query(({ input }) => latencyHistory(input.range)),
+    servers: procedure.query(() => listServers()),
+    server: procedure.query(async () => (await prisma.setting.findUnique({ where: { key: SERVER_SETTING } }))?.value || null),
+    setServer: procedure
+      .input(z.object({ id: z.string().regex(/^\d*$/) })) // "" = automatic (nearest)
+      .mutation(({ input }) =>
+        prisma.setting.upsert({
+          where: { key: SERVER_SETTING },
+          create: { key: SERVER_SETTING, value: input.id },
+          update: { value: input.id },
+        }),
+      ),
     // Resolves null when the test is cancelled
     run: procedure.mutation(() => runSpeedtest("manual")),
     cancel: procedure.mutation(() => cancelSpeedtest()),
@@ -190,6 +206,25 @@ export const appRouter = t.router({
     scan: procedure
       .input(z.object({ thorough: z.boolean() }).optional())
       .mutation(({ input }) => runDeviceScan({ thorough: input?.thorough })),
+    update: procedure
+      .input(
+        z.object({
+          mac: z.string(),
+          known: z.boolean().optional(),
+          alertOfflineMinutes: z.union([z.literal(5), z.literal(10), z.literal(30), z.literal(60), z.null()]).optional(),
+        }),
+      )
+      .mutation(({ input: { mac, known, alertOfflineMinutes } }) =>
+        prisma.device.update({
+          where: { mac },
+          // A changed offline setting starts its alert state over
+          data: { known, ...(alertOfflineMinutes !== undefined ? { alertOfflineMinutes, offlineAlerted: false } : {}) },
+        }),
+      ),
+    markAllKnown: procedure.mutation(() => prisma.device.updateMany({ where: { known: false }, data: { known: true } })),
+    history: procedure
+      .input(z.object({ mac: z.string() }))
+      .query(({ input }) => prisma.deviceEvent.findMany({ where: { mac: input.mac }, orderBy: { at: "desc" }, take: 100 })),
     rename: procedure
       .input(z.object({ mac: z.string(), name: z.string().trim().max(60) }))
       .mutation(({ input }) => prisma.device.update({ where: { mac: input.mac }, data: { name: input.name || null } })),

@@ -68,4 +68,4 @@ User-facing help is `docs/HELP.md`. The app's Help page fetches it from `master`
 
 ## Roadmap
 
-Offline alerts for chosen devices, known devices with per-device online history, CSV export, choosing the speed test server, optional Pi-hole names, HTTPS and browser push.
+Optional Pi-hole names, HTTPS and browser push.

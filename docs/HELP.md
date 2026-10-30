@@ -25,6 +25,9 @@ The **Network** page lists every device that answers on your network: name, IP a
 - **Names** come from what devices announce on the network (TVs, speakers, computers). Many devices, like smart plugs, don't announce one. Click any name to set your own.
 - **Maker** comes from the first half of the MAC address. Phones and laptops often use a private, randomized address, shown as hidden.
 - **Online** means the device answered the latest scan. Phones and plugs that are asleep can briefly show as away.
+- **New** marks devices you haven't acknowledged yet. Open a device and switch on **Known device**, or use **Mark all known**.
+- **Click a device** to see its details and history (when it came online and went offline), and to set **Alert when offline**: LANscape alerts once when it has been quiet for 5, 10, 30 or 60 minutes, and once when it's back. Watched devices show a **Watched** badge.
+- **Export CSV** downloads the device list.
 
 ### Identify a device
 
@@ -38,7 +41,7 @@ Then name it right there.
 
 ## Automations
 
-- **Full speed test:** off by default. Choose every hour, 6 hours, 12 hours or daily, and a starting time. Times follow the time zone of the browser you last saved from.
+- **Full speed test:** off by default. Choose every hour, 6 hours, 12 hours or daily, and a starting time. Times follow the time zone of the browser you last saved from. **Server** picks the speedtest.net server for every test; *Automatic* uses the nearest one, while a fixed server keeps results comparable over time.
 - **Ping check:** every minute by default. Pings your router and an internet host (1.1.1.1 unless you change it) to track latency and packet loss, using almost no data. It skips minutes when a full test is running.
 - **Device scan:** every 5 minutes by default. Keeps the device list current and spots new devices.
 
@@ -76,6 +79,12 @@ Alerts always appear under **Recent alerts**. They also go to every channel you 
 - **Webhook:** LANscape POSTs JSON with `app`, `time`, `kind` (`problem`, `resolved`, `device` or `test`), `title`, `message`, `metric`, `value` and `baseline`. Works with Home Assistant, n8n and similar tools.
 
 A channel whose last delivery failed shows **Failing**, with the error.
+
+## Settings
+
+- **Change password**, which signs out every other browser.
+- **Sign out**, or **Sign out everywhere**.
+- **Export data:** speed tests, ping checks and devices as CSV files.
 
 ## Privacy
 

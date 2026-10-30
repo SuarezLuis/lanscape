@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { hostname, networkInterfaces } from "node:os";
 import { promisify } from "node:util";
 import { prisma } from "../db";
+import type { Device } from "../generated/prisma/client";
 import { sendAll } from "./channels";
 import { discoverNames } from "./mdns";
 import { findDefaultRoute } from "./ping";
@@ -44,6 +45,28 @@ export const selfOn = (iface: string, interfaces = networkInterfaces()) => {
   return address ? { ip: address.address, mac: address.mac.toLowerCase() } : null;
 };
 
+const deviceLabel = (device: Pick<Device, "name" | "hostname" | "vendor" | "ip">) =>
+  device.name ?? device.hostname ?? device.vendor ?? device.ip;
+
+const wasOnline = (device: Device, previousScan: Date | null) => previousScan !== null && device.lastSeen >= previousScan;
+
+// null when nothing to say; "offline" once it has been gone alertOfflineMinutes, "back" when it returns after that
+export const offlineStep = (
+  device: Pick<Device, "alertOfflineMinutes" | "offlineAlerted" | "lastSeen">,
+  online: boolean,
+  now: Date,
+) => {
+  if (!device.alertOfflineMinutes) return null;
+  if (online) return device.offlineAlerted ? ("back" as const) : null;
+  const goneMs = now.getTime() - device.lastSeen.getTime();
+  return !device.offlineAlerted && goneMs >= device.alertOfflineMinutes * 60_000 ? ("offline" as const) : null;
+};
+
+const alert = async (kind: "problem" | "resolved" | "device", title: string, message: string) => {
+  await prisma.notification.create({ data: { kind, value: 0, message } });
+  await sendAll({ kind, title, message });
+};
+
 const sweep = async (iface: string, retries: number) => {
   const { stdout } = await execFileAsync("arp-scan", ["--interface", iface, "--localnet", "--plain", "--retry", String(retries)], {
     timeout: 60_000,
@@ -64,16 +87,20 @@ const scan = async (thorough: boolean) => {
   if (self) names.set(self.ip, hostname());
 
   const scanAt = new Date();
-  const [known, firstScan] = await Promise.all([
-    prisma.device.findMany({ select: { mac: true } }),
+  const [existing, firstScan, previousScan] = await Promise.all([
+    prisma.device.findMany(),
     prisma.setting.upsert({
       where: { key: FIRST_SCAN },
       create: { key: FIRST_SCAN, value: scanAt.toISOString() },
       update: {},
     }),
+    prisma.setting.findUnique({ where: { key: LAST_SCAN } }),
   ]);
-  const knownMacs = new Set(known.map((device) => device.mac));
+  const previousAt = previousScan ? new Date(previousScan.value) : null;
+  const byMac = new Map(existing.map((device) => [device.mac, device]));
+  const foundMacs = new Set(found.map((device) => device.mac));
   const added = [];
+  const events: { mac: string; online: boolean; at: Date }[] = [];
 
   for (const { ip, mac } of found) {
     const hostname = names.get(ip);
@@ -84,21 +111,40 @@ const scan = async (thorough: boolean) => {
       create: { mac, ip, vendor, hostname, firstSeen: scanAt, lastSeen: scanAt },
       update: { ip, lastSeen: scanAt, ...(vendor ? { vendor } : {}), ...(hostname ? { hostname } : {}) },
     });
-    if (!knownMacs.has(mac)) added.push({ ip, mac, label: hostname ?? vendor ?? "Unknown device" });
+    const before = byMac.get(mac);
+    if (!before) added.push({ ip, mac, label: hostname ?? vendor ?? "Unknown device" });
+    if (!before || !wasOnline(before, previousAt)) events.push({ mac, online: true, at: scanAt });
   }
+  for (const device of existing) {
+    if (!foundMacs.has(device.mac) && wasOnline(device, previousAt)) events.push({ mac: device.mac, online: false, at: scanAt });
+  }
+  if (events.length) await prisma.deviceEvent.createMany({ data: events });
   await prisma.setting.upsert({
     where: { key: LAST_SCAN },
     create: { key: LAST_SCAN, value: scanAt.toISOString() },
     update: { value: scanAt.toISOString() },
   });
 
+  // Offline alerts for devices the user chose to watch: one when it's been gone long enough, one when it's back
+  for (const device of existing) {
+    const step = offlineStep(device, foundMacs.has(device.mac), scanAt);
+    if (!step) continue;
+    await prisma.device.update({ where: { mac: device.mac }, data: { offlineAlerted: step === "offline" } });
+    const label = deviceLabel(device);
+    await alert(
+      step === "offline" ? "problem" : "resolved",
+      step === "offline" ? `${label} is offline` : `${label} is back online`,
+      step === "offline"
+        ? `${label} (${device.ip}) hasn't answered for ${device.alertOfflineMinutes} minutes.`
+        : `${label} (${device.ip}) is back online.`,
+    );
+  }
+
   const learning = scanAt.getTime() - new Date(firstScan.value).getTime() < LEARNING_MS;
   const alertsOn = (await prisma.setting.findUnique({ where: { key: NEW_DEVICE_ALERTS } }))?.value !== "off";
   if (!learning && alertsOn) {
     for (const device of added) {
-      const message = `${device.label} joined your network at ${device.ip} (${device.mac}).`;
-      await prisma.notification.create({ data: { kind: "device", value: 0, message } });
-      await sendAll({ kind: "device", title: "New device", message });
+      await alert("device", "New device", `${device.label} joined your network at ${device.ip} (${device.mac}).`);
     }
   }
   return { found: found.length, added: added.length, online: found.map((device) => device.mac) };

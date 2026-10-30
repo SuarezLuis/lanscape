@@ -1,5 +1,5 @@
 import { LineChart } from "@mantine/charts";
-import { Card, Group, SegmentedControl, SimpleGrid, Stack, Table, Text, Title, UnstyledButton } from "@mantine/core";
+import { Button, Card, Group, SegmentedControl, SimpleGrid, Stack, Table, Text, Title, UnstyledButton } from "@mantine/core";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@lanscape/server/router";
@@ -125,7 +125,12 @@ export const SpeedHistory = () => {
       <Stack gap="lg">
         <Group justify="space-between">
           <Title order={3}>History</Title>
-          <SegmentedControl size="xs" value={range} onChange={(value) => setRange(value as Range)} data={RANGES} />
+          <Group gap="xs">
+            <Button component="a" href="/export/speedtests.csv" variant="subtle" size="xs">
+              Export CSV
+            </Button>
+            <SegmentedControl size="xs" value={range} onChange={(value) => setRange(value as Range)} data={RANGES} />
+          </Group>
         </Group>
 
         {tests.length === 0 && (latency.data ?? []).length === 0 ? (
