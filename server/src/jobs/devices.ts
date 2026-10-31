@@ -78,6 +78,12 @@ export const matchNewAddresses = (
 
 const wasOnline = (device: Device, previousScan: Date | null) => previousScan !== null && device.lastSeen >= previousScan;
 
+// A device the user watches for arrivals, back after at least the time they chose (so dozing doesn't count)
+export const onlineAlertDue = (device: Device, previousScan: Date | null, now: Date) =>
+  device.alertOnlineMinutes !== null &&
+  !wasOnline(device, previousScan) &&
+  now.getTime() - device.lastSeen.getTime() >= device.alertOnlineMinutes * 60_000;
+
 // null when nothing to say; "offline" once it has been gone alertOfflineMinutes, "back" when it returns after that
 export const offlineStep = (
   device: Pick<Device, "alertOfflineMinutes" | "offlineAlerted" | "lastSeen">,
@@ -155,6 +161,7 @@ const scan = async (thorough: boolean) => {
   const foundMacs = new Set(found.map((device) => device.mac));
   const added: Listed[] = [];
   const returned: Listed[] = [];
+  const arrived: Listed[] = [];
   const events: { mac: string; online: boolean; at: Date }[] = [];
 
   for (const { ip, mac } of found) {
@@ -169,6 +176,9 @@ const scan = async (thorough: boolean) => {
     const before = byMac.get(mac);
     if (!before) added.push({ ip, mac, label: hostname ?? vendor ?? "Unknown device" });
     if (!before || !wasOnline(before, previousAt)) events.push({ mac, online: true, at: scanAt });
+    if (before && onlineAlertDue(before, previousAt, scanAt)) {
+      arrived.push({ ip, mac, label: deviceLabel({ ...before, hostname: hostname ?? before.hostname }) });
+    }
     if (before && !before.known && scanAt.getTime() - before.lastSeen.getTime() >= UNKNOWN_AWAY_MS) {
       returned.push({ ip, mac, label: deviceLabel({ ...before, hostname: hostname ?? before.hostname }) });
     }
@@ -205,6 +215,8 @@ const scan = async (thorough: boolean) => {
     const { title, message } = newDeviceAlert(added);
     await alert("device", title, message);
   }
+  // Asked for per device, so no switch: each one the user chose
+  for (const device of arrived) await alert("device", `${device.label} is online`, `${listLine(device)} came online.`);
   if (unknownBack && returned.length) {
     const { title, message } = unknownBackAlert(returned);
     await alert("device", title, message);

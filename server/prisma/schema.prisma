@@ -92,6 +92,8 @@ model Device {
   // Alert when offline this long; null = no offline alerts. offlineAlerted is the rule's state
   alertOfflineMinutes Int?
   offlineAlerted      Boolean       @default(false)
+  // Alert each time it comes online after at least this long away; null = off
+  alertOnlineMinutes  Int?
   events              DeviceEvent[]
 }
 

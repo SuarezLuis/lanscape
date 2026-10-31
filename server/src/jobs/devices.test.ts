@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { matchNewAddresses, newDeviceAlert, offlineStep, parseArpScan, selfOn, unknownBackAlert, vendorFor } from "./devices";
+import { matchNewAddresses, onlineAlertDue, newDeviceAlert, offlineStep, parseArpScan, selfOn, unknownBackAlert, vendorFor } from "./devices";
 
 test("keeps one row per MAC from arp-scan output", () => {
   const stdout = [
@@ -83,4 +83,15 @@ test("unknown devices back after a while come as one alert", () => {
   expect(unknownBackAlert([phone]).title).toBe("Unknown device is back");
   expect(unknownBackAlert([phone]).message).toContain("Mark it as known");
   expect(unknownBackAlert([phone, { ...phone, label: "Tablet" }]).title).toBe("2 unknown devices are back");
+});
+
+test("alerts on arrival only for watched devices back after the chosen time away", () => {
+  const now = new Date("2026-10-31T18:00:00Z");
+  const previousScan = new Date("2026-10-31T17:55:00Z");
+  const phone = { mac: "aa", ip: "192.168.0.80", vendor: null, hostname: null, name: "Alex's phone", firstSeen: now, known: true, alertOfflineMinutes: null, offlineAlerted: false, alertOnlineMinutes: 30 };
+  const awayFor = (minutes: number) => ({ ...phone, lastSeen: new Date(now.getTime() - minutes * 60_000) });
+  expect(onlineAlertDue(awayFor(45), previousScan, now)).toBe(true);
+  expect(onlineAlertDue(awayFor(10), previousScan, now)).toBe(false); // dozed for a couple of scans
+  expect(onlineAlertDue({ ...awayFor(45), alertOnlineMinutes: null }, previousScan, now)).toBe(false);
+  expect(onlineAlertDue({ ...phone, lastSeen: previousScan }, previousScan, now)).toBe(false); // was already online
 });

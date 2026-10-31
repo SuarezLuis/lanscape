@@ -12,6 +12,8 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] **Internet outage timeline:** timestamp and duration of disruptions; compare router vs internet reachability to avoid unsupported root-cause claims.
 - [ ] **Speed performance heatmap:** hourly/daily download and upload patterns, ISP plan target, long-term trends.
 - [x] **Unknown/new device alerts:** trusted-device workflow and randomized-MAC false-positive handling (extend existing new-device/offline alerts).
+- [x] **Per-device online alerts:** alert each time a chosen device comes online after a set time away (15 min to 4 hours).
+- [x] **Delete a device:** remove it with its history, so it's listed and alerted as new the next time it joins.
 - [ ] **Adoption/analytics:** ask Umbrel maintainers whether aggregate install counts or a developer dashboard are available; if not, evaluate *explicit opt-in*, anonymous privacy-preserving telemetry for installs, active installs, versions, and feature usage. No IPs, MACs, device names, or network measurements; document consent, retention, and disabling; do not silently track.
 - [x] **Donation support:** Buy Me a Coffee link in the README (so also the About page) and GitHub's Sponsor button. Anything more in-app waits on Umbrel's submission rules.
 - [ ] **Buy Me a Coffee button in the app UI:** a discreet link in the app itself (e.g. the sidebar or Settings), once Umbrel's submission rules on in-app donation links are confirmed.
