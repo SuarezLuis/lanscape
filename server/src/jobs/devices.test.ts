@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { offlineStep, parseArpScan, selfOn, vendorFor } from "./devices";
+import { newDeviceAlert, offlineStep, parseArpScan, selfOn, vendorFor } from "./devices";
 
 test("keeps one row per MAC from arp-scan output", () => {
   const stdout = [
@@ -49,4 +49,12 @@ test("offline alerts wait for the chosen time, then report the return once", () 
   expect(offlineStep({ ...watched, offlineAlerted: true }, false, at(15))).toBeNull();
   expect(offlineStep({ ...watched, offlineAlerted: true }, true, at(20))).toBe("back");
   expect(offlineStep({ ...watched, alertOfflineMinutes: null }, false, at(60))).toBeNull();
+});
+
+test("one alert per scan, however many devices joined", () => {
+  const laptop = { ip: "192.168.0.74", mac: "aa:bb:cc:dd:ee:ff", label: "Intel Corporate" };
+  expect(newDeviceAlert([laptop])).toEqual({ title: "New device", message: "Intel Corporate at 192.168.0.74 (aa:bb:cc:dd:ee:ff) joined your network." });
+  const { title, message } = newDeviceAlert([laptop, { ...laptop, ip: "192.168.0.75", label: "Phone" }]);
+  expect(title).toBe("2 new devices");
+  expect(message.split("\n")).toHaveLength(3);
 });

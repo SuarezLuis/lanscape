@@ -13,8 +13,6 @@ const require = createRequire(import.meta.url);
 
 export const LAST_SCAN = "devices.lastScan";
 const FIRST_SCAN = "devices.firstScan";
-// Sleeping phones and plugs miss early scans; joining in the first day isn't news
-const LEARNING_MS = 24 * 60 * 60 * 1000;
 export const NEW_DEVICE_ALERTS = "notify.newDevice";
 
 let oui: Record<string, string> | null = null;
@@ -60,6 +58,13 @@ export const offlineStep = (
   if (online) return device.offlineAlerted ? ("back" as const) : null;
   const goneMs = now.getTime() - device.lastSeen.getTime();
   return !device.offlineAlerted && goneMs >= device.alertOfflineMinutes * 60_000 ? ("offline" as const) : null;
+};
+
+export const newDeviceAlert = (added: { ip: string; mac: string; label: string }[]) => {
+  const line = (device: (typeof added)[number]) => `${device.label} at ${device.ip} (${device.mac})`;
+  return added.length === 1
+    ? { title: "New device", message: `${line(added[0]!)} joined your network.` }
+    : { title: `${added.length} new devices`, message: `These joined your network:\n${added.map(line).join("\n")}` };
 };
 
 const alert = async (kind: "problem" | "resolved" | "device", title: string, message: string) => {
@@ -140,12 +145,12 @@ const scan = async (thorough: boolean) => {
     );
   }
 
-  const learning = scanAt.getTime() - new Date(firstScan.value).getTime() < LEARNING_MS;
+  // The first scan is what was already there. Sleeping devices that turn up later do alert, one alert per scan
+  const firstEver = firstScan.value === scanAt.toISOString();
   const alertsOn = (await prisma.setting.findUnique({ where: { key: NEW_DEVICE_ALERTS } }))?.value !== "off";
-  if (!learning && alertsOn) {
-    for (const device of added) {
-      await alert("device", "New device", `${device.label} joined your network at ${device.ip} (${device.mac}).`);
-    }
+  if (!firstEver && alertsOn && added.length) {
+    const { title, message } = newDeviceAlert(added);
+    await alert("device", title, message);
   }
   return { found: found.length, added: added.length, online: found.map((device) => device.mac) };
 };

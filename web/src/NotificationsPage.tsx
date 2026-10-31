@@ -379,7 +379,7 @@ export const NotificationsPage = () => {
               <Badge color={KIND[notification.kind]?.color ?? "gray"} variant="light" miw={92}>
                 {KIND[notification.kind]?.label ?? notification.kind}
               </Badge>
-              <Text size="sm" fw={notification.read ? undefined : 600} style={{ flex: 1 }}>
+              <Text size="sm" fw={notification.read ? undefined : 600} style={{ flex: 1, whiteSpace: "pre-line" }}>
                 {notification.message}
               </Text>
               <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
