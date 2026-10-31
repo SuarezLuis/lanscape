@@ -28,7 +28,8 @@ The **Network** page lists every device that answers on your network: name, IP a
 - **Maker** comes from the first half of the MAC address. Phones and laptops often use a private, randomized address, shown as hidden. When a device on a private address switches to a new one and announces the same name, LANscape keeps it as the same device, with its name, settings and history, instead of listing it twice.
 - **Online** means the device answered the latest scan. Phones and plugs that are asleep can briefly show as away.
 - **New** marks devices you haven't acknowledged yet. Open a device and switch on **Known device**, or use **Mark all known**.
-- **Click a device** to see its details and history (when it came online and went offline), and to set **Alert when offline**: LANscape alerts once when it has been quiet for 5, 10, 30 or 60 minutes, and once when it's back. Watched devices show a **Watched** badge.
+- **Click a device** to see its details and history (when it came online and went offline), and to set **Alert when offline**: LANscape alerts once when it has been quiet for 5, 10, 30 or 60 minutes, and once when it's back. Also set **Alert when online**: LANscape alerts each time it comes online after being away for 15 minutes, 30 minutes, 1 hour or 4 hours, like a phone arriving home. Shorter absences, like a phone dozing through a scan, don't count. Watched devices show a **Watched** badge.
+- **Delete device** (in the same panel) removes a device with its name, settings and history. If it joins again, it's listed as new and sends a new-device alert. Useful for clearing out old entries, or to hear about a device the next time it shows up.
 - **Export CSV** downloads the device list.
 
 ### Identify a device

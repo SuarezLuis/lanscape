@@ -223,15 +223,22 @@ export const appRouter = t.router({
           mac: z.string(),
           known: z.boolean().optional(),
           alertOfflineMinutes: z.union([z.literal(5), z.literal(10), z.literal(30), z.literal(60), z.null()]).optional(),
+          alertOnlineMinutes: z.union([z.literal(15), z.literal(30), z.literal(60), z.literal(240), z.null()]).optional(),
         }),
       )
-      .mutation(({ input: { mac, known, alertOfflineMinutes } }) =>
+      .mutation(({ input: { mac, known, alertOfflineMinutes, alertOnlineMinutes } }) =>
         prisma.device.update({
           where: { mac },
           // A changed offline setting starts its alert state over
-          data: { known, ...(alertOfflineMinutes !== undefined ? { alertOfflineMinutes, offlineAlerted: false } : {}) },
+          data: {
+            known,
+            alertOnlineMinutes,
+            ...(alertOfflineMinutes !== undefined ? { alertOfflineMinutes, offlineAlerted: false } : {}),
+          },
         }),
       ),
+    // Its history goes with it, and it counts as new the next time it shows up
+    delete: procedure.input(z.object({ mac: z.string() })).mutation(({ input }) => prisma.device.delete({ where: { mac: input.mac } })),
     markAllKnown: procedure.mutation(() => prisma.device.updateMany({ where: { known: false }, data: { known: true } })),
     history: procedure
       .input(z.object({ mac: z.string() }))

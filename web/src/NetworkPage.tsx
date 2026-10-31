@@ -268,12 +268,27 @@ const OFFLINE_ALERT = [
   { value: "60", label: "Offline 1 hour" },
 ];
 
+const ONLINE_ALERT = [
+  { value: "off", label: "Off" },
+  { value: "15", label: "After 15 minutes away" },
+  { value: "30", label: "After 30 minutes away" },
+  { value: "60", label: "After 1 hour away" },
+  { value: "240", label: "After 4 hours away" },
+];
+
 const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () => void }) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const history = useQuery({ ...trpc.devices.history.queryOptions({ mac: device?.mac ?? "" }), enabled: device !== null });
-  const update = useMutation(
-    trpc.devices.update.mutationOptions({ onSuccess: () => queryClient.invalidateQueries(trpc.devices.list.queryFilter()) }),
+  const refresh = () => queryClient.invalidateQueries(trpc.devices.list.queryFilter());
+  const update = useMutation(trpc.devices.update.mutationOptions({ onSuccess: refresh }));
+  const remove = useMutation(
+    trpc.devices.delete.mutationOptions({
+      onSuccess: () => {
+        onClose();
+        return refresh();
+      },
+    }),
   );
 
   return (
@@ -300,6 +315,19 @@ const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () 
             }
             allowDeselect={false}
           />
+          <Select
+            label="Alert when online"
+            description="Alerts each time it comes online after being away, like a phone arriving home. Short absences, like a dozing phone, don't count."
+            data={ONLINE_ALERT}
+            value={device.alertOnlineMinutes ? String(device.alertOnlineMinutes) : "off"}
+            onChange={(value) =>
+              update.mutate({
+                mac: device.mac,
+                alertOnlineMinutes: value && value !== "off" ? (Number(value) as 15 | 30 | 60 | 240) : null,
+              })
+            }
+            allowDeselect={false}
+          />
           <Title order={5}>History</Title>
           {history.data?.length === 0 && (
             <Text size="sm" c="dimmed">
@@ -315,6 +343,26 @@ const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () 
               </Timeline.Item>
             ))}
           </Timeline>
+          <Stack gap={4}>
+            <Group>
+              <Button
+                variant="light"
+                color="red"
+                loading={remove.isPending}
+                onClick={() => {
+                  if (window.confirm(`Delete ${deviceLabel(device)} and its history? If it shows up again, it's a new device.`)) {
+                    remove.mutate({ mac: device.mac });
+                  }
+                }}
+              >
+                Delete device
+              </Button>
+            </Group>
+            <Text size="xs" c="dimmed">
+              Removes its name, settings and history. The next time it joins, LANscape lists it again and sends a new-device
+              alert.
+            </Text>
+          </Stack>
         </Stack>
       )}
     </Drawer>
@@ -422,8 +470,15 @@ export const NetworkPage = () => {
                             New
                           </Badge>
                         )}
-                        {device.alertOfflineMinutes && (
-                          <Tooltip label={`Alerts after ${device.alertOfflineMinutes} minutes offline`}>
+                        {(device.alertOfflineMinutes || device.alertOnlineMinutes) && (
+                          <Tooltip
+                            label={[
+                              device.alertOfflineMinutes && `Alerts after ${device.alertOfflineMinutes} minutes offline`,
+                              device.alertOnlineMinutes && `Alerts when it comes online`,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          >
                             <Badge size="xs" color="orange" variant="light">
                               Watched
                             </Badge>
