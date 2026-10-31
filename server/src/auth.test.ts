@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { hashPassword, passwordAction, readSessionCookie, verifyPassword } from "./auth";
+import { hashPassword, matchesPassword, passwordAction, readSessionCookie, verifyPassword } from "./auth";
 
 test("hashes passwords with a fresh salt and verifies them", async () => {
   const [first, second] = [await hashPassword("correct horse"), await hashPassword("correct horse")];
@@ -24,4 +24,11 @@ test("decides what to do with the password on start", () => {
   expect(passwordAction({ ...base, onUmbrel: false, resetFile: true })).toBe("clear"); // plain Docker: first-run setup
   expect(passwordAction({ ...base, onUmbrel: false, hasPassword: false })).toBeNull();
   expect(passwordAction({ ...base, onUmbrel: false, resetSetting: true })).toBeNull();
+});
+
+test("accepts a pasted password with spaces or a newline around it", async () => {
+  const stored = await hashPassword("correct horse");
+  expect(await matchesPassword(" correct horse\n", stored)).toBe(true);
+  expect(await matchesPassword("correct  horse", stored)).toBe(false);
+  expect(await matchesPassword(" padded ", await hashPassword(" padded "))).toBe(true);
 });

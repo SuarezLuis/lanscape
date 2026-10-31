@@ -3,7 +3,7 @@
 Planned features, not yet built. Tick items off here as they ship. Core network monitoring must keep working without AI or external services.
 
 ## Next patch
-- [ ] Sign-in trims whitespace around the password.
+- [x] Sign-in trims whitespace around the password.
 - [ ] Official Umbrel App Store listing: submitted as getumbrel/umbrel-apps#6285, waiting on review.
 
 ## v1.2 — Network intelligence and data ownership
