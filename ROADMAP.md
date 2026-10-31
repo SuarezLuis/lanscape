@@ -33,7 +33,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] **Network performance reports:** periodic summarized trends, issue comparisons and shareable ISP support diagnostics.
 
 ## Existing roadmap items
-- [ ] Optional Pi-hole device naming integration.
+- [x] Pi-hole integration: device names, DNS activity per device, and recent DNS requests as a sign of life (Integrations page).
 - [ ] HTTPS support.
 - [ ] Browser push notifications.
 

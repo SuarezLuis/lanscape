@@ -85,6 +85,22 @@ Alerts always appear under **Recent alerts**. They also go to every channel you 
 
 A channel whose last delivery failed shows **Failing**, with the error.
 
+## Integrations
+
+LANscape can use other apps on your network. Each has its own tab.
+
+### Pi-hole
+
+If you run [Pi-hole](https://pi-hole.net) (version 6 or later), connecting it gives LANscape:
+
+- **Names** for devices that don't announce one. Your own names and announced names still come first.
+- **A sign of life** for sleepy devices: a device that asked Pi-hole for something in the last 10 minutes counts as online, even if it slept through the scan. (Identify a device ignores this, so a device you just switched off isn't counted.)
+- **DNS activity** in each device's panel on the Network page: how many requests it made, how many were blocked, and the domains it asks for most. It helps tell what a mystery device is.
+
+To connect, create an app password in Pi-hole (Settings → Web interface / API → Configure app password), then enter it with Pi-hole's address on the Pi-hole tab. On Umbrel the address is `http://localhost:8082`. LANscape tests the connection before saving it.
+
+Pi-hole only knows names if it hands out addresses itself (its DHCP server), or if **conditional forwarding** (Settings → DNS) points at your router. Without either, you still get the activity and the online signal.
+
 ## Settings
 
 - **Change password**, which signs out every other browser.
@@ -96,7 +112,7 @@ A channel whose last delivery failed shows **Failing**, with the error.
 
 **Download backup** saves everything in one `.lanscape` file: history, devices and their names, rules, schedules and settings. Use it to move LANscape to another Umbrel, or to go back to it later.
 
-The file includes your alert channels' secrets, like bot tokens and webhook addresses. Enter a passphrase before downloading to encrypt it. Keep the passphrase somewhere safe: an encrypted backup can't be restored without it.
+The file includes your alert channels' secrets, like bot tokens and webhook addresses, and your Pi-hole app password. Enter a passphrase before downloading to encrypt it. Keep the passphrase somewhere safe: an encrypted backup can't be restored without it.
 
 To restore, choose the file (and its passphrase, if it has one) and select **Check backup**. LANscape checks the file and shows what's in it. **Replace current data with this backup** then swaps in the backup's data in one step: if anything goes wrong, nothing changes. A backup from an older version of LANscape is brought up to date as it's restored; one from a newer version asks you to update LANscape first.
 

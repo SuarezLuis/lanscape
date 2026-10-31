@@ -27,6 +27,8 @@ import { ContrastIcon } from "./icons/contrast";
 import { WorkflowIcon } from "./icons/workflow";
 import { NetworkPage } from "./NetworkPage";
 import { NotificationsPage } from "./NotificationsPage";
+import { IntegrationsPage } from "./IntegrationsPage";
+import { PlugIcon } from "./icons/plug";
 import { AuthScreen } from "./AuthScreen";
 import { GitHubDoc } from "./GitHubDoc";
 import { BookTextIcon } from "./icons/book-text";
@@ -67,6 +69,12 @@ const PAGES = [
     label: "Notifications",
     icon: BellIcon,
     element: <NotificationsPage />,
+  },
+  {
+    path: "/integrations",
+    label: "Integrations",
+    icon: PlugIcon,
+    element: <IntegrationsPage />,
   },
   { path: "/settings", label: "Settings", icon: SettingsIcon, element: <SettingsPage />, bottom: true },
   { path: "/help", label: "Help", icon: CircleHelpIcon, element: <GitHubDoc path="docs/HELP.md" />, bottom: true },

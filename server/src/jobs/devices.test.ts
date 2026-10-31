@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { matchNewAddresses, onlineAlertDue, newDeviceAlert, offlineStep, parseArpScan, selfOn, unknownBackAlert, vendorFor } from "./devices";
+import { inSubnet, matchNewAddresses, onlineAlertDue, recentlyActive, newDeviceAlert, offlineStep, parseArpScan, selfOn, unknownBackAlert, vendorFor } from "./devices";
 
 test("keeps one row per MAC from arp-scan output", () => {
   const stdout = [
@@ -94,4 +94,28 @@ test("alerts on arrival only for watched devices back after the chosen time away
   expect(onlineAlertDue(awayFor(10), previousScan, now)).toBe(false); // dozed for a couple of scans
   expect(onlineAlertDue({ ...awayFor(45), alertOnlineMinutes: null }, previousScan, now)).toBe(false);
   expect(onlineAlertDue({ ...phone, lastSeen: previousScan }, previousScan, now)).toBe(false); // was already online
+});
+
+test("counts recent Pi-hole requests from LAN addresses as a sign of life", () => {
+  expect(inSubnet("192.168.0.74", "192.168.0.101/24")).toBe(true);
+  expect(inSubnet("192.168.1.74", "192.168.0.101/24")).toBe(false);
+  expect(inSubnet("172.17.0.5", "192.168.0.101/24")).toBe(false);
+  expect(inSubnet("10.0.200.1", "10.0.0.5/16")).toBe(true);
+
+  const now = new Date("2026-10-31T18:00:00Z");
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000);
+  const client = (mac: string, ip: string, lastQuery: Date | null) => ({ mac, ip, name: null, lastQuery, queries: 1 });
+  const active = recentlyActive(
+    [
+      client("aa:00:00:00:00:01", "192.168.0.50", ago(2)), // dozed through the sweep
+      client("aa:00:00:00:00:02", "192.168.0.51", ago(2)), // answered the sweep already
+      client("aa:00:00:00:00:03", "192.168.0.52", ago(30)), // quiet for a while
+      client("aa:00:00:00:00:04", "172.17.0.5", ago(1)), // a Docker container
+      client("aa:00:00:00:00:05", "192.168.0.53", null),
+    ],
+    new Set(["aa:00:00:00:00:02"]),
+    "192.168.0.101/24",
+    now,
+  );
+  expect(active).toEqual([{ ip: "192.168.0.50", mac: "aa:00:00:00:00:01" }]);
 });

@@ -105,7 +105,7 @@ export const BackupCard = () => {
           </Text>
           <Alert color="yellow" variant="light" p="xs">
             <Text size="sm">
-              The file includes your alert channels' secrets (bot tokens, webhook addresses). Set a passphrase to encrypt
+              The file includes your alert channels' secrets (bot tokens, webhook addresses) and your Pi-hole app password. Set a passphrase to encrypt
               it, and keep the passphrase: without it the backup can't be restored.
             </Text>
           </Alert>
