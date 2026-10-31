@@ -13,7 +13,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] **Speed performance heatmap:** hourly/daily download and upload patterns, ISP plan target, long-term trends.
 - [ ] **Unknown/new device alerts:** trusted-device workflow and randomized-MAC false-positive handling (extend existing new-device/offline alerts).
 - [ ] **Adoption/analytics:** ask Umbrel maintainers whether aggregate install counts or a developer dashboard are available; if not, evaluate *explicit opt-in*, anonymous privacy-preserving telemetry for installs, active installs, versions, and feature usage. No IPs, MACs, device names, or network measurements; document consent, retention, and disabling; do not silently track.
-- [ ] **Donation support:** optional, discreet Buy Me a Coffee link in About and README; confirm Umbrel submission rules before in-app placement.
+- [x] **Donation support:** Buy Me a Coffee link in the README (so also the About page) and GitHub's Sponsor button. Anything more in-app waits on Umbrel's submission rules.
 
 ## v1.3 — Advanced monitoring and AI foundations
 - [ ] **Network diagnostics:** guided ping, traceroute, DNS and gateway checks; exportable troubleshooting report.
