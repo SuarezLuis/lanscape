@@ -104,3 +104,9 @@ Speed test results include your public IP address; LANscape never stores it.
 - **A device keeps showing as away:** it's probably asleep. Phones and battery devices often skip scans.
 - **A speed test fails right away:** check the Umbrel has internet access. The error appears under the button and on the Automations page.
 - **Something else:** open an issue at [github.com/SuarezLuis/lanscape](https://github.com/SuarezLuis/lanscape/issues).
+
+## Support LANscape
+
+LANscape is free and open source. If it's useful to you, you can buy me a coffee:
+
+[![Buy me a coffee](https://media.giphy.com/media/513lZvPf6khjIQFibF/200.gif)](https://www.buymeacoffee.com/suarezluis)
