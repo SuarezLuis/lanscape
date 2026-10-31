@@ -15,6 +15,7 @@ import {
   setPassword,
   umbrelPassword,
 } from "./auth";
+import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
@@ -253,6 +254,18 @@ export const appRouter = t.router({
     update: procedure
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
+  }),
+  // Downloading and restoring backups are plain HTTP routes in index.ts, since they move files
+  backup: t.router({
+    canUndo: procedure.query(() => listSafetyBackups().length > 0),
+    undo: procedure.mutation(() => {
+      try {
+        return undoRestore();
+      } catch (error) {
+        if (error instanceof BackupError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+        throw error;
+      }
+    }),
   }),
 });
 

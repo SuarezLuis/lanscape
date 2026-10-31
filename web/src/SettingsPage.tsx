@@ -1,6 +1,7 @@
 import { Button, Card, Code, Group, PasswordInput, Stack, Text, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
+import { BackupCard } from "./BackupCard";
 import { useTRPC } from "./trpc";
 
 export const SettingsPage = () => {
@@ -127,6 +128,8 @@ export const SettingsPage = () => {
           </Group>
         </Stack>
       </Card>
+
+      <BackupCard />
 
       <Card withBorder padding="md" radius="md">
         <Stack gap="xs">

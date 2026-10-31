@@ -7,7 +7,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] Official Umbrel App Store listing: submitted as getumbrel/umbrel-apps#6285, waiting on review.
 
 ## v1.2 — Network intelligence and data ownership
-- [ ] **Backup and restore:** export/import a versioned archive containing SQLite data, device names/trust settings, monitoring rules, schedules and configuration; consistency-safe backup, schema/version checks, restore preview, confirmation, automatic pre-restore safety backup, and recovery/rollback path. Explicitly warn about secrets and offer encrypted backups; test on clean install and across upgrades.
+- [x] **Backup and restore:** export/import a versioned archive containing SQLite data, device names/trust settings, monitoring rules, schedules and configuration; consistency-safe backup, schema/version checks, restore preview, confirmation, automatic pre-restore safety backup, and recovery/rollback path. Explicitly warn about secrets and offer encrypted backups; test on clean install and across upgrades.
 - [ ] **Internet Health Score (0–100):** derive from latency, loss, jitter and outages; explain score and comparison baseline.
 - [ ] **Internet outage timeline:** timestamp and duration of disruptions; compare router vs internet reachability to avoid unsupported root-cause claims.
 - [ ] **Speed performance heatmap:** hourly/daily download and upload patterns, ISP plan target, long-term trends.
