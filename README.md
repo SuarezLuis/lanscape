@@ -18,6 +18,7 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 - **Automations page** to schedule speed tests, ping checks and device scans, showing each job's last run and errors.
 - **Choose the speed test server**, or let it pick the nearest.
 - **CSV export** of speed tests, ping checks and devices.
+- **Backup and restore** of everything in one file, optionally encrypted with a passphrase, with a preview before restoring and an undo after.
 - **Password protection:** on Umbrel it starts with the password Umbrel shows for the app; change it or sign out everywhere in Settings.
 - Light, dark and system themes; works on phones.
 

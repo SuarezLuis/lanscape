@@ -87,6 +87,17 @@ A channel whose last delivery failed shows **Failing**, with the error.
 - **Change password**, which signs out every other browser.
 - **Sign out**, or **Sign out everywhere**.
 - **Export data:** speed tests, ping checks and devices as CSV files.
+- **Back up and restore**, below.
+
+### Back up and restore
+
+**Download backup** saves everything in one `.lanscape` file: history, devices and their names, rules, schedules and settings. Use it to move LANscape to another Umbrel, or to go back to it later.
+
+The file includes your alert channels' secrets, like bot tokens and webhook addresses. Enter a passphrase before downloading to encrypt it. Keep the passphrase somewhere safe: an encrypted backup can't be restored without it.
+
+To restore, choose the file (and its passphrase, if it has one) and select **Check backup**. LANscape checks the file and shows what's in it. **Replace current data with this backup** then swaps in the backup's data in one step: if anything goes wrong, nothing changes. A backup from an older version of LANscape is brought up to date as it's restored; one from a newer version asks you to update LANscape first.
+
+Restoring keeps your current password and signed-in browsers. Just before it, LANscape saves the data it had, so **Undo last restore** can put it back. It keeps the last three of these copies in its data folder, under `backups`.
 
 ## Privacy
 

@@ -1,9 +1,9 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { existsSync, unlinkSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { prisma } from "./db";
+import { dirname, join } from "node:path";
+import { databasePath, prisma } from "./db";
 
-const PASSWORD = "auth.password";
+export const PASSWORD = "auth.password";
 const COOKIE = "lanscape_session";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SESSION_DAYS = 30;
@@ -112,8 +112,7 @@ export const passwordAction = (state: { hasPassword: boolean; onUmbrel: boolean;
  * or an empty reset-password file next to the database (~/umbrel/app-data/sz-lanscape/data/reset-password).
  */
 export const preparePassword = async () => {
-  const database = (process.env.DATABASE_URL ?? "file:./dev.db").replace(/^file:/, "");
-  const flag = join(dirname(resolve(database)), "reset-password");
+  const flag = join(dirname(databasePath), "reset-password");
   const resetFile = existsSync(flag);
   const umbrel = umbrelPassword();
   const action = passwordAction({
