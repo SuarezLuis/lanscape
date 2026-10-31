@@ -30,6 +30,14 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 
 Made from invented demo data with `scripts/demo/` (seed, capture, gallery).
 
+## Support
+
+LANscape is free and open source. If it's useful to you, you can buy me a coffee:
+
+[![Buy me a coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=suarezluis&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://www.buymeacoffee.com/suarezluis)
+
+Bug reports and ideas are welcome in [issues](https://github.com/SuarezLuis/lanscape/issues).
+
 ## Stack
 
 Node 26, npm workspaces (`server/`, `web/`), Fastify + tRPC v11, Prisma 7 + SQLite, React 19 + Vite + Mantine.
