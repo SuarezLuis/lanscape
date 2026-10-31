@@ -34,9 +34,13 @@ export const setPassword = async (password: string) => {
   await prisma.setting.upsert({ where: { key: PASSWORD }, create: { key: PASSWORD, value }, update: { value } });
 };
 
+// A copied password often picks up a space or newline; passwords set with spaces at the ends still match as typed
+export const matchesPassword = async (password: string, stored: string) =>
+  (await verifyPassword(password, stored)) || (password !== password.trim() && verifyPassword(password.trim(), stored));
+
 export const checkPassword = async (password: string) => {
   const stored = await storedPassword();
-  return stored !== null && verifyPassword(password, stored);
+  return stored !== null && matchesPassword(password, stored);
 };
 
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
