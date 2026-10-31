@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { bucketStart } from "../latency";
+import { bucketLength, bucketStart } from "../latency";
 import { DEFAULTS, isDue, nextRun } from "./scheduler";
 
 const everySixHoursFrom4am = { ...DEFAULTS.speedtest, everyMinutes: 360, timeZone: "America/Chicago" };
@@ -26,6 +26,15 @@ test("turns text prefixes into bucket start times", () => {
   expect(bucketStart("2026-10-30T17:3")).toEqual(new Date("2026-10-30T17:30:00Z"));
   expect(bucketStart("2026-10-30T17")).toEqual(new Date("2026-10-30T17:00:00Z"));
   expect(bucketStart("2026-10-30")).toEqual(new Date("2026-10-30T00:00:00Z"));
+  expect(bucketStart("2026-10-30T17:35")).toEqual(new Date("2026-10-30T17:35:00Z"));
+});
+
+test("sizes buckets by the history there, so a first hour isn't two points", () => {
+  const hour = 60 * 60 * 1000;
+  expect(bucketLength(hour)).toBe(16);
+  expect(bucketLength(2 * 24 * hour)).toBe(15);
+  expect(bucketLength(7 * 24 * hour)).toBe(13);
+  expect(bucketLength(365 * 24 * hour)).toBe(10);
 });
 
 test("rolls up pings older than 90 days, cut on the hour", async () => {
