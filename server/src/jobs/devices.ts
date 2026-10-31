@@ -14,12 +14,17 @@ const require = createRequire(import.meta.url);
 export const LAST_SCAN = "devices.lastScan";
 const FIRST_SCAN = "devices.firstScan";
 export const NEW_DEVICE_ALERTS = "notify.newDevice";
+export const UNKNOWN_BACK_ALERTS = "notify.unknownBack";
+// Dozing phones and plugs drop out of a scan or two; an unknown device gone this long and back is worth a look
+const UNKNOWN_AWAY_MS = 60 * 60 * 1000;
 
 let oui: Record<string, string> | null = null;
 
 // Phones and laptops use a random, "locally administered" MAC per network, which no maker owns
+const isPrivateMac = (mac: string) => (Number.parseInt(mac.slice(0, 2), 16) & 0x02) !== 0;
+
 export const vendorFor = (mac: string) => {
-  if (Number.parseInt(mac.slice(0, 2), 16) & 0x02) return "Private address";
+  if (isPrivateMac(mac)) return "Private address";
   // ~6 MB of JSON, so it loads on the first scan rather than at startup
   oui ??= require("oui-data") as Record<string, string>;
   return oui[mac.replaceAll(":", "").slice(0, 6).toUpperCase()]?.split("\n")[0] ?? null;
@@ -46,6 +51,31 @@ export const selfOn = (iface: string, interfaces = networkInterfaces()) => {
 const deviceLabel = (device: Pick<Device, "name" | "hostname" | "vendor" | "ip">) =>
   device.name ?? device.hostname ?? device.vendor ?? device.ip;
 
+/**
+ * Private MACs change (on rotation, or after the phone forgets the network). A new private MAC announcing the same
+ * name as exactly one private-MAC device that isn't answering is taken to be that device on a new address.
+ * Returns new MAC -> old MAC.
+ * ponytail: matches on the announced name alone, so two phones that both call themselves "Android" can be mistaken
+ * for one when only one is around; matching on more (vendor class, mDNS services) if that shows up.
+ */
+export const matchNewAddresses = (
+  found: { mac: string; name: string | undefined }[],
+  existing: Pick<Device, "mac" | "hostname">[],
+) => {
+  const foundMacs = new Set(found.map((device) => device.mac));
+  const knownMacs = new Set(existing.map((device) => device.mac));
+  const moves = new Map<string, string>();
+  for (const { mac, name } of found) {
+    if (knownMacs.has(mac) || !name || !isPrivateMac(mac)) continue;
+    const taken = new Set(moves.values());
+    const candidates = existing.filter(
+      (device) => device.hostname === name && isPrivateMac(device.mac) && !foundMacs.has(device.mac) && !taken.has(device.mac),
+    );
+    if (candidates.length === 1) moves.set(mac, candidates[0]!.mac);
+  }
+  return moves;
+};
+
 const wasOnline = (device: Device, previousScan: Date | null) => previousScan !== null && device.lastSeen >= previousScan;
 
 // null when nothing to say; "offline" once it has been gone alertOfflineMinutes, "back" when it returns after that
@@ -60,12 +90,24 @@ export const offlineStep = (
   return !device.offlineAlerted && goneMs >= device.alertOfflineMinutes * 60_000 ? ("offline" as const) : null;
 };
 
-export const newDeviceAlert = (added: { ip: string; mac: string; label: string }[]) => {
-  const line = (device: (typeof added)[number]) => `${device.label} at ${device.ip} (${device.mac})`;
-  return added.length === 1
-    ? { title: "New device", message: `${line(added[0]!)} joined your network.` }
-    : { title: `${added.length} new devices`, message: `These joined your network:\n${added.map(line).join("\n")}` };
-};
+type Listed = { ip: string; mac: string; label: string };
+
+const listLine = (device: Listed) => `${device.label} at ${device.ip} (${device.mac})`;
+
+export const newDeviceAlert = (added: Listed[]) =>
+  added.length === 1
+    ? { title: "New device", message: `${listLine(added[0]!)} joined your network.` }
+    : { title: `${added.length} new devices`, message: `These joined your network:\n${added.map(listLine).join("\n")}` };
+
+const MARK_KNOWN = "Mark it as known on the Network page to stop these alerts for it.";
+
+export const unknownBackAlert = (returned: Listed[]) =>
+  returned.length === 1
+    ? { title: "Unknown device is back", message: `${listLine(returned[0]!)} is back on your network. ${MARK_KNOWN}` }
+    : {
+        title: `${returned.length} unknown devices are back`,
+        message: `These unknown devices are back on your network:\n${returned.map(listLine).join("\n")}`,
+      };
 
 const alert = async (kind: "problem" | "resolved" | "device", title: string, message: string) => {
   await prisma.notification.create({ data: { kind, value: 0, message } });
@@ -92,7 +134,7 @@ const scan = async (thorough: boolean) => {
   if (self) names.set(self.ip, hostname());
 
   const scanAt = new Date();
-  const [existing, firstScan, previousScan] = await Promise.all([
+  const [stored, firstScan, previousScan] = await Promise.all([
     prisma.device.findMany(),
     prisma.setting.upsert({
       where: { key: FIRST_SCAN },
@@ -102,9 +144,17 @@ const scan = async (thorough: boolean) => {
     prisma.setting.findUnique({ where: { key: LAST_SCAN } }),
   ]);
   const previousAt = previousScan ? new Date(previousScan.value) : null;
+
+  // A device on a new private address keeps its name, settings and history; its events follow the MAC (ON UPDATE CASCADE)
+  const moves = matchNewAddresses(found.map(({ ip, mac }) => ({ mac, name: names.get(ip) })), stored);
+  const movedTo = new Map([...moves].map(([next, previous]) => [previous, next]));
+  for (const [next, previous] of moves) await prisma.device.update({ where: { mac: previous }, data: { mac: next } });
+  const existing = stored.map((device) => ({ ...device, mac: movedTo.get(device.mac) ?? device.mac }));
+
   const byMac = new Map(existing.map((device) => [device.mac, device]));
   const foundMacs = new Set(found.map((device) => device.mac));
-  const added = [];
+  const added: Listed[] = [];
+  const returned: Listed[] = [];
   const events: { mac: string; online: boolean; at: Date }[] = [];
 
   for (const { ip, mac } of found) {
@@ -119,6 +169,9 @@ const scan = async (thorough: boolean) => {
     const before = byMac.get(mac);
     if (!before) added.push({ ip, mac, label: hostname ?? vendor ?? "Unknown device" });
     if (!before || !wasOnline(before, previousAt)) events.push({ mac, online: true, at: scanAt });
+    if (before && !before.known && scanAt.getTime() - before.lastSeen.getTime() >= UNKNOWN_AWAY_MS) {
+      returned.push({ ip, mac, label: deviceLabel({ ...before, hostname: hostname ?? before.hostname }) });
+    }
   }
   for (const device of existing) {
     if (!foundMacs.has(device.mac) && wasOnline(device, previousAt)) events.push({ mac: device.mac, online: false, at: scanAt });
@@ -147,12 +200,23 @@ const scan = async (thorough: boolean) => {
 
   // The first scan is what was already there. Sleeping devices that turn up later do alert, one alert per scan
   const firstEver = firstScan.value === scanAt.toISOString();
-  const alertsOn = (await prisma.setting.findUnique({ where: { key: NEW_DEVICE_ALERTS } }))?.value !== "off";
-  if (!firstEver && alertsOn && added.length) {
+  const { newDevice, unknownBack } = await readDeviceAlerts();
+  if (!firstEver && newDevice && added.length) {
     const { title, message } = newDeviceAlert(added);
     await alert("device", title, message);
   }
+  if (unknownBack && returned.length) {
+    const { title, message } = unknownBackAlert(returned);
+    await alert("device", title, message);
+  }
   return { found: found.length, added: added.length, online: found.map((device) => device.mac) };
+};
+
+// New-device alerts are on unless turned off; unknown-device-back alerts are off until turned on
+export const readDeviceAlerts = async () => {
+  const rows = await prisma.setting.findMany({ where: { key: { in: [NEW_DEVICE_ALERTS, UNKNOWN_BACK_ALERTS] } } });
+  const value = (key: string) => rows.find((row) => row.key === key)?.value;
+  return { newDevice: value(NEW_DEVICE_ALERTS) !== "off", unknownBack: value(UNKNOWN_BACK_ALERTS) === "on" };
 };
 
 let scanning: ReturnType<typeof scan> | null = null;

@@ -25,7 +25,7 @@ Before each test LANscape also pings your router and your internet host, so the 
 The **Network** page lists every device that answers on your network: name, IP address, maker, MAC address, and when it was first and last seen.
 
 - **Names** come from what devices announce on the network (TVs, speakers, computers). Many devices, like smart plugs, don't announce one. Click any name to set your own.
-- **Maker** comes from the first half of the MAC address. Phones and laptops often use a private, randomized address, shown as hidden.
+- **Maker** comes from the first half of the MAC address. Phones and laptops often use a private, randomized address, shown as hidden. When a device on a private address switches to a new one and announces the same name, LANscape keeps it as the same device, with its name, settings and history, instead of listing it twice.
 - **Online** means the device answered the latest scan. Phones and plugs that are asleep can briefly show as away.
 - **New** marks devices you haven't acknowledged yet. Open a device and switch on **Known device**, or use **Mark all known**.
 - **Click a device** to see its details and history (when it came online and went offline), and to set **Alert when offline**: LANscape alerts once when it has been quiet for 5, 10, 30 or 60 minutes, and once when it's back. Watched devices show a **Watched** badge.
@@ -65,6 +65,8 @@ For ping rules, **how long** sets how long the problem has to last before you he
 Each rule sends **one** alert when a problem starts and **one** when it clears. Three starter rules are included, all off.
 
 **New device joins the network** alerts when a device LANscape has never seen appears. The very first scan only records what's already there. Devices that were asleep for it alert when they turn up, and several found in the same scan come as one alert.
+
+**Unknown device is back** (off by default) alerts when a device you haven't marked as known comes back after an hour or more away, like a visitor's phone or something that only joins now and then. Mark your own devices as known on the Network page first, or you'll hear about them too.
 
 ### Where alerts go
 

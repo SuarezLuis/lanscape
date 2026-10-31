@@ -349,16 +349,16 @@ export const NotificationsPage = () => {
   );
   const markAllRead = useMutation(trpc.notifications.markAllRead.mutationOptions({ onSuccess: refresh }));
 
-  const newDeviceAlerts = useQuery(trpc.notifications.newDeviceAlerts.queryOptions());
-  const newDeviceKey = trpc.notifications.newDeviceAlerts.queryKey();
-  const setNewDeviceAlerts = useMutation(
-    trpc.notifications.setNewDeviceAlerts.mutationOptions({
-      onMutate: (enabled) => {
-        const previous = queryClient.getQueryData(newDeviceKey);
-        queryClient.setQueryData(newDeviceKey, enabled);
+  const deviceAlerts = useQuery(trpc.notifications.deviceAlerts.queryOptions());
+  const deviceAlertsKey = trpc.notifications.deviceAlerts.queryKey();
+  const setDeviceAlert = useMutation(
+    trpc.notifications.setDeviceAlert.mutationOptions({
+      onMutate: ({ alert, on }) => {
+        const previous = queryClient.getQueryData(deviceAlertsKey);
+        if (previous) queryClient.setQueryData(deviceAlertsKey, { ...previous, [alert]: on });
         return { previous };
       },
-      onError: (_error, _input, context) => queryClient.setQueryData(newDeviceKey, context?.previous),
+      onError: (_error, _input, context) => queryClient.setQueryData(deviceAlertsKey, context?.previous),
     }),
   );
   const unread = (list.data ?? []).some((notification) => !notification.read);
@@ -404,8 +404,14 @@ export const NotificationsPage = () => {
           </Text>
           <Switch
             label="New device joins the network"
-            checked={newDeviceAlerts.data ?? true}
-            onChange={(event) => setNewDeviceAlerts.mutate(event.currentTarget.checked)}
+            checked={deviceAlerts.data?.newDevice ?? true}
+            onChange={(event) => setDeviceAlert.mutate({ alert: "newDevice", on: event.currentTarget.checked })}
+          />
+          <Switch
+            label="Unknown device is back"
+            description="A device you haven't marked as known returns after an hour or more away. Mark your own devices as known on the Network page first."
+            checked={deviceAlerts.data?.unknownBack ?? false}
+            onChange={(event) => setDeviceAlert.mutate({ alert: "unknownBack", on: event.currentTarget.checked })}
           />
           {rules.data?.rules.map((rule) => (
             <RuleRow
