@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { newDeviceAlert, offlineStep, parseArpScan, selfOn, vendorFor } from "./devices";
+import { matchNewAddresses, newDeviceAlert, offlineStep, parseArpScan, selfOn, unknownBackAlert, vendorFor } from "./devices";
 
 test("keeps one row per MAC from arp-scan output", () => {
   const stdout = [
@@ -57,4 +57,30 @@ test("one alert per scan, however many devices joined", () => {
   const { title, message } = newDeviceAlert([laptop, { ...laptop, ip: "192.168.0.75", label: "Phone" }]);
   expect(title).toBe("2 new devices");
   expect(message.split("\n")).toHaveLength(3);
+});
+
+test("a phone on a new private address is the same phone when its name matches exactly one missing device", () => {
+  const existing = [
+    { mac: "fa:16:92:00:00:01", hostname: "Luis’s MacBook Pro" },
+    { mac: "8e:19:91:00:00:02", hostname: "Android" },
+    { mac: "92:00:00:00:00:03", hostname: "Android" },
+    { mac: "b8:27:eb:00:00:04", hostname: "pi2" },
+  ];
+  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: "Luis’s MacBook Pro" }], existing)).toEqual(
+    new Map([["a2:00:00:00:00:09", "fa:16:92:00:00:01"]]),
+  );
+  // Two devices with that name: can't tell which
+  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: "Android" }], existing).size).toBe(0);
+  // The old address is answering too, so it's a second device
+  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: "Luis’s MacBook Pro" }, { mac: "fa:16:92:00:00:01", name: "Luis’s MacBook Pro" }], existing).size).toBe(0);
+  // No name, a maker-assigned MAC, or a maker-assigned old device: no guessing
+  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: undefined }], existing).size).toBe(0);
+  expect(matchNewAddresses([{ mac: "b8:27:eb:00:00:09", name: "pi2" }], existing).size).toBe(0);
+});
+
+test("unknown devices back after a while come as one alert", () => {
+  const phone = { ip: "192.168.0.80", mac: "aa:bb:cc:dd:ee:01", label: "Galaxy" };
+  expect(unknownBackAlert([phone]).title).toBe("Unknown device is back");
+  expect(unknownBackAlert([phone]).message).toContain("Mark it as known");
+  expect(unknownBackAlert([phone, { ...phone, label: "Tablet" }]).title).toBe("2 unknown devices are back");
 });

@@ -20,7 +20,7 @@ import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
-import { LAST_SCAN, NEW_DEVICE_ALERTS, runDeviceScan } from "./jobs/devices";
+import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
 import { findGateway } from "./jobs/ping";
 import { readStatus } from "./jobs/status";
 import { findTelegramChats } from "./jobs/telegram";
@@ -188,13 +188,14 @@ export const appRouter = t.router({
     unread: procedure.query(() => prisma.notification.count({ where: { read: false } })),
     markAllRead: procedure.mutation(() => prisma.notification.updateMany({ where: { read: false }, data: { read: true } })),
     channels: procedure.query(() => describeChannels()),
-    newDeviceAlerts: procedure.query(
-      async () => (await prisma.setting.findUnique({ where: { key: NEW_DEVICE_ALERTS } }))?.value !== "off",
-    ),
-    setNewDeviceAlerts: procedure.input(z.boolean()).mutation(({ input }) => {
-      const value = input ? "on" : "off";
-      return prisma.setting.upsert({ where: { key: NEW_DEVICE_ALERTS }, create: { key: NEW_DEVICE_ALERTS, value }, update: { value } });
-    }),
+    deviceAlerts: procedure.query(() => readDeviceAlerts()),
+    setDeviceAlert: procedure
+      .input(z.object({ alert: z.enum(["newDevice", "unknownBack"]), on: z.boolean() }))
+      .mutation(({ input }) => {
+        const key = input.alert === "newDevice" ? NEW_DEVICE_ALERTS : UNKNOWN_BACK_ALERTS;
+        const value = input.on ? "on" : "off";
+        return prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+      }),
     saveChannel: procedure
       .input(z.object({ channel: z.enum(CHANNEL_IDS), values: z.record(z.string(), z.string().max(1000).optional()) }))
       .mutation(({ input }) => saveChannel(input.channel, input.values)),
