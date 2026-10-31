@@ -34,7 +34,7 @@ Made from invented demo data with `scripts/demo/` (seed, capture, gallery).
 
 LANscape is free and open source. If it's useful to you, you can buy me a coffee:
 
-[![Buy me a coffee](https://media.giphy.com/media/513lZvPf6khjIQFibF/200.gif)](https://www.buymeacoffee.com/suarezluis)
+[![Buy me a coffee](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/buy-me-a-coffee.gif)](https://www.buymeacoffee.com/suarezluis)
 
 Bug reports and ideas are welcome in [issues](https://github.com/SuarezLuis/lanscape/issues).
 
