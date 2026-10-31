@@ -64,7 +64,7 @@ For ping rules, **how long** sets how long the problem has to last before you he
 
 Each rule sends **one** alert when a problem starts and **one** when it clears. Three starter rules are included, all off.
 
-**New device joins the network** alerts when an unknown device appears. For the first 24 hours after the first scan, new devices are recorded quietly, since sleeping devices take a while to show up.
+**New device joins the network** alerts when a device LANscape has never seen appears. The very first scan only records what's already there. Devices that were asleep for it alert when they turn up, and several found in the same scan come as one alert.
 
 ### Where alerts go
 
