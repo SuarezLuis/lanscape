@@ -68,4 +68,4 @@ User-facing help is `docs/HELP.md`. The app's Help page fetches it from `master`
 
 ## Roadmap
 
-The roadmap is issue #11 (https://github.com/SuarezLuis/lanscape/issues/11): v1.2 backup/restore, Internet Health Score, outage timeline, speed heatmap and opt-in analytics; v1.3 diagnostics, network map, service checks and a read-only MCP/AI layer; v1.4 anomaly detection and router integrations; plus Pi-hole names, HTTPS and browser push. Read the issue before starting roadmap work, keep AI and external services optional, and tick items off there as they ship.
+`ROADMAP.md`. Read it before starting roadmap work, and tick items off there in the PR that ships them.
