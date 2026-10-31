@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { hostname, networkInterfaces } from "node:os";
 import { promisify } from "node:util";
 import { prisma } from "../db";
+import { type PiholeClient, piholeClients } from "./pihole";
 import type { Device } from "../generated/prisma/client";
 import { sendAll } from "./channels";
 import { discoverNames } from "./mdns";
@@ -41,6 +42,23 @@ export const parseArpScan = (stdout: string) => {
   }
   return [...devices.values()];
 };
+
+const ipNumber = (ip: string) => ip.split(".").reduce((total, part) => total * 256 + Number(part), 0);
+
+// Same network: equal once the host part is divided away (plain arithmetic, since JS bitwise ops are signed 32-bit)
+export const inSubnet = (ip: string, cidr: string) => {
+  const [network, bits] = cidr.split("/");
+  const hosts = 2 ** (32 - Number(bits));
+  return ip.includes(".") && Math.floor(ipNumber(ip) / hosts) === Math.floor(ipNumber(network!) / hosts);
+};
+
+// Asked DNS for something lately: alive, even if it slept through the ARP sweep. Only LAN addresses (not Docker's)
+const ACTIVE_MS = 10 * 60 * 1000;
+export const recentlyActive = (clients: PiholeClient[], foundMacs: Set<string>, cidr: string, now: Date) =>
+  clients
+    .filter((client) => !foundMacs.has(client.mac) && client.lastQuery && now.getTime() - client.lastQuery.getTime() < ACTIVE_MS)
+    .filter((client) => inSubnet(client.ip, cidr))
+    .map(({ ip, mac }) => ({ ip, mac }));
 
 // The scanning machine never answers its own ARP sweep, so it's added from its interface (the host's, in Docker host networking)
 export const selfOn = (iface: string, interfaces = networkInterfaces()) => {
@@ -136,8 +154,17 @@ const scan = async (thorough: boolean) => {
   const found = [...new Map(sweeps.flat().map((device) => [device.mac, device])).values()];
   const self = selfOn(route.iface);
   if (self && !found.some((device) => device.mac === self.mac)) found.push(self);
+  // Pi-hole, when set up: a sign of life for devices that dozed through the sweep, and names for ones that don't
+  // announce any. Identify scans skip the first, since a device just switched off may have asked DNS a minute ago
+  const pihole = await piholeClients();
+  const cidr = networkInterfaces()[route.iface]?.find((entry) => entry.family === "IPv4")?.cidr;
+  if (!thorough && cidr) found.push(...recentlyActive(pihole, new Set(found.map((device) => device.mac)), cidr, new Date()));
   const names = await discoverNames(found.map((device) => device.ip));
   if (self) names.set(self.ip, hostname());
+  for (const client of pihole) {
+    const device = found.find((entry) => entry.mac === client.mac);
+    if (device && client.name && !names.has(device.ip)) names.set(device.ip, client.name);
+  }
 
   const scanAt = new Date();
   const [stored, firstScan, previousScan] = await Promise.all([

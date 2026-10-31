@@ -268,6 +268,47 @@ const OFFLINE_ALERT = [
   { value: "60", label: "Offline 1 hour" },
 ];
 
+// What the device asks DNS for, when Pi-hole is connected (Integrations page)
+const PiholeActivity = ({ mac }: { mac: string }) => {
+  const trpc = useTRPC();
+  const activity = useQuery(trpc.integrations.piholeActivity.queryOptions({ mac }));
+  const data = activity.data;
+  if (activity.isPending || data === null || data === undefined) return null;
+
+  return (
+    <Stack gap={6}>
+      <Title order={5}>DNS activity (Pi-hole)</Title>
+      {!data.found ? (
+        <Text size="sm" c="dimmed">
+          {"error" in data ? data.error : "Pi-hole hasn't seen requests from this device."}
+        </Text>
+      ) : (
+        <>
+          <Text size="sm">
+            {data.total.toLocaleString()} requests in Pi-hole's history
+            {data.lastQuery ? `, the latest ${when(data.lastQuery)}` : ""}. Of its last {data.sampled.toLocaleString()},{" "}
+            {data.blocked.toLocaleString()} were blocked.
+          </Text>
+          {data.topDomains.length > 0 && (
+            <Table fz="sm" verticalSpacing={2}>
+              <Table.Tbody>
+                {data.topDomains.map((row) => (
+                  <Table.Tr key={row.domain}>
+                    <Table.Td style={{ wordBreak: "break-all" }}>{row.domain}</Table.Td>
+                    <Table.Td ta="right" c="dimmed">
+                      {row.count}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
+        </>
+      )}
+    </Stack>
+  );
+};
+
 const ONLINE_ALERT = [
   { value: "off", label: "Off" },
   { value: "15", label: "After 15 minutes away" },
@@ -328,6 +369,7 @@ const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () 
             }
             allowDeselect={false}
           />
+          <PiholeActivity mac={device.mac} />
           <Title order={5}>History</Title>
           {history.data?.length === 0 && (
             <Text size="sm" c="dimmed">

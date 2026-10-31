@@ -22,6 +22,7 @@ import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/cha
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
 import { findGateway } from "./jobs/ping";
+import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
 import { readStatus } from "./jobs/status";
 import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
@@ -262,6 +263,26 @@ export const appRouter = t.router({
     update: procedure
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
+  }),
+  integrations: t.router({
+    pihole: procedure.query(() => describePihole()),
+    savePihole: procedure.input(piholeSettings).mutation(async ({ input }) => {
+      try {
+        return await savePihole(input);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // fetch's own errors ("fetch failed", timeouts) don't say where; this does
+        throw new TRPCError({ code: "BAD_REQUEST", message: /fetch failed|aborted|timeout/i.test(message) ? `Couldn't reach Pi-hole at ${input.url}` : message });
+      }
+    }),
+    removePihole: procedure.mutation(() => removePihole()),
+    piholeActivity: procedure.input(z.object({ mac: z.string() })).query(async ({ input }) => {
+      try {
+        return await piholeActivity(input.mac);
+      } catch {
+        return { found: false as const, error: "Couldn't reach Pi-hole" };
+      }
+    }),
   }),
   // Downloading and restoring backups are plain HTTP routes in index.ts, since they move files
   backup: t.router({
