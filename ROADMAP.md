@@ -2,6 +2,10 @@
 
 Planned features, not yet built. Tick items off here as they ship. Core network monitoring must keep working without AI or external services.
 
+## Next patch
+- [ ] Sign-in trims whitespace around the password (pasting from Umbrel's dialog can add a space).
+- [ ] Official Umbrel App Store listing: submitted as getumbrel/umbrel-apps#6285, waiting on review.
+
 ## v1.2 — Network intelligence and data ownership
 - [ ] **Backup and restore:** export/import a versioned archive containing SQLite data, device names/trust settings, monitoring rules, schedules and configuration; consistency-safe backup, schema/version checks, restore preview, confirmation, automatic pre-restore safety backup, and recovery/rollback path. Explicitly warn about secrets and offer encrypted backups; test on clean install and across upgrades.
 - [ ] **Internet Health Score (0–100):** derive from latency, loss, jitter and outages; explain score and comparison baseline.
@@ -36,3 +40,28 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - Avoid privileged device discovery or router writes beyond the minimum necessary permissions.
 - Deliver new functionality via feature branches and PRs; do not modify the live official-store submission merely to track ideas.
 
+## Shipped
+
+### v1.1.0
+- [x] Starts with Umbrel's per-install password (`APP_PASSWORD` + `deterministicPassword`): no first-run screen for someone else on the LAN to reach first.
+- [x] Reset to Umbrel's password from Settings, or with the `RESET_PASSWORD` app setting.
+
+### v1.0.1
+- [x] README images use full raw URLs, so the About page shows them.
+- [x] Store gallery (2160×1350) and light/dark screenshots made from invented demo data (`scripts/demo/`).
+- [x] Notifications page leads with recent alerts; full device status badges; chart units in titles.
+
+### v1.0.0
+- [x] Speed tests on demand or on a schedule, with a live gauge, ping, jitter, and router/internet latency before each test; history charts and a sortable table.
+- [x] Choice of speed test server, or nearest.
+- [x] Ping checks every minute to the router and an internet host: latency and packet loss, with raw samples older than 90 days kept as hourly averages.
+- [x] Device list from ARP scans every 5 minutes: IP, MAC, maker (IEEE OUI), mDNS names and custom names, including the Umbrel itself.
+- [x] Identify a device by switching it off and on.
+- [x] Per-device history, known devices, offline and new-device alerts.
+- [x] Notification rules against a fixed value or a percentage of the 7-day median, with a duration window; one alert when a problem starts and one when it clears.
+- [x] Alert channels: ntfy, Telegram (bot replies with your chat ID), Discord, Slack and webhook.
+- [x] Automations page with per-job schedules in the saved time zone, last run and errors.
+- [x] CSV export of speed tests, ping checks and devices.
+- [x] Own login with sessions (host-network apps skip Umbrel's login); change password or sign out everywhere.
+- [x] Light, dark and system themes; works on phones; in-app Help page from `docs/HELP.md`.
+- [x] Multi-arch image (amd64 + arm64) on GHCR, published by CI; listed in the SZ community app store.
