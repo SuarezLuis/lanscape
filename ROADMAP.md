@@ -35,6 +35,10 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] HTTPS support.
 - [ ] Browser push notifications.
 
+## Testing
+- [ ] **Database-backed tests:** apply the Prisma migrations to the in-memory test database so router procedures and jobs (scan → new device → alert, restore, rules firing) can be tested end to end.
+- [ ] **UI end-to-end tests:** Playwright against a built server with a throwaway database and seeded demo data (`scripts/demo/`): sign in, run a speed test with a stubbed `speedtest-go`, rename a device, set up a rule, back up and restore. Run in CI on every PR.
+
 ## Design and release guardrails
 - Protect network telemetry and backup contents as sensitive data.
 - Keep all AI integrations optional; do not require internet connectivity for core monitoring.
