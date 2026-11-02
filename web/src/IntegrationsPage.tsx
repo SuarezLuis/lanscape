@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Card, Code, CopyButton, Group, List, PasswordInput, Stack, Table, Tabs, Text, TextInput, Title } from "@mantine/core";
+import { Anchor, Badge, Button, Card, Code, Group, List, PasswordInput, Stack, Table, Tabs, Text, TextInput, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTRPC } from "./trpc";
@@ -136,6 +136,42 @@ const PiholePanel = () => {
   );
 };
 
+// navigator.clipboard only exists on https and localhost, and LANscape is usually opened over plain http on the LAN
+const copyText = async (text: string) => {
+  if (window.isSecureContext && navigator.clipboard) return navigator.clipboard.writeText(text);
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.append(area);
+  area.select();
+  const copied = document.execCommand("copy");
+  area.remove();
+  if (!copied) throw new Error("Copy failed");
+};
+
+const Copy = ({ value }: { value: string }) => {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  const copy = () =>
+    copyText(value)
+      .then(() => setState("copied"))
+      .catch(() => setState("failed"))
+      .finally(() => setTimeout(() => setState("idle"), 2000));
+  return (
+    <Button size="xs" variant="light" color={state === "failed" ? "red" : undefined} onClick={copy} style={{ flexShrink: 0 }}>
+      {state === "copied" ? "Copied" : state === "failed" ? "Select and copy it instead" : "Copy"}
+    </Button>
+  );
+};
+
+const PROMPTS = [
+  { prompt: "When was my internet slow this month, and was it my ISP or my home network?", hint: "compares router ping with internet ping" },
+  { prompt: "Is there anything on my network I don't recognize?", hint: "devices you haven't marked as known" },
+  { prompt: "When does the kids' tablet come online at night?", hint: "a device's online and offline history" },
+  { prompt: "Which devices never go offline?", hint: "good candidates to mark as known" },
+  { prompt: "Every Monday morning, send me a report on last week's network.", hint: "for agents that run on a schedule" },
+];
+
 const McpPanel = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -152,7 +188,7 @@ const McpPanel = () => {
   );
   const endpoint = `${window.location.origin}/mcp`;
   const token = create.data;
-  const claudeCommand = `claude mcp add --transport http lanscape ${endpoint} --header "Authorization: Bearer ${token ?? "<token>"}"`;
+  const claudeCommand = `claude mcp add --transport http --scope user lanscape ${endpoint} --header "Authorization: Bearer ${token ?? "<token>"}"`;
   const config = JSON.stringify(
     { mcpServers: { lanscape: { type: "http", url: endpoint, headers: { Authorization: `Bearer ${token ?? "<token>"}` } } } },
     null,
@@ -206,13 +242,7 @@ const McpPanel = () => {
           </Text>
           <Group gap="xs">
             <Code style={{ wordBreak: "break-all" }}>{token}</Code>
-            <CopyButton value={token}>
-              {({ copied, copy }) => (
-                <Button size="xs" variant="light" onClick={copy}>
-                  {copied ? "Copied" : "Copy"}
-                </Button>
-              )}
-            </CopyButton>
+            <Copy value={token} />
           </Group>
           <Text size="sm" c="dimmed">
             Copy it now; LANscape keeps only a fingerprint and can't show it again. Anyone with it can read your network
@@ -228,17 +258,37 @@ const McpPanel = () => {
         <Text size="sm" c="dimmed">
           Server address <Code>{endpoint}</Code> (Streamable HTTP), with the token in an{" "}
           <Code>Authorization: Bearer</Code> header. Agents running on this Umbrel use the Umbrel's network address, not{" "}
-          <Code>localhost</Code>. Claude Code:
+          <Code>localhost</Code>. Claude Code (for every folder, not just the one you run it in):
         </Text>
         <Code block style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
           {claudeCommand}
         </Code>
+        <Group>
+          <Copy value={claudeCommand} />
+        </Group>
         <Text size="sm" c="dimmed">
           Most other clients take a JSON config like this:
         </Text>
         <Code block style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
           {config}
         </Code>
+      </Stack>
+
+      <Stack gap={6}>
+        <Text size="sm" fw={600}>
+          Things to ask
+        </Text>
+        {PROMPTS.map(({ prompt, hint }) => (
+          <Group key={prompt} gap="xs" wrap="nowrap" justify="space-between">
+            <div>
+              <Text size="sm">“{prompt}”</Text>
+              <Text size="xs" c="dimmed">
+                {hint}
+              </Text>
+            </div>
+            <Copy value={prompt} />
+          </Group>
+        ))}
       </Stack>
 
       <Stack gap={4}>

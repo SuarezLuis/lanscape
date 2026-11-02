@@ -110,7 +110,7 @@ AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Cl
 - the device list and each device's online/offline history
 - the alerts LANscape raised
 
-Agents can't change settings, run scans or speed tests, or see Pi-hole's DNS activity.
+Agents can't change settings, run scans or speed tests, or see Pi-hole's DNS activity. The tab has a few questions to start with, like "When was my internet slow this month, and was it my ISP or my home network?" or "Which devices never go offline?".
 
 It's off until you select **Create token** on the AI agents tab. Copy the token straight away: LANscape keeps only a fingerprint and can't show it again. Then give the agent the server address (`http://<your-umbrel>:4545/mcp`, Streamable HTTP) with the token in an `Authorization: Bearer` header. The tab shows the exact command for Claude Code and a JSON config that most other clients accept. An agent running on the Umbrel itself also uses the Umbrel's network address, not `localhost`.
 
