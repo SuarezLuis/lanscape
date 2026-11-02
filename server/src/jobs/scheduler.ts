@@ -51,11 +51,23 @@ export const nextRun = (automation: Automation, from = new Date()) => {
 
 const ms = (value: number | null) => (value === null ? "no reply" : `${value.toFixed(1)} ms`);
 
+// A stalled server or a blip shouldn't cost a day's scheduled test: one more try, a minute later
+export const retryOnce = async <T>(attempt: () => Promise<T>, delayMs = MINUTE_MS) => {
+  try {
+    return { result: await attempt(), firstError: null };
+  } catch (error) {
+    console.error("Scheduled speed test failed, retrying:", error instanceof Error ? error.message : error);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return { result: await attempt(), firstError: error instanceof Error ? error.message : String(error) };
+  }
+};
+
 // Runs the job and says what happened in a line for the Automations page; undefined means it was skipped
 const run = async (automation: Automation): Promise<string | undefined> => {
   if (automation.job === "speedtest") {
-    const test = await runSpeedtest("automation");
-    return test ? `${test.downloadMbps.toFixed(0)} down / ${test.uploadMbps.toFixed(0)} up Mbps` : "Cancelled";
+    const { result: test, firstError } = await retryOnce(() => runSpeedtest("automation"));
+    if (!test) return "Cancelled";
+    return `${test.downloadMbps.toFixed(0)} down / ${test.uploadMbps.toFixed(0)} up Mbps${firstError ? ` (second try; first: ${firstError})` : ""}`;
   }
   if (automation.job === "devices") return `${(await runDeviceScan()).found} devices answered`;
   // A full test saturates the link, so pings taken during it would only measure the test

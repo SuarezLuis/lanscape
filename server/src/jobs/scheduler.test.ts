@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { bucketLength, bucketStart } from "../latency";
-import { DEFAULTS, isDue, nextRun } from "./scheduler";
+import { DEFAULTS, isDue, nextRun, retryOnce } from "./scheduler";
 
 const everySixHoursFrom4am = { ...DEFAULTS.speedtest, everyMinutes: 360, timeZone: "America/Chicago" };
 
@@ -40,4 +40,15 @@ test("sizes buckets by the history there, so a first hour isn't two points", () 
 test("rolls up pings older than 90 days, cut on the hour", async () => {
   const { rollupCutoff } = await import("./retention");
   expect(rollupCutoff(new Date("2026-10-30T19:42:10Z"))).toEqual(new Date("2026-08-01T19:00:00Z"));
+});
+
+test("a failed scheduled test gets one more try", async () => {
+  let calls = 0;
+  const flaky = async () => {
+    calls += 1;
+    if (calls === 1) throw new Error("speedtest-go timed out during upload");
+    return "ok";
+  };
+  await expect(retryOnce(flaky, 0)).resolves.toEqual({ result: "ok", firstError: "speedtest-go timed out during upload" });
+  await expect(retryOnce(() => Promise.reject(new Error("still down")), 0)).rejects.toThrow("still down");
 });

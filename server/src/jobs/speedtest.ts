@@ -128,12 +128,13 @@ const measure = (serverId: string | null) =>
       }
     });
     child.on("error", reject);
+    const where = { connecting: "while picking a server", ping: "while measuring ping", download: "during download", upload: "during upload" };
     // The output includes the public IP, so errors never quote it
     child.on("close", (code, signal) => {
       stop = null;
       clearTimeout(timer);
       if (ended === "cancelled") resolve(null);
-      else if (ended) reject(new Error(`speedtest-go ${ended}`));
+      else if (ended) reject(new Error(`speedtest-go timed out ${where[progress?.phase ?? "connecting"]}`));
       else if (code === 0) resolve([...lines, partial.trim()]);
       else reject(new Error(signal ? `speedtest-go was stopped (${signal})` : `speedtest-go exited with code ${code}`));
     });
