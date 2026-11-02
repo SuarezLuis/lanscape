@@ -5,11 +5,15 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 ## Waiting
 - [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Stays on 1.1.0 until it's approved; updates follow.
 
-## v1.10.0 (next)
+## v1.11.0 (next)
 - [ ] **AI write actions (assistant and MCP):** let the assistant and MCP agents change LANscape's own data, starting with naming devices, then marking devices known, setting per-device online/offline alerts, adding service checks and turning alert rules on or off. Safeguards: the MCP server gets a separate write-scope token (the current one stays read-only); the assistant asks before each change and shows exactly what it will do; every change is logged with who made it and can be undone; and nothing touches the network itself (no router, DNS or firewall changes).
-- [ ] **Proactive AI analyst:** opt-in investigation and summaries of incidents LANscape already detects (outages, alert rules, services going down); local model option, consent before cloud transmission, no automatic network modifications.
 
 ## Shipped
+
+### v1.10.0
+- [x] **Device identity across private MACs, from mDNS:** stable Google Cast, AirPlay and HomeKit ids and the model from mDNS TXT records.
+- [x] **Device identity from DHCP:** a passive listener for DHCP requests (hostname, vendor class, option-55 fingerprint), matched when exactly one missing device fits.
+- [x] **Device identity from SSDP/UPnP:** the UUID, friendly name and model from UPnP device descriptions (TVs, consoles, routers).
 
 ### v1.9.0
 - [x] **Overview home screen:** internet up or down, health score, latest speed, outages, services with trouble, new devices since your last visit, and the latest alerts; where sign-in lands.
@@ -85,6 +89,10 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 - [x] Own login with sessions (host-network apps skip Umbrel's login); change password or sign out everywhere.
 - [x] Light, dark and system themes; works on phones; in-app Help page from `docs/HELP.md`.
 - [x] Multi-arch image (amd64 + arm64) on GHCR, published by CI; listed in the SZ community app store.
+
+## Backburner
+Wanted, but not scheduled.
+- [ ] **Proactive AI analyst:** opt-in investigation and summaries of incidents LANscape already detects (outages, alert rules, services going down); local model option, consent before cloud transmission, no automatic network modifications.
 
 ## Decided not to pursue
 Kept here so the reasons aren't lost. Revisit if the reason stops holding.

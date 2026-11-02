@@ -30,6 +30,7 @@ test("reads stable IDs and models from mDNS TXT records", () => {
   expect(txtTraits("Living Room._googlecast._tcp.local", ["id=4f2e9a1b", "fn=Living Room", "md=Google Nest Mini"])).toEqual({ cast: "4f2e9a1b" });
   expect(txtTraits("Den._airplay._tcp.local", ["deviceid=AA:BB:CC:DD:EE:FF", "model=AudioAccessory5,1"])).toEqual({ airplay: "aa:bb:cc:dd:ee:ff", model: "AudioAccessory5,1" });
   expect(txtTraits("Studio._device-info._tcp.local", ["model=MacBookPro18,3"])).toEqual({ model: "MacBookPro18,3" });
+  expect(txtTraits("umbrel._device-info._tcp.local", ["model=MacSamba"])).toEqual({});
   expect(txtTraits("Lamp._hap._tcp.local", ["id=1A:2B:3C:4D:5E:6F", "md=Lamp"])).toEqual({ hap: "1a:2b:3c:4d:5e:6f" });
 });
 

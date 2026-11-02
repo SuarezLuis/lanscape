@@ -54,6 +54,8 @@ export const txtTraits = (instance: string, txt: unknown): Traits => {
   if (instance.includes("._airplay.")) traits.airplay = value("deviceid")?.toLowerCase();
   if (instance.includes("._hap.")) traits.hap = value("id")?.toLowerCase();
   if (instance.includes("._device-info.") || instance.includes("._airplay.")) traits.model = value("model");
+  // Samba advertises a placeholder Apple model for file sharing ("MacSamba", or "Xserve" on older versions)
+  if (traits.model && /^(MacSamba|Xserve|RackMac)$/i.test(traits.model)) delete traits.model;
   return Object.fromEntries(Object.entries(traits).filter(([, v]) => v)) as Traits;
 };
 
