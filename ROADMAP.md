@@ -6,6 +6,7 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 - [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Stays on 1.1.0 until it's approved; updates follow.
 
 ## v1.10.0 (next)
+- [ ] **AI write actions (assistant and MCP):** let the assistant and MCP agents change LANscape's own data, starting with naming devices, then marking devices known, setting per-device online/offline alerts, adding service checks and turning alert rules on or off. Safeguards: the MCP server gets a separate write-scope token (the current one stays read-only); the assistant asks before each change and shows exactly what it will do; every change is logged with who made it and can be undone; and nothing touches the network itself (no router, DNS or firewall changes).
 - [ ] **Proactive AI analyst:** opt-in investigation and summaries of incidents LANscape already detects (outages, alert rules, services going down); local model option, consent before cloud transmission, no automatic network modifications.
 
 ## Shipped
