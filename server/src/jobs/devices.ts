@@ -139,7 +139,8 @@ const alert = async (kind: "problem" | "resolved" | "device", title: string, mes
 };
 
 const sweep = async (iface: string, retries: number) => {
-  const { stdout } = await execFileAsync("arp-scan", ["--interface", iface, "--localnet", "--plain", "--retry", String(retries)], {
+  // ARP_SCAN_BIN lets tests stand in a fake
+  const { stdout } = await execFileAsync(process.env.ARP_SCAN_BIN ?? "arp-scan", ["--interface", iface, "--localnet", "--plain", "--retry", String(retries)], {
     timeout: 60_000,
   });
   return parseArpScan(stdout);
