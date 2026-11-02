@@ -158,7 +158,7 @@ const Copy = ({ value }: { value: string }) => {
       .catch(() => setState("failed"))
       .finally(() => setTimeout(() => setState("idle"), 2000));
   return (
-    <Button size="xs" variant="light" color={state === "failed" ? "red" : undefined} onClick={copy}>
+    <Button size="xs" variant="light" color={state === "failed" ? "red" : undefined} onClick={copy} style={{ flexShrink: 0 }}>
       {state === "copied" ? "Copied" : state === "failed" ? "Select and copy it instead" : "Copy"}
     </Button>
   );
