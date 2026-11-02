@@ -119,6 +119,17 @@ test("sets up the assistant with a local model and answers from the network data
   await expect(page.getByText("Looked at: list_devices")).toBeVisible();
 });
 
+test("sends a weekly summary now and downloads the ISP report", async ({ page }) => {
+  await signIn(page, "/notifications");
+  await page.getByRole("button", { name: "Send a summary now" }).click();
+  await expect(page.getByText("Sent. It's also in Recent alerts above.")).toBeVisible();
+  await expect(page.getByText(/^Your network, /).first()).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download ISP report" }).click();
+  const file = await (await downloading).path();
+  expect(readFileSync(file, "utf8")).toContain("OUTAGES PAST THE HOME ROUTER");
+});
+
 test("runs a network check and offers the report", async ({ page }) => {
   test.setTimeout(90_000);
   await signIn(page, "/diagnostics");
