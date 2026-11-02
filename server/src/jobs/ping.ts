@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { prisma } from "../db";
+import { alertIfOutageEnded } from "../outages";
 import { checkRules, pingValues } from "./notify";
 import type { Trigger } from "./speedtest";
 
@@ -67,5 +68,8 @@ export const runPingCheck = async (trigger: Trigger) => {
   const samples = await pingTargets();
   await prisma.pingSample.createMany({ data: samples.map((sample) => ({ ...sample, trigger })) });
   await checkRules(pingValues(samples));
+  await alertIfOutageEnded().catch((error: unknown) => {
+    console.error("Checking for an ended outage failed:", error instanceof Error ? error.message : error);
+  });
   return samples;
 };

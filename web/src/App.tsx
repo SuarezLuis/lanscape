@@ -36,6 +36,7 @@ import { CircleHelpIcon } from "./icons/circle-help";
 import { SettingsIcon } from "./icons/settings";
 import { navigate, usePath } from "./route";
 import { SettingsPage } from "./SettingsPage";
+import { Outages } from "./Outages";
 import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
@@ -49,6 +50,7 @@ const PAGES = [
       <Stack gap="lg">
         <SpeedTestCard />
         <SpeedHistory />
+        <Outages />
       </Stack>
     ),
   },

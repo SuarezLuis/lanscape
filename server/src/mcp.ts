@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "./db";
 import { latencyHistory, since } from "./latency";
+import { listOutages, OUTAGE_RANGES } from "./outages";
 import { LAST_SCAN } from "./jobs/devices";
 import { METRICS, type Metric } from "./jobs/notify";
 
@@ -141,6 +142,16 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
         internetMs: round(point.internetMs),
         testPingMs: round(point.testPingMs),
         testJitterMs: round(point.testJitterMs),
+      })),
+  }),
+  get_outages: tool({
+    description:
+      "Internet outages, newest first: two or more ping checks in a row with every packet lost. cause \"internet\" means the router kept answering, so the problem was past it (the ISP or beyond); \"home\" means the router didn't answer either (router, or the Umbrel's connection to it); \"unknown\" means no router checks to compare. end is null while an outage is ongoing. Raw checks are kept 90 days, so the range goes up to a month.",
+    input: z.object({ range: z.enum(OUTAGE_RANGES).default("week").describe("How far back to look") }),
+    run: async ({ range }) =>
+      (await listOutages(range)).map((outage) => ({
+        ...outage,
+        minutes: outage.end ? round((outage.end.getTime() - outage.start.getTime()) / 60_000) : null,
       })),
   }),
   list_devices: tool({
