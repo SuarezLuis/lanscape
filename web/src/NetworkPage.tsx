@@ -537,7 +537,7 @@ export const NetworkPage = () => {
                 {rows.map((device) => (
                   <Table.Tr key={device.mac} onClick={() => setOpenMac(device.mac)} style={{ cursor: "pointer" }}>
                     <Table.Td>
-                      <Badge variant="dot" color={device.online ? "teal" : "gray"}>
+                      <Badge variant="dot" color={device.online ? "teal" : "gray"} style={{ flexShrink: 0, overflow: "visible" }} miw={84}>
                         {device.online ? "Online" : "Away"}
                       </Badge>
                     </Table.Td>
