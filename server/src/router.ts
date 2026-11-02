@@ -34,7 +34,7 @@ import { findGateway } from "./jobs/ping";
 import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
 import { readStatus } from "./jobs/status";
-import { readTraits } from "./jobs/traits";
+import { displayModel, readTraits } from "./jobs/traits";
 import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
 import {
@@ -242,9 +242,10 @@ export const appRouter = t.router({
         prisma.setting.findUnique({ where: { key: LAST_SCAN } }),
       ]);
       const scannedAt = lastScan ? new Date(lastScan.value) : null;
+      const traits = await readTraits(devices.map((device) => device.mac));
       return {
         lastScan: scannedAt,
-        devices: devices.map((device) => ({ ...device, online: scannedAt !== null && device.lastSeen >= scannedAt })),
+        devices: devices.map((device) => ({ ...device, model: displayModel(traits.get(device.mac)), online: scannedAt !== null && device.lastSeen >= scannedAt })),
       };
     }),
     scan: procedure
