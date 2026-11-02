@@ -53,6 +53,16 @@ Not sure what `Espressif Inc. · 192.168.0.43` is? Click **Identify a device**:
 
 Then name it right there.
 
+## Services
+
+**Services** watches the things on your network you rely on, like a NAS, Home Assistant or your Pi-hole. **Add service** and pick how to check it:
+
+- **Web (HTTP):** an address like `http://192.168.0.10:8080`. It's up when it answers with a status below 400. Self-signed certificates are fine; LANscape only checks that it answers.
+- **Port (TCP):** a host and port like `192.168.0.10:22`. It's up when the port accepts a connection.
+- **DNS:** a DNS server's IP address, like your Pi-hole's, and a name to look up. It's up when that server can resolve the name.
+
+Each service is checked every minute, 5 minutes or 15 minutes. One failed check shows as **Failing**; two in a row is **Down**, and LANscape alerts you, then again when it's back with how long it was down. Turn **Alert** off for a service you only want to see on the page. Each service shows its latest checks as a strip (green answered, red failed), its average answer time and its uptime over the last 24 hours. Results are kept for 90 days.
+
 ## Automations
 
 - **Full speed test:** off by default. Choose every hour, 6 hours, 12 hours or daily, and a starting time. Times follow the time zone of the browser you last saved from. **Server** picks the speedtest.net server for every test; *Automatic* uses the nearest one, while a fixed server keeps results comparable over time.
@@ -122,6 +132,7 @@ AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Cl
 - speed test results and latency over time
 - the device list and each device's online/offline history
 - internet outages, and whether each was in your home network or past your router
+- the services you watch, and whether each is up
 - the alerts LANscape raised
 
 Agents can't change settings, run scans or speed tests, or see Pi-hole's DNS activity. The tab has a few questions to start with, like "When was my internet slow this month, and was it my ISP or my home network?" or "Which devices never go offline?".

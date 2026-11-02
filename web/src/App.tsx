@@ -28,6 +28,7 @@ import { WorkflowIcon } from "./icons/workflow";
 import { NetworkPage } from "./NetworkPage";
 import { NotificationsPage } from "./NotificationsPage";
 import { IntegrationsPage } from "./IntegrationsPage";
+import { ActivityIcon } from "./icons/activity";
 import { PlugIcon } from "./icons/plug";
 import { AuthScreen } from "./AuthScreen";
 import { GitHubDoc } from "./GitHubDoc";
@@ -35,6 +36,7 @@ import { BookTextIcon } from "./icons/book-text";
 import { CircleHelpIcon } from "./icons/circle-help";
 import { SettingsIcon } from "./icons/settings";
 import { navigate, usePath } from "./route";
+import { ServicesPage } from "./ServicesPage";
 import { SettingsPage } from "./SettingsPage";
 import { Outages } from "./Outages";
 import { SpeedHistory } from "./SpeedHistory";
@@ -59,6 +61,12 @@ const PAGES = [
     label: "Network",
     icon: RouterIcon,
     element: <NetworkPage />,
+  },
+  {
+    path: "/services",
+    label: "Services",
+    icon: ActivityIcon,
+    element: <ServicesPage />,
   },
   {
     path: "/automations",

@@ -135,3 +135,33 @@ model Outage {
 
   @@index([start])
 }
+
+// A service on the LAN watched over HTTP, TCP or DNS
+model ServiceCheck {
+  id           Int             @id @default(autoincrement())
+  name         String
+  kind         String // "http" | "tcp" | "dns"
+  target       String // http: the URL; tcp: host:port; dns: the DNS server's address
+  query        String? // dns: the name to look up
+  everyMinutes Int             @default(1)
+  enabled      Boolean         @default(true)
+  alert        Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  // State: failed checks in a row, since when, and whether a "down" alert is out
+  failures     Int             @default(0)
+  failingSince DateTime?
+  alerted      Boolean         @default(false)
+  results      ServiceResult[]
+}
+
+model ServiceResult {
+  id      Int          @id @default(autoincrement())
+  checkId Int
+  check   ServiceCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  at      DateTime     @default(now())
+  ok      Boolean
+  ms      Float? // time to answer; null when it didn't
+  detail  String? // the HTTP status, the address resolved, or the error
+
+  @@index([checkId, at])
+}

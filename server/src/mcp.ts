@@ -4,6 +4,7 @@ import { prisma } from "./db";
 import { latencyHistory, since } from "./latency";
 import { listOutages, OUTAGE_RANGES } from "./outages";
 import { LAST_SCAN } from "./jobs/devices";
+import { listServices } from "./jobs/services";
 import { METRICS, type Metric } from "./jobs/notify";
 
 /**
@@ -152,6 +153,24 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
       (await listOutages(range)).map((outage) => ({
         ...outage,
         minutes: outage.end ? round((outage.end.getTime() - outage.start.getTime()) / 60_000) : null,
+      })),
+  }),
+  get_services: tool({
+    description:
+      "Services on the LAN the owner watches (web apps over HTTP, open TCP ports, DNS servers): status (up, failing = one failed check, down = two or more, waiting = not checked yet), the last result and its detail, average answer time and uptime over the last 24 hours.",
+    input: z.object({}),
+    run: async () =>
+      (await listServices()).map((service) => ({
+        name: service.name,
+        kind: service.kind,
+        target: service.target,
+        lookup: service.query,
+        enabled: service.enabled,
+        status: service.status,
+        failingSince: service.failingSince,
+        lastCheck: service.last && { at: service.last.at, ok: service.last.ok, ms: round(service.last.ms), detail: service.last.detail },
+        averageMs24h: round(service.avgMs24h),
+        uptimePercent24h: round(service.uptime24h),
       })),
   }),
   list_devices: tool({
