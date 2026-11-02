@@ -31,10 +31,12 @@ import { IntegrationsPage } from "./IntegrationsPage";
 import { ActivityIcon } from "./icons/activity";
 import { MessageCircleIcon } from "./icons/message-circle";
 import { CoffeeIcon } from "./icons/coffee";
+import { DashboardIcon } from "./icons/dashboard";
 import { PlugIcon } from "./icons/plug";
 import { StethoscopeIcon } from "./icons/stethoscope";
 import { AssistantPage } from "./AssistantPage";
 import { AuthScreen } from "./AuthScreen";
+import { OverviewPage } from "./OverviewPage";
 import { DiagnosticsPage } from "./DiagnosticsPage";
 import { GitHubDoc } from "./GitHubDoc";
 import { BookTextIcon } from "./icons/book-text";
@@ -51,6 +53,12 @@ import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
 
 const PAGES = [
+  {
+    path: "/overview",
+    label: "Overview",
+    icon: DashboardIcon,
+    element: <OverviewPage />,
+  },
   {
     path: "/speedtests",
     label: "Speed tests",

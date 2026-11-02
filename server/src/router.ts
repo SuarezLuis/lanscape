@@ -22,6 +22,7 @@ import { aiSettings, DEFAULT_ANTHROPIC_MODEL, describeAi, providerError, removeA
 import { planInput, readPlan, savePlan, weeklyPattern } from "./analytics";
 import { ispReport, readReportSettings, reportSettings, saveReportSettings, sendWeeklyReport } from "./reports";
 import { healthScore } from "./health";
+import { overview, visitWindow } from "./overview";
 import { latencyHistory, RANGES, since } from "./latency";
 import { createMcpToken, describeMcp, revokeMcpToken } from "./mcp";
 import { listOutages, OUTAGE_ALERTS, OUTAGE_RANGES, outageAlertsOn } from "./outages";
@@ -157,6 +158,8 @@ export const appRouter = t.router({
       ctx.setCookie(sessionCookie(null));
     }),
   }),
+  // The home screen; `since` is the viewer's previous visit
+  overview: procedure.input(z.object({ since: z.date().optional() })).query(({ input }) => overview(visitWindow(input.since))),
   health: publicProcedure.query(async () => {
     await prisma.$queryRaw`SELECT 1`;
     return { ok: true, version: process.env.APP_VERSION ?? "dev" };

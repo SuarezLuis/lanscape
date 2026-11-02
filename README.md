@@ -8,6 +8,7 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 
 ## Features
 
+- **Overview home screen:** internet up or down, health score, latest speed, outages, services with trouble, new devices and the latest alerts at a glance.
 - **Speed tests** on demand or on a schedule, with a live gauge, ping, jitter, and router and internet latency measured just before each test. History charts and a sortable table, from the last 24 hours to all time.
 - **Ping checks** every minute to your router and an internet host (1.1.1.1 by default), tracking latency and packet loss with almost no data. Raw samples older than 90 days are kept as hourly averages.
 - **Internet Health Score** from 0 to 100, from uptime, packet loss, ping and jitter, with each part shown.
