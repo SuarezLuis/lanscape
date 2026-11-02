@@ -91,7 +91,7 @@ export const Outages = () => {
                 </Text>
               </Group>
             </Stack>
-            <Table.ScrollContainer minWidth={420}>
+            <Table.ScrollContainer minWidth={320}>
               <Table fz="sm" verticalSpacing={4}>
                 <Table.Thead>
                   <Table.Tr>
