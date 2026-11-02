@@ -92,7 +92,7 @@ Then open `http://<that machine>:4545`. Set `PORT` to use another port.
 - **Permissions:** `ping` and `arp-scan` need the `NET_RAW` capability, which Docker gives containers by default. If you've dropped it (or use rootless Podman), add `cap_add: [NET_RAW]`.
 - **Data:** everything is in `./data/lanscape.db`. Back it up from Settings, or copy the folder while the container is stopped.
 - **Updating:** `docker compose pull && docker compose up -d`. Database migrations run on start. To stay on a version, use a tag like `ghcr.io/suarezluis/lanscape:1.8.0` instead of `latest`.
-- **Forgot the password:** create an empty file named `reset-password` in `./data` and restart. With `APP_PASSWORD` set it goes back to that; without it, the next visit sets a new one.
+- **Forgot the password:** create an empty file named `reset-password` in `./data` (`sudo touch data/reset-password`, since Docker creates the folder as root) and restart. With `APP_PASSWORD` set it goes back to that; without it, the next visit sets a new one.
 
 ## Release
 
