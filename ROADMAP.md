@@ -1,11 +1,11 @@
 # Roadmap
 
-What's planned, and what shipped in which release. Tick items off here in the PR that ships them. Core network monitoring must keep working without AI or external services.
+What's planned, and what shipped in which release. Tick items off in the PR that ships them; once a version is released it moves under Shipped, and anything still open moves to the next version. Core network monitoring must keep working without AI or external services.
 
 ## Waiting
 - [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Stays on 1.1.0 until it's approved; updates follow.
 
-## Next
+## v1.10.0 (next)
 - [ ] **Proactive AI analyst:** opt-in investigation and summaries of incidents LANscape already detects (outages, alert rules, services going down); local model option, consent before cloud transmission, no automatic network modifications.
 
 ## v1.9.0 (in review: #37–#40)
