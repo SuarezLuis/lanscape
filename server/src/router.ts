@@ -20,6 +20,7 @@ import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
 import { aiSettings, DEFAULT_ANTHROPIC_MODEL, describeAi, providerError, removeAi, saveAi } from "./ai";
 import { planInput, readPlan, savePlan, weeklyPattern } from "./analytics";
+import { ispReport, readReportSettings, reportSettings, saveReportSettings, sendWeeklyReport } from "./reports";
 import { healthScore } from "./health";
 import { overview, visitWindow } from "./overview";
 import { latencyHistory, RANGES, since } from "./latency";
@@ -293,6 +294,12 @@ export const appRouter = t.router({
     update: procedure
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
+  }),
+  reports: t.router({
+    settings: procedure.query(() => readReportSettings()),
+    save: procedure.input(reportSettings).mutation(({ input }) => saveReportSettings(input)),
+    sendNow: procedure.mutation(() => sendWeeklyReport()),
+    isp: procedure.query(() => ispReport()),
   }),
   // Takes 10 to 30 seconds: pings, lookups and a traceroute, one after another
   diagnostics: t.router({ run: procedure.mutation(() => runDiagnostics()) }),

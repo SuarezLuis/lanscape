@@ -124,6 +124,12 @@ Each rule sends **one** alert when a problem starts and **one** when it clears. 
 
 **Unknown device is back** (off by default) alerts when a device you haven't marked as known comes back after an hour or more away, like a visitor's phone or something that only joins now and then. Mark your own devices as known on the Network page first, or you'll hear about them too.
 
+### Reports
+
+**Weekly summary** (off by default) sends a short report on the day and hour you pick, in your time zone, to every alert channel: this week against last for the health score, average speeds, ping and packet loss, outages, new devices and alerts. **Send a summary now** sends one straight away. Summaries also appear in Recent alerts.
+
+**Download ISP report** gives a plain-text report of the last 30 days to send your internet provider: speed tests against your plan (enter your plan speeds on the Speed tests page, under Weekly pattern), how many tests came in under 80% of it, ping and packet loss, and every outage where your router kept answering but the internet didn't. Outages inside your home network are left out, since they aren't the provider's.
+
 ### Where alerts go
 
 Alerts always appear under **Recent alerts**. They also go to every channel you set up:

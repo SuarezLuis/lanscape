@@ -22,6 +22,7 @@ import type { AppRouter } from "@lanscape/server/router";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { type ReactNode, useEffect, useState } from "react";
 import { XIcon } from "./icons/x";
+import { ReportsCard } from "./ReportsCard";
 import { useTRPC } from "./trpc";
 
 type RuleInput = inferRouterInputs<AppRouter>["notifications"]["saveRule"];
@@ -135,6 +136,7 @@ const KIND: Record<string, { label: string; color: string }> = {
   resolved: { label: "Resolved", color: "teal" },
   device: { label: "New device", color: "blue" },
   outage: { label: "Outage", color: "orange" },
+  report: { label: "Report", color: "grape" },
 };
 
 type Channel = inferRouterOutputs<AppRouter>["notifications"]["channels"][number];
@@ -431,6 +433,8 @@ export const NotificationsPage = () => {
           ))}
         </Stack>
       </Card>
+
+      <ReportsCard />
 
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">

@@ -3,7 +3,7 @@ import { prisma } from "../db";
 import { readStatus, recordFailure, recordStatus } from "./status";
 
 export type Alert = {
-  kind: "problem" | "resolved" | "device" | "outage" | "test";
+  kind: "problem" | "resolved" | "device" | "outage" | "report" | "test";
   title: string;
   message: string;
   metric?: string;
@@ -39,7 +39,7 @@ export const CHANNELS = {
         body: alert.message,
         headers: {
           Title: `LANscape: ${alert.title}`,
-          Tags: { problem: "warning", resolved: "white_check_mark", device: "new", outage: "warning", test: "white_check_mark" }[alert.kind],
+          Tags: { problem: "warning", resolved: "white_check_mark", device: "new", outage: "warning", report: "bar_chart", test: "white_check_mark" }[alert.kind],
           Priority: alert.kind === "problem" ? "high" : "default",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
