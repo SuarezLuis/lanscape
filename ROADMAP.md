@@ -28,7 +28,8 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [x] **Network Intelligence API:** bounded read-only analytics tools (`get_network_summary`, `get_latency_history`, `get_speed_history`, `list_devices`, `get_device_history`, `get_alert_history`); validated ranges, access control and factual output. Shipped as the MCP server's tools.
 - [ ] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (all devices' online/offline changes), and packet loss per bucket in latency history.
 - [x] **MCP server for external AI agents:** authenticated, read-only access to the analytics tools for OpenClaw and other MCP clients; off until a token is created, one replaceable token, rate limits and a request log.
-- [ ] **Built-in AI chat:** bring-your-own OpenAI / Anthropic API key, local Ollama, and configurable OpenAI-compatible endpoint; tool calling, model selection, bounded context, evidence-backed answers and a clear offline/cloud data-disclosure policy. Secure server-side storage of secrets.
+- [x] **Built-in AI chat:** bring-your-own OpenAI / Anthropic API key, local Ollama, and configurable OpenAI-compatible endpoint; tool calling, model selection, bounded context, evidence-backed answers and a clear offline/cloud data-disclosure policy. Secure server-side storage of secrets. The Assistant page, using the MCP tools; keys are write-only and conversations aren't stored.
+- [ ] **Streaming chat answers:** show the answer as it's written, and which tool it's reading, instead of one wait.
 
 ## v1.4 — Smart diagnostics
 - [ ] **Automatic problem detection:** rule-based baseline/anomaly detection, correlations and human-readable explanations; differentiate observations from possible causes.
@@ -40,6 +41,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [x] Pi-hole integration: device names, DNS activity per device, and recent DNS requests as a sign of life (Integrations page).
 - [ ] HTTPS support.
 - [ ] Browser push notifications.
+- [ ] **Standalone Docker release (no Umbrel):** the image already runs on plain Docker (the first visit sets the password), but it isn't documented or released as such. Add a `docker run` / Compose example to the README (host network for device discovery, a volume for `/data`, `init: true`), say which capabilities `arp-scan` and `ping` need, test it on a plain Linux host, and announce it with the release.
 
 ## Testing
 - [x] **Database-backed tests:** each test file gets a SQLite file with the real migrations applied, so router procedures, queries and jobs (outages, rollups, rules firing, backups, MCP tools) are tested against real data. CI also fails when the schema changes without a migration.

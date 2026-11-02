@@ -29,8 +29,10 @@ import { NetworkPage } from "./NetworkPage";
 import { NotificationsPage } from "./NotificationsPage";
 import { IntegrationsPage } from "./IntegrationsPage";
 import { ActivityIcon } from "./icons/activity";
+import { MessageCircleIcon } from "./icons/message-circle";
 import { CoffeeIcon } from "./icons/coffee";
 import { PlugIcon } from "./icons/plug";
+import { AssistantPage } from "./AssistantPage";
 import { AuthScreen } from "./AuthScreen";
 import { GitHubDoc } from "./GitHubDoc";
 import { BookTextIcon } from "./icons/book-text";
@@ -70,6 +72,12 @@ const PAGES = [
     label: "Services",
     icon: ActivityIcon,
     element: <ServicesPage />,
+  },
+  {
+    path: "/assistant",
+    label: "Assistant",
+    icon: MessageCircleIcon,
+    element: <AssistantPage />,
   },
   {
     path: "/automations",

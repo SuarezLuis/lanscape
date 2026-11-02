@@ -137,6 +137,20 @@ To connect, create an app password in Pi-hole (Settings → Web interface / API 
 
 Pi-hole only knows names if it hands out addresses itself (its DHCP server), or if **conditional forwarding** (Settings → DNS) points at your router. Without either, you still get the activity and the online signal.
 
+### AI assistant
+
+The **Assistant** page answers questions about your network in plain language: "When was my internet slow this month?", "Is there anything on my network I don't recognize?", "Has the NAS been flaky?". It reads the same data as the AI agents tab below (speed tests, latency, outages, devices, services and alerts) and can't change anything. Under each answer, **Looked at** shows exactly which data it read, so you can check it.
+
+Set it up on the **AI assistant** tab with one of:
+
+- **Claude:** an API key from console.anthropic.com. The model defaults to Claude Opus 5.5; any Claude model works.
+- **OpenAI:** an API key from platform.openai.com and a model name.
+- **Ollama or other:** any server with an OpenAI-compatible API, like Ollama on your own network (on Umbrel, usually `http://localhost:11434/v1`). The model needs to support tool calling.
+
+LANscape tests the connection before saving it. The API key is never sent back to the browser.
+
+**Where your data goes:** with Claude or OpenAI, your questions and the network data the assistant reads to answer them (speeds, outages, device names, IP and MAC addresses, service names and alerts) are sent to Anthropic or OpenAI. With a model on your own network, nothing leaves it. The page always says which applies. Nothing is sent until you ask, and conversations aren't stored: they stay in your browser tab until you close it or select **New chat**. Each data lookup appears in the AI agents tab's request log as "LANscape chat".
+
 ### AI agents (MCP)
 
 AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Claude, can read LANscape's data, so you can ask them things like "was the internet slow last night?" or "what joined the network this week?". They get read-only tools for:
@@ -165,7 +179,7 @@ It's off until you select **Create token** on the AI agents tab. Copy the token 
 
 **Download backup** saves everything in one `.lanscape` file: history, devices and their names, rules, schedules and settings. Use it to move LANscape to another Umbrel, or to go back to it later.
 
-The file includes your alert channels' secrets, like bot tokens and webhook addresses, and your Pi-hole app password. Enter a passphrase before downloading to encrypt it. Keep the passphrase somewhere safe: an encrypted backup can't be restored without it.
+The file includes your alert channels' secrets, like bot tokens and webhook addresses, your Pi-hole app password and your AI assistant's API key. Enter a passphrase before downloading to encrypt it. Keep the passphrase somewhere safe: an encrypted backup can't be restored without it.
 
 To restore, choose the file (and its passphrase, if it has one) and select **Check backup**. LANscape checks the file and shows what's in it. **Replace current data with this backup** then swaps in the backup's data in one step: if anything goes wrong, nothing changes. A backup from an older version of LANscape is brought up to date as it's restored; one from a newer version asks you to update LANscape first.
 
@@ -179,7 +193,7 @@ LANscape keeps everything on your Umbrel. It only reaches the internet for:
 - alert channels you set up
 - this help page, which your browser loads from GitHub
 
-If you connect an AI agent over MCP, whatever it reads goes to that agent, and to its AI provider if it uses a cloud model.
+If you connect an AI agent over MCP, whatever it reads goes to that agent, and to its AI provider if it uses a cloud model. The built-in assistant sends your questions and the data it reads to Anthropic or OpenAI if you choose them, and nowhere if you use a model on your own network.
 
 Speed test results include your public IP address; LANscape never stores it.
 

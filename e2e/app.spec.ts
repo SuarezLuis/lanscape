@@ -101,3 +101,20 @@ test("backs up, changes something, restores, and undoes the restore", async ({ p
   await page.goto("/network");
   await expect(page.getByText("Changed after backup", { exact: true })).toBeVisible();
 });
+
+test("sets up the assistant with a local model and answers from the network data", async ({ page }) => {
+  await signIn(page, "/assistant");
+  await page.getByRole("link", { name: "Set up the assistant" }).click();
+  await page.getByText("Ollama or other").click();
+  await page.getByLabel("Server address").fill("http://127.0.0.1:4601/v1");
+  await page.getByRole("combobox", { name: "Model" }).fill("fake-model");
+  await page.getByRole("button", { name: "Connect" }).click();
+  await expect(page.getByText("Connected. Ask away on the Assistant page.")).toBeVisible();
+
+  await page.goto("/assistant");
+  await expect(page.getByText("Nothing you ask leaves your network.")).toBeVisible();
+  await page.getByLabel("Your question").fill("How many devices do I have?");
+  await page.getByLabel("Your question").press("Enter");
+  await expect(page.getByText(/You have \d+ devices on your network\./)).toBeVisible();
+  await expect(page.getByText("Looked at: list_devices")).toBeVisible();
+});
