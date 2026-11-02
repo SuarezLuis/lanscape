@@ -168,6 +168,6 @@ Speed test results include your public IP address; LANscape never stores it.
 
 ## Support LANscape
 
-LANscape is free and open source. If it's useful to you, you can buy me a coffee:
+LANscape is free and open source. If it's useful to you, you can buy me a coffee, here or with **Buy me a coffee** at the bottom of the sidebar:
 
 [![Buy me a coffee](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/buy-me-a-coffee.svg)](https://www.buymeacoffee.com/suarezluis)
