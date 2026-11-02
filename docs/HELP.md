@@ -139,7 +139,7 @@ Pi-hole only knows names if it hands out addresses itself (its DHCP server), or 
 
 ### AI assistant
 
-The **Assistant** page answers questions about your network in plain language: "When was my internet slow this month?", "Is there anything on my network I don't recognize?", "Has the NAS been flaky?". It reads the same data as the AI agents tab below (speed tests, latency, outages, devices, services and alerts) and can't change anything. Under each answer, **Looked at** shows exactly which data it read, so you can check it.
+The **Assistant** page answers questions about your network in plain language: "When was my internet slow this month?", "Is there anything on my network I don't recognize?", "Has the NAS been flaky?". It reads the same data as the AI agents tab below (speed tests, latency, outages, devices, services and alerts) and can't change anything. Answers appear as they're written, with each piece of data it reads shown as it happens. Under each answer, **Looked at** shows exactly which data it read, so you can check it.
 
 Set it up on the **AI assistant** tab with one of:
 

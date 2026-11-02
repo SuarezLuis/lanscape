@@ -29,7 +29,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (all devices' online/offline changes), and packet loss per bucket in latency history.
 - [x] **MCP server for external AI agents:** authenticated, read-only access to the analytics tools for OpenClaw and other MCP clients; off until a token is created, one replaceable token, rate limits and a request log.
 - [x] **Built-in AI chat:** bring-your-own OpenAI / Anthropic API key, local Ollama, and configurable OpenAI-compatible endpoint; tool calling, model selection, bounded context, evidence-backed answers and a clear offline/cloud data-disclosure policy. Secure server-side storage of secrets. The Assistant page, using the MCP tools; keys are write-only and conversations aren't stored.
-- [ ] **Streaming chat answers:** show the answer as it's written, and which tool it's reading, instead of one wait.
+- [x] **Streaming chat answers:** show the answer as it's written, and which tool it's reading, instead of one wait.
 
 ## v1.4 — Smart diagnostics
 - [ ] **Automatic problem detection:** rule-based baseline/anomaly detection, correlations and human-readable explanations; differentiate observations from possible causes.

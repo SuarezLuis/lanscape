@@ -31,12 +31,18 @@ const model = createServer((request, response) => {
   request.on("end", () => {
     const send = (json) => response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(json));
     if (request.url === "/v1/models") return send({ data: [{ id: "fake-model" }] });
+    // Streamed like the real thing: one "data:" line per delta
+    const stream = (deltas) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      for (const [delta, finish_reason] of deltas) response.write(`data: ${JSON.stringify({ choices: [{ delta, finish_reason }] })}\n\n`);
+      response.end("data: [DONE]\n\n");
+    };
     const last = JSON.parse(raw).messages.at(-1);
     if (last.role === "tool") {
       const { devices } = JSON.parse(last.content);
-      return send({ choices: [{ finish_reason: "stop", message: { role: "assistant", content: `You have **${devices.length} devices** on your network.` } }] });
+      return stream([[{ content: "You have " }, null], [{ content: `**${devices.length} devices** on your network.` }, null], [{}, "stop"]]);
     }
-    send({ choices: [{ finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "list_devices", arguments: "{}" } }] } }] });
+    stream([[{ tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "list_devices", arguments: "{}" } }] }, null], [{}, "tool_calls"]]);
   });
 });
 model.listen(Number(process.env.E2E_MODEL_PORT ?? 4601), "127.0.0.1");

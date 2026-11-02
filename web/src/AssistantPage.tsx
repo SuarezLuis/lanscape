@@ -1,15 +1,40 @@
 import { Accordion, Alert, Anchor, Badge, Box, Button, Card, Code, Group, Loader, Paper, Stack, Text, Textarea, Title, Typography } from "@mantine/core";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import type { inferRouterOutputs } from "@trpc/server";
-import type { AppRouter } from "@lanscape/server/router";
+import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PROMPTS } from "./IntegrationsPage";
 import { useTRPC } from "./trpc";
 
-type Answer = inferRouterOutputs<AppRouter>["ai"]["chat"];
-type Turn = { role: "user"; content: string } | { role: "assistant"; content: string; tools: Answer["tools"] };
+type ToolUse = { name: string; input: unknown; ok: boolean; result: string };
+type Turn = { role: "user"; content: string } | { role: "assistant"; content: string; tools: ToolUse[] };
+type Live = { text: string; tools: { name: string; input: unknown; ok: boolean | null }[] };
+type Event =
+  | { type: "text"; text: string }
+  | { type: "round" }
+  | { type: "tool"; name: string; input: unknown }
+  | { type: "tool_done"; name: string; ok: boolean }
+  | { type: "done"; reply: string; tools: ToolUse[] }
+  | { type: "error"; message: string };
+
+// The server streams JSON lines; each one goes to onEvent as it arrives
+const streamChat = async (messages: { role: string; content: string }[], onEvent: (event: Event) => void) => {
+  const response = await fetch("/assistant/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages }) });
+  if (!response.ok || !response.body) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `The server answered ${response.status}`);
+  }
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) if (line.trim()) onEvent(JSON.parse(line) as Event);
+  }
+};
 
 // The conversation lives in this tab only; nothing is stored on the server
 const STORAGE = "lanscape.assistant";
@@ -28,7 +53,7 @@ const store = (turns: Turn[]) => {
   }
 };
 
-const ToolsUsed = ({ tools }: { tools: Answer["tools"] }) =>
+const ToolsUsed = ({ tools }: { tools: ToolUse[] }) =>
   tools.length === 0 ? null : (
     <Accordion variant="contained" chevronPosition="left" styles={{ control: { paddingBlock: 2 }, label: { paddingBlock: 6 } }}>
       <Accordion.Item value="tools">
@@ -61,25 +86,43 @@ export const AssistantPage = () => {
   const saved = settings.data?.saved;
   const [turns, setTurns] = useState<Turn[]>(load);
   const [draft, setDraft] = useState("");
+  // The answer being written: null when idle
+  const [live, setLive] = useState<Live | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
-  const ask = useMutation(
-    trpc.ai.chat.mutationOptions({
-      onSuccess: (answer) => setTurns((current) => [...current, { role: "assistant", content: answer.reply, tools: answer.tools }]),
-    }),
-  );
+  const pending = live !== null;
 
   useEffect(() => {
     store(turns);
     end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [turns, ask.isPending]);
+  }, [turns, live?.text.length, live?.tools.length]);
+
+  const onEvent = (event: Event) => {
+    if (event.type === "text") setLive((current) => current && { ...current, text: current.text + event.text });
+    if (event.type === "round") setLive((current) => current && { ...current, text: "" });
+    if (event.type === "tool") setLive((current) => current && { ...current, tools: [...current.tools, { name: event.name, input: event.input, ok: null }] });
+    if (event.type === "tool_done") {
+      setLive((current) => {
+        if (!current) return current;
+        const index = current.tools.findIndex((tool) => tool.name === event.name && tool.ok === null);
+        return { ...current, tools: current.tools.map((tool, i) => (i === index ? { ...tool, ok: event.ok } : tool)) };
+      });
+    }
+    if (event.type === "done") setTurns((current) => [...current, { role: "assistant", content: event.reply, tools: event.tools }]);
+    if (event.type === "error") setError(event.message);
+  };
 
   const send = (question: string) => {
     const content = question.trim();
-    if (!content || ask.isPending) return;
+    if (!content || pending) return;
     const next: Turn[] = [...turns, { role: "user", content }];
     setTurns(next);
     setDraft("");
-    ask.mutate({ messages: next.map(({ role, content }) => ({ role, content })) });
+    setError(null);
+    setLive({ text: "", tools: [] });
+    streamChat(next.map(({ role, content }) => ({ role, content })), onEvent)
+      .catch((failure: unknown) => setError(failure instanceof Error ? failure.message : String(failure)))
+      .finally(() => setLive(null));
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -118,7 +161,7 @@ export const AssistantPage = () => {
             <Button size="xs" variant="subtle" component="a" href="/integrations?tab=ai">
               Settings
             </Button>
-            <Button size="xs" variant="default" disabled={turns.length === 0 || ask.isPending} onClick={() => (setTurns([]), ask.reset())}>
+            <Button size="xs" variant="default" disabled={turns.length === 0 || pending} onClick={() => (setTurns([]), setError(null))}>
               New chat
             </Button>
           </Group>
@@ -170,17 +213,34 @@ export const AssistantPage = () => {
               </Stack>
             ),
           )}
-          {ask.isPending && (
-            <Group gap="xs">
-              <Loader size="xs" />
-              <Text size="sm" c="dimmed">
-                Looking at your network…
-              </Text>
-            </Group>
+          {live && (
+            <Stack gap={6} maw="95%">
+              {live.tools.length > 0 && (
+                <Group gap={6}>
+                  {live.tools.map((tool, i) => (
+                    <Badge key={i} variant="light" color={tool.ok === false ? "red" : tool.ok ? "teal" : "gray"} leftSection={tool.ok === null ? <Loader size={10} /> : undefined}>
+                      {tool.name}
+                    </Badge>
+                  ))}
+                </Group>
+              )}
+              {live.text ? (
+                <Typography fz="sm">
+                  <Markdown remarkPlugins={[remarkGfm]}>{live.text}</Markdown>
+                </Typography>
+              ) : (
+                <Group gap="xs">
+                  <Loader size="xs" />
+                  <Text size="sm" c="dimmed">
+                    {live.tools.some((tool) => tool.ok === null) ? "Reading your network data…" : "Thinking…"}
+                  </Text>
+                </Group>
+              )}
+            </Stack>
           )}
-          {ask.isError && (
+          {error && (
             <Text size="sm" c="red">
-              {ask.error.message}
+              {error}
             </Text>
           )}
           <Box ref={end} />
@@ -204,7 +264,7 @@ export const AssistantPage = () => {
                 }
               }}
             />
-            <Button type="submit" loading={ask.isPending} disabled={!draft.trim()}>
+            <Button type="submit" loading={pending} disabled={!draft.trim()}>
               Ask
             </Button>
           </Group>

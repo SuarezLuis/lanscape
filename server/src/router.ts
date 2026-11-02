@@ -17,7 +17,7 @@ import {
 } from "./auth";
 import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
-import { aiSettings, chat, chatInput, DEFAULT_ANTHROPIC_MODEL, describeAi, removeAi, saveAi } from "./ai";
+import { aiSettings, DEFAULT_ANTHROPIC_MODEL, describeAi, providerError, removeAi, saveAi } from "./ai";
 import { healthScore } from "./health";
 import { latencyHistory, RANGES, since } from "./latency";
 import { createMcpToken, describeMcp, revokeMcpToken } from "./mcp";
@@ -98,13 +98,11 @@ const automationInput = z.discriminatedUnion("job", [
   }),
 ]);
 
-// The provider's own message ("invalid x-api-key", "model not found") is what the owner needs to see
 const providerCall = async <T>(run: () => Promise<T>) => {
   try {
     return await run();
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new TRPCError({ code: "BAD_REQUEST", message: /fetch failed|ECONNREFUSED|ENOTFOUND/i.test(message) ? "Couldn't reach the AI provider" : message });
+    throw new TRPCError({ code: "BAD_REQUEST", message: providerError(error) });
   }
 };
 
@@ -300,7 +298,6 @@ export const appRouter = t.router({
     settings: procedure.query(async () => ({ saved: await describeAi(), defaultAnthropicModel: DEFAULT_ANTHROPIC_MODEL })),
     save: procedure.input(aiSettings).mutation(({ input }) => providerCall(() => saveAi(input))),
     remove: procedure.mutation(() => removeAi()),
-    chat: procedure.input(chatInput).mutation(({ input }) => providerCall(() => chat(input.messages))),
   }),
   integrations: t.router({
     pihole: procedure.query(() => describePihole()),
