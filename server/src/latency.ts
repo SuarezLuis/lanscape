@@ -25,6 +25,8 @@ export type LatencyPoint = {
   testJitterMs: number | null;
   internetMs: number | null;
   routerMs: number | null;
+  internetLossPercent: number | null;
+  routerLossPercent: number | null;
 };
 
 // Full-test pings and ping checks averaged into shared buckets, so both can sit on one chart
@@ -39,8 +41,9 @@ export const latencyHistory = async (range: Range) => {
     prisma.$queryRaw<{ bucket: string; pingMs: number; jitterMs: number }[]>`
       SELECT substr(createdAt, 1, ${length}) AS bucket, AVG(pingMs) AS pingMs, AVG(jitterMs) AS jitterMs
       FROM SpeedTest WHERE createdAt >= ${from} GROUP BY bucket`,
-    prisma.$queryRaw<{ bucket: string; target: string; avgMs: number | null }[]>`
-      SELECT substr(createdAt, 1, ${length}) AS bucket, target, AVG(avgMs) AS avgMs
+    prisma.$queryRaw<{ bucket: string; target: string; avgMs: number | null; lossPercent: number | null }[]>`
+      SELECT substr(createdAt, 1, ${length}) AS bucket, target, AVG(avgMs) AS avgMs,
+        100.0 * SUM(sent - received) / NULLIF(SUM(sent), 0) AS lossPercent
       FROM PingSample WHERE createdAt >= ${from} GROUP BY bucket, target`,
   ]);
 
@@ -48,13 +51,16 @@ export const latencyHistory = async (range: Range) => {
   const point = (bucket: string) => {
     let existing = points.get(bucket);
     if (!existing) {
-      existing = { time: bucketStart(bucket), testPingMs: null, testJitterMs: null, internetMs: null, routerMs: null };
+      existing = { time: bucketStart(bucket), testPingMs: null, testJitterMs: null, internetMs: null, routerMs: null, internetLossPercent: null, routerLossPercent: null };
       points.set(bucket, existing);
     }
     return existing;
   };
   for (const row of tests) Object.assign(point(row.bucket), { testPingMs: row.pingMs, testJitterMs: row.jitterMs });
-  for (const row of pings) point(row.bucket)[row.target === "router" ? "routerMs" : "internetMs"] = row.avgMs;
+  for (const row of pings) {
+    const target = row.target === "router" ? "router" : "internet";
+    Object.assign(point(row.bucket), { [`${target}Ms`]: row.avgMs, [`${target}LossPercent`]: row.lossPercent === null ? null : Number(row.lossPercent) });
+  }
 
   return [...points.entries()].toSorted(([a], [b]) => a.localeCompare(b)).map(([, value]) => value);
 };

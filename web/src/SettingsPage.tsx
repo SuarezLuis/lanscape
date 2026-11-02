@@ -10,6 +10,7 @@ export const SettingsPage = () => {
   const signedOut = () => queryClient.invalidateQueries();
   const status = useQuery(trpc.auth.status.queryOptions());
   const onUmbrel = status.data?.onUmbrel ?? false;
+  const presetPassword = status.data?.presetPassword ?? false;
   const change = useMutation(trpc.auth.changePassword.mutationOptions());
   const resetToUmbrel = useMutation(trpc.auth.resetToUmbrel.mutationOptions());
   const logout = useMutation(trpc.auth.logout.mutationOptions({ onSuccess: signedOut }));
@@ -74,18 +75,20 @@ export const SettingsPage = () => {
         </form>
       </Card>
 
-      {onUmbrel && (
+      {presetPassword && (
         <Card withBorder padding="md" radius="md">
           <Stack gap="sm" maw={560}>
-            <Title order={3}>Umbrel password</Title>
+            <Title order={3}>{onUmbrel ? "Umbrel password" : "Install password"}</Title>
             <Text size="sm" c="dimmed">
-              LANscape starts with the password Umbrel shows for it in the app's menu on the Umbrel home screen. If you
-              changed it here, this switches back so the two match again. Other browsers are signed out.
+              {onUmbrel
+                ? "LANscape starts with the password Umbrel shows for it in the app's menu on the Umbrel home screen. If you changed it here, this switches back so the two match again."
+                : "LANscape starts with the password set in APP_PASSWORD. If you changed it here, this switches back to it."}{" "}
+              Other browsers are signed out.
             </Text>
-            {resetToUmbrel.isSuccess && <Text size="sm">Done. Your password is now the one Umbrel shows.</Text>}
+            {resetToUmbrel.isSuccess && <Text size="sm">Done. Your password is now {onUmbrel ? "the one Umbrel shows" : "APP_PASSWORD"}.</Text>}
             <Group>
               <Button variant="default" loading={resetToUmbrel.isPending} onClick={() => resetToUmbrel.mutate()}>
-                Reset to the Umbrel password
+                {onUmbrel ? "Reset to the Umbrel password" : "Reset to APP_PASSWORD"}
               </Button>
             </Group>
           </Stack>
@@ -141,8 +144,11 @@ export const SettingsPage = () => {
             </Text>
           ) : (
             <Text size="sm">
-              Create an empty file named <Code>reset-password</Code> in LANscape's data folder and restart. The password is
-              cleared, and the next visit asks for a new one.
+              Create an empty file named <Code>reset-password</Code> in LANscape's data folder (the volume mounted at{" "}
+              <Code>/data</Code>) and restart the container.{" "}
+              {presetPassword
+                ? "The password goes back to APP_PASSWORD."
+                : "The password is cleared, and the next visit asks for a new one."}
             </Text>
           )}
         </Stack>

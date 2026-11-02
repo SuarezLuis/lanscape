@@ -46,6 +46,7 @@ import { SettingsPage } from "./SettingsPage";
 import { HealthScore } from "./HealthScore";
 import { Outages } from "./Outages";
 import { SpeedHistory } from "./SpeedHistory";
+import { SpeedPattern } from "./SpeedPattern";
 import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
 
@@ -59,6 +60,7 @@ const PAGES = [
         <SpeedTestCard />
         <HealthScore />
         <SpeedHistory />
+        <SpeedPattern />
         <Outages />
       </Stack>
     ),
@@ -134,7 +136,7 @@ export const App = () => {
   const auth = useQuery(trpc.auth.status.queryOptions());
   if (!auth.data) return null;
   if (!auth.data.passwordSet) return <AuthScreen mode="setup" />;
-  if (!auth.data.signedIn) return <AuthScreen mode="login" onUmbrel={auth.data.onUmbrel} />;
+  if (!auth.data.signedIn) return <AuthScreen mode="login" onUmbrel={auth.data.onUmbrel} presetPassword={auth.data.presetPassword} />;
   return <Shell />;
 };
 
