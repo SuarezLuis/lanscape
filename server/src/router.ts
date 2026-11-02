@@ -34,6 +34,7 @@ import { findGateway } from "./jobs/ping";
 import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
 import { readStatus } from "./jobs/status";
+import { readTraits } from "./jobs/traits";
 import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
 import {
@@ -272,6 +273,9 @@ export const appRouter = t.router({
     // Its history goes with it, and it counts as new the next time it shows up
     delete: procedure.input(z.object({ mac: z.string() })).mutation(({ input }) => prisma.device.delete({ where: { mac: input.mac } })),
     markAllKnown: procedure.mutation(() => prisma.device.updateMany({ where: { known: false }, data: { known: true } })),
+    // What the device announces about itself (Cast id, model, DHCP hostname...), used to follow it across MACs
+    identity: procedure.input(z.object({ mac: z.string() })).query(async ({ input }) => (await readTraits([input.mac])).get(input.mac) ?? {}),
+    dhcpStatus: procedure.query(() => readStatus("integration.dhcp")),
     history: procedure
       .input(z.object({ mac: z.string() }))
       .query(({ input }) => prisma.deviceEvent.findMany({ where: { mac: input.mac }, orderBy: { at: "desc" }, take: 100 })),

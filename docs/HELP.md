@@ -62,6 +62,18 @@ The **Network** page lists every device that answers on your network: name, IP a
 - **Delete device** (in the same panel) removes a device with its name, settings and history. If it joins again, it's listed as new and sends a new-device alert. Useful for clearing out old entries, or to hear about a device the next time it shows up.
 - **Export CSV** downloads the device list.
 
+### How LANscape recognizes devices
+
+Phones and laptops use a private, made-up MAC address for each Wi-Fi network, and some change it now and then. To keep a device's name, settings and history when its address changes, LANscape remembers what each device says about itself:
+
+- **Stable IDs** that media and smart-home devices announce: Google Cast, AirPlay, HomeKit and UPnP ids, which don't change with the address.
+- **What a device says when it joins** (its DHCP request): its hostname, its vendor class (like `android-dhcp-14`), and the list of settings it asks for, which tells the operating system and version apart. LANscape listens for these but doesn't answer them; your router does.
+- **Its announced name**, as before.
+
+A new private address is treated as a known device only when exactly one device that isn't answering fits, by stable ID first, then hostname plus DHCP fingerprint, then name; a different stable ID rules a device out. The same details give more devices a name (UPnP friendly names, DHCP hostnames) and a model, shown under **Identity** in the device's panel.
+
+Listening for DHCP needs UDP port 67, so it stays off if another DHCP server runs on the same machine (such as Pi-hole's, if you turned it on).
+
 ### Identify a device
 
 Not sure what `Espressif Inc. · 192.168.0.43` is? Click **Identify a device**:

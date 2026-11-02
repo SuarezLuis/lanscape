@@ -7,6 +7,8 @@ import { type PiholeClient, piholeClients } from "./pihole";
 import type { Device } from "../generated/prisma/client";
 import { sendAll } from "./channels";
 import { discoverNames } from "./mdns";
+import { discoverSsdp } from "./ssdp";
+import { readTraits, saveTraits, type TraitMap } from "./traits";
 import { findDefaultRoute } from "./ping";
 
 const execFileAsync = promisify(execFile);
@@ -69,27 +71,51 @@ export const selfOn = (iface: string, interfaces = networkInterfaces()) => {
 const deviceLabel = (device: Pick<Device, "name" | "hostname" | "vendor" | "ip">) =>
   device.name ?? device.hostname ?? device.vendor ?? device.ip;
 
+// IDs a device keeps whatever MAC it uses: Google Cast, AirPlay, HomeKit, UPnP
+const STABLE = ["cast", "airplay", "hap", "ssdp"] as const;
+
 /**
- * Private MACs change (on rotation, or after the phone forgets the network). A new private MAC announcing the same
- * name as exactly one private-MAC device that isn't answering is taken to be that device on a new address.
- * Returns new MAC -> old MAC.
- * ponytail: matches on the announced name alone, so two phones that both call themselves "Android" can be mistaken
- * for one when only one is around; matching on more (vendor class, mDNS services) if that shows up.
+ * Private MACs change (on rotation, or after the phone forgets the network). A new private MAC is taken to be a
+ * private-MAC device that isn't answering when exactly one such device fits, trying in order:
+ * 1. the same stable ID (Cast, AirPlay, HomeKit, UPnP);
+ * 2. the same hostname and DHCP fingerprint (the options it asks for, which identify the OS and version);
+ * 3. the same announced name.
+ * A device with a different stable ID of the same kind is never a match. Returns new MAC -> old MAC.
+ * ponytail: rule 3 matches on the name alone, so two phones that both call themselves "Android" can be mistaken
+ * for one when only one is around; rules 1 and 2 catch most devices before it.
  */
 export const matchNewAddresses = (
-  found: { mac: string; name: string | undefined }[],
-  existing: Pick<Device, "mac" | "hostname">[],
+  found: { mac: string; name: string | undefined; traits: TraitMap }[],
+  existing: (Pick<Device, "mac" | "hostname"> & { traits: TraitMap })[],
 ) => {
   const foundMacs = new Set(found.map((device) => device.mac));
   const knownMacs = new Set(existing.map((device) => device.mac));
   const moves = new Map<string, string>();
-  for (const { mac, name } of found) {
-    if (knownMacs.has(mac) || !name || !isPrivateMac(mac)) continue;
+  for (const { mac, name, traits } of found) {
+    if (knownMacs.has(mac) || !isPrivateMac(mac)) continue;
     const taken = new Set(moves.values());
-    const candidates = existing.filter(
-      (device) => device.hostname === name && isPrivateMac(device.mac) && !foundMacs.has(device.mac) && !taken.has(device.mac),
+    const pool = existing.filter(
+      (device) =>
+        isPrivateMac(device.mac) &&
+        !foundMacs.has(device.mac) &&
+        !taken.has(device.mac) &&
+        !STABLE.some((kind) => traits[kind] && device.traits[kind] && traits[kind] !== device.traits[kind]),
     );
-    if (candidates.length === 1) moves.set(mac, candidates[0]!.mac);
+    const rules = [
+      (device: (typeof pool)[number]) => STABLE.some((kind) => traits[kind] && device.traits[kind] === traits[kind]),
+      (device: (typeof pool)[number]) =>
+        Boolean(traits["dhcp-host"] && traits["dhcp-fp"]) && device.traits["dhcp-host"] === traits["dhcp-host"] && device.traits["dhcp-fp"] === traits["dhcp-fp"],
+      (device: (typeof pool)[number]) => Boolean(name) && device.hostname === name,
+    ];
+    for (const rule of rules) {
+      const matches = pool.filter(rule);
+      if (matches.length === 1) {
+        moves.set(mac, matches[0]!.mac);
+        break;
+      }
+      // More than one fits this rule: too ambiguous to try looser ones
+      if (matches.length > 1) break;
+    }
   }
   return moves;
 };
@@ -160,8 +186,16 @@ const scan = async (thorough: boolean) => {
   const pihole = await piholeClients();
   const cidr = networkInterfaces()[route.iface]?.find((entry) => entry.family === "IPv4")?.cidr;
   if (!thorough && cidr) found.push(...recentlyActive(pihole, new Set(found.map((device) => device.mac)), cidr, new Date()));
-  const names = await discoverNames(found.map((device) => device.ip));
+  const [mdns, ssdp] = await Promise.all([discoverNames(found.map((device) => device.ip)), discoverSsdp()]);
+  const { names } = mdns;
   if (self) names.set(self.ip, hostname());
+  // What each found device announced this scan, saved under its MAC, plus what DHCP heard when it joined
+  for (const { ip, mac } of found) {
+    const fromSsdp = ssdp.get(ip);
+    await saveTraits(mac, { ...mdns.traits.get(ip), ssdp: fromSsdp?.uuid, ...(fromSsdp?.model && !mdns.traits.get(ip)?.model ? { model: fromSsdp.model } : {}) });
+  }
+  // Names in order of trust: mDNS, then UPnP friendly names, then Pi-hole, then the hostname a device gave DHCP
+  for (const [ip, { name }] of ssdp) if (name && !names.has(ip)) names.set(ip, name);
   for (const client of pihole) {
     const device = found.find((entry) => entry.mac === client.mac);
     if (device && client.name && !names.has(device.ip)) names.set(device.ip, client.name);
@@ -179,8 +213,17 @@ const scan = async (thorough: boolean) => {
   ]);
   const previousAt = previousScan ? new Date(previousScan.value) : null;
 
+  const traits = await readTraits([...found.map((device) => device.mac), ...stored.map((device) => device.mac)]);
+  for (const { ip, mac } of found) {
+    const dhcpName = traits.get(mac)?.["dhcp-host"];
+    if (dhcpName && !names.has(ip)) names.set(ip, dhcpName);
+  }
+
   // A device on a new private address keeps its name, settings and history; its events follow the MAC (ON UPDATE CASCADE)
-  const moves = matchNewAddresses(found.map(({ ip, mac }) => ({ mac, name: names.get(ip) })), stored);
+  const moves = matchNewAddresses(
+    found.map(({ ip, mac }) => ({ mac, name: names.get(ip), traits: traits.get(mac) ?? {} })),
+    stored.map((device) => ({ ...device, traits: traits.get(device.mac) ?? {} })),
+  );
   const movedTo = new Map([...moves].map(([next, previous]) => [previous, next]));
   for (const [next, previous] of moves) await prisma.device.update({ where: { mac: previous }, data: { mac: next } });
   const existing = stored.map((device) => ({ ...device, mac: movedTo.get(device.mac) ?? device.mac }));

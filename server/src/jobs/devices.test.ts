@@ -61,21 +61,36 @@ test("one alert per scan, however many devices joined", () => {
 
 test("a phone on a new private address is the same phone when its name matches exactly one missing device", () => {
   const existing = [
-    { mac: "fa:16:92:00:00:01", hostname: "Luis’s MacBook Pro" },
-    { mac: "8e:19:91:00:00:02", hostname: "Android" },
-    { mac: "92:00:00:00:00:03", hostname: "Android" },
-    { mac: "b8:27:eb:00:00:04", hostname: "pi2" },
+    { mac: "fa:16:92:00:00:01", hostname: "Luis’s MacBook Pro", traits: {} },
+    { mac: "8e:19:91:00:00:02", hostname: "Android", traits: {} },
+    { mac: "92:00:00:00:00:03", hostname: "Android", traits: {} },
+    { mac: "b8:27:eb:00:00:04", hostname: "pi2", traits: {} },
   ];
-  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: "Luis’s MacBook Pro" }], existing)).toEqual(
-    new Map([["a2:00:00:00:00:09", "fa:16:92:00:00:01"]]),
-  );
+  const found = (mac: string, name: string | undefined) => ({ mac, name, traits: {} });
+  expect(matchNewAddresses([found("a2:00:00:00:00:09", "Luis’s MacBook Pro")], existing)).toEqual(new Map([["a2:00:00:00:00:09", "fa:16:92:00:00:01"]]));
   // Two devices with that name: can't tell which
-  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: "Android" }], existing).size).toBe(0);
+  expect(matchNewAddresses([found("a2:00:00:00:00:09", "Android")], existing).size).toBe(0);
   // The old address is answering too, so it's a second device
-  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: "Luis’s MacBook Pro" }, { mac: "fa:16:92:00:00:01", name: "Luis’s MacBook Pro" }], existing).size).toBe(0);
+  expect(matchNewAddresses([found("a2:00:00:00:00:09", "Luis’s MacBook Pro"), found("fa:16:92:00:00:01", "Luis’s MacBook Pro")], existing).size).toBe(0);
   // No name, a maker-assigned MAC, or a maker-assigned old device: no guessing
-  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: undefined }], existing).size).toBe(0);
-  expect(matchNewAddresses([{ mac: "b8:27:eb:00:00:09", name: "pi2" }], existing).size).toBe(0);
+  expect(matchNewAddresses([found("a2:00:00:00:00:09", undefined)], existing).size).toBe(0);
+  expect(matchNewAddresses([found("b8:27:eb:00:00:09", "pi2")], existing).size).toBe(0);
+});
+
+test("stable IDs and DHCP fingerprints tell devices apart that names can't", () => {
+  const android = { "dhcp-host": "Android", "dhcp-fp": "1,3,6,15,26,28,51,58,59,43,114" };
+  const existing = [
+    { mac: "8e:19:91:00:00:02", hostname: "Android", traits: { ...android, "dhcp-fp": "1,3,6,15,26,28,51,58,59,43" } },
+    { mac: "92:00:00:00:00:03", hostname: "Android", traits: android },
+    { mac: "da:00:00:00:00:04", hostname: null, traits: { cast: "4f2e9a" } },
+    { mac: "de:00:00:00:00:05", hostname: "Living Room", traits: { cast: "77aa01" } },
+  ];
+  // Same name as two phones, but only one has this phone's DHCP fingerprint
+  expect(matchNewAddresses([{ mac: "a2:00:00:00:00:09", name: "Android", traits: android }], existing)).toEqual(new Map([["a2:00:00:00:00:09", "92:00:00:00:00:03"]]));
+  // A Cast id finds the device even with no name at all
+  expect(matchNewAddresses([{ mac: "a6:00:00:00:00:0a", name: undefined, traits: { cast: "4f2e9a" } }], existing)).toEqual(new Map([["a6:00:00:00:00:0a", "da:00:00:00:00:04"]]));
+  // Same name, different Cast id: a different speaker, never a match
+  expect(matchNewAddresses([{ mac: "aa:00:00:00:00:0b", name: "Living Room", traits: { cast: "99ff00" } }], existing).size).toBe(0);
 });
 
 test("unknown devices back after a while come as one alert", () => {

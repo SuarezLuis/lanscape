@@ -7,6 +7,7 @@ import { latencyHistory, since } from "./latency";
 import { listOutages, OUTAGE_RANGES } from "./outages";
 import { LAST_SCAN } from "./jobs/devices";
 import { listServices } from "./jobs/services";
+import { readTraits } from "./jobs/traits";
 import { METRICS, type Metric } from "./jobs/notify";
 
 /**
@@ -213,7 +214,7 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
     },
   }),
   get_device_history: tool({
-    description: "One device's details and when it went online or offline (latest 100 changes). Find the MAC with list_devices.",
+    description: "One device's details, what it announces about itself (identity: model, Cast/AirPlay/HomeKit/UPnP ids, the hostname, vendor class and fingerprint from its DHCP requests), and when it went online or offline (latest 100 changes). Find the MAC with list_devices.",
     input: z.object({ mac: z.string().trim().toLowerCase().regex(/^([\da-f]{2}:){5}[\da-f]{2}$/, "A MAC like aa:bb:cc:dd:ee:ff") }),
     run: async ({ mac }) => {
       const [device, scannedAt] = await Promise.all([
@@ -221,7 +222,7 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
         scanTime(),
       ]);
       if (!device) throw new Error(`No device with MAC ${mac}`);
-      return { ...deviceView(device, scannedAt), changes: device.events.map((event) => ({ at: event.at, online: event.online })) };
+      return { ...deviceView(device, scannedAt), identity: (await readTraits([mac])).get(mac) ?? {}, changes: device.events.map((event) => ({ at: event.at, online: event.online })) };
     },
   }),
   get_alert_history: tool({

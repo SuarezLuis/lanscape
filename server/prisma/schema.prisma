@@ -165,3 +165,15 @@ model ServiceResult {
 
   @@index([checkId, at])
 }
+
+// What a MAC address has said about itself (Cast id, AirPlay id, SSDP UUID, model, DHCP hostname and fingerprint).
+// Keyed by MAC without a foreign key: DHCP is heard before a scan has made the device, and a device's old MAC
+// keeps its traits after it moves to a new private address, which is how the move is recognized
+model MacTrait {
+  mac    String
+  kind   String // cast | airplay | hap | ssdp | model | dhcp-host | dhcp-vendor | dhcp-fp
+  value  String
+  seenAt DateTime @default(now())
+
+  @@id([mac, kind])
+}

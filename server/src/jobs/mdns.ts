@@ -36,6 +36,29 @@ export const cleanName = (raw: string) => {
   return name && !looksLikeId ? name : null;
 };
 
+export type Traits = Partial<Record<"cast" | "airplay" | "hap" | "model", string>>;
+
+// Stable IDs from TXT records, which stay the same when a device changes MAC: Google Cast id=, AirPlay deviceid=,
+// HomeKit id=, and the model from _device-info (iPhone14,2, MacBookPro18,3) or AirPlay
+export const txtTraits = (instance: string, txt: unknown): Traits => {
+  const pairs = new Map(
+    (Array.isArray(txt) ? txt : [txt]).map((entry) => {
+      const text = String(entry);
+      const at = text.indexOf("=");
+      return at < 0 ? [text.toLowerCase(), ""] : [text.slice(0, at).toLowerCase(), text.slice(at + 1)];
+    }),
+  );
+  const value = (key: string) => pairs.get(key)?.trim() || undefined;
+  const traits: Traits = {};
+  if (instance.includes("._googlecast.")) traits.cast = value("id");
+  if (instance.includes("._airplay.")) traits.airplay = value("deviceid")?.toLowerCase();
+  if (instance.includes("._hap.")) traits.hap = value("id")?.toLowerCase();
+  if (instance.includes("._device-info.") || instance.includes("._airplay.")) traits.model = value("model");
+  // Samba advertises a placeholder Apple model for file sharing ("MacSamba", or "Xserve" on older versions)
+  if (traits.model && /^(MacSamba|Xserve|RackMac)$/i.test(traits.model)) delete traits.model;
+  return Object.fromEntries(Object.entries(traits).filter(([, v]) => v)) as Traits;
+};
+
 // A display name beats a service instance name, which beats a bare hostname
 const RANK = { friendly: 3, instance: 2, hostname: 1 };
 
@@ -43,7 +66,7 @@ const RANK = { friendly: 3, instance: 2, hostname: 1 };
  * Asks the LAN over mDNS for names: advertised services (speakers, TVs, printers) and a reverse lookup per IP.
  */
 export const discoverNames = (ips: string[]) =>
-  new Promise<Map<string, string>>((resolve) => {
+  new Promise<{ names: Map<string, string>; traits: Map<string, Traits> }>((resolve) => {
     // Two sockets: the shared 5353 one hears answers sent to the group, but the host's own mDNS daemon (avahi on
     // Umbrel) also holds 5353; querying from a random port makes devices answer us directly instead
     const sockets = [makeMdns({ reuseAddr: true }), makeMdns({ port: 0, multicast: false })] as const;
@@ -55,6 +78,7 @@ export const discoverNames = (ips: string[]) =>
     const hostIp = new Map<string, string>();
     const instanceHost = new Map<string, string>();
     const friendly = new Map<string, string>();
+    const txtByInstance = new Map<string, Traits>();
     const instances = new Set<string>();
     const hostnames = new Map<string, string>();
 
@@ -65,6 +89,8 @@ export const discoverNames = (ips: string[]) =>
         if (record.type === "TXT") {
           const fn = friendlyName(record.data);
           if (fn) friendly.set(record.name, fn);
+          const traits = txtTraits(record.name, record.data);
+          if (Object.keys(traits).length) txtByInstance.set(record.name, { ...txtByInstance.get(record.name), ...traits });
         }
         if (record.type !== "PTR") continue;
         if (record.name === SERVICES) {
@@ -107,6 +133,13 @@ export const discoverNames = (ips: string[]) =>
         offer(ip, friendly.get(instance), RANK.friendly);
         if (host) offer(ip, stripLocal(host), RANK.hostname);
       }
-      resolve(new Map([...best].map(([ip, { name }]) => [ip, name])));
+      // _device-info has no SRV of its own; its instance name matches the host's other services
+      const traits = new Map<string, Traits>();
+      for (const [instance, found] of txtByInstance) {
+        const host = instanceHost.get(instance) ?? [...instanceHost].find(([other]) => other.split("._")[0] === instance.split("._")[0])?.[1];
+        const ip = host ? hostIp.get(host) : undefined;
+        if (ip) traits.set(ip, { ...traits.get(ip), ...found });
+      }
+      resolve({ names: new Map([...best].map(([ip, { name }]) => [ip, name])), traits });
     }, LISTEN_MS);
   });

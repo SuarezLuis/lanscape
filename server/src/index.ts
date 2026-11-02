@@ -8,6 +8,7 @@ import { BackupError, createBackup, inspectBackup, restoreBackup } from "./backu
 import { chat, chatInput, providerError } from "./ai";
 import { EXPORTS, isExportName } from "./export";
 import { handleMcp, mcpEnabled, mcpTokenValid, withinRateLimit } from "./mcp";
+import { startDhcpListener } from "./jobs/dhcp";
 import { startRetention } from "./jobs/retention";
 import { startScheduler } from "./jobs/scheduler";
 import { startTelegramReplies } from "./jobs/telegram";
@@ -122,4 +123,5 @@ if (existsSync(webDist)) {
 await app.listen({ host: "0.0.0.0", port });
 startScheduler();
 startRetention();
+startDhcpListener();
 void startTelegramReplies();
