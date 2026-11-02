@@ -21,7 +21,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 ## v1.3 — Advanced monitoring and AI foundations
 - [ ] **Network diagnostics:** guided ping, traceroute, DNS and gateway checks; exportable troubleshooting report.
 - [ ] **Interactive network map:** devices grouped by role/status; draw physical/topology connections only with reliable evidence.
-- [ ] **Service health checks:** configurable HTTP/TCP/DNS checks for LAN services.
+- [x] **Service health checks:** configurable HTTP/TCP/DNS checks for LAN services. Services page, down/back alerts, 24-hour uptime, and the `get_services` MCP tool.
 - [x] **Network Intelligence API:** bounded read-only analytics tools (`get_network_summary`, `get_latency_history`, `get_speed_history`, `list_devices`, `get_device_history`, `get_alert_history`); validated ranges, access control and factual output. Shipped as the MCP server's tools.
 - [ ] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (all devices' online/offline changes), and packet loss per bucket in latency history.
 - [x] **MCP server for external AI agents:** authenticated, read-only access to the analytics tools for OpenClaw and other MCP clients; off until a token is created, one replaceable token, rate limits and a request log.

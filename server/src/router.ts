@@ -26,6 +26,7 @@ import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
 import { findGateway } from "./jobs/ping";
 import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
+import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
 import { readStatus } from "./jobs/status";
 import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
@@ -271,6 +272,18 @@ export const appRouter = t.router({
     update: procedure
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
+  }),
+  services: t.router({
+    list: procedure.query(() => listServices()),
+    // A changed service starts its state over, so an edit can't inherit an old alert
+    save: procedure.input(serviceInput).mutation(({ input: { id, ...service } }) => {
+      const data = { ...service, failures: 0, failingSince: null, alerted: false };
+      return id ? prisma.serviceCheck.update({ where: { id }, data }) : prisma.serviceCheck.create({ data });
+    }),
+    delete: procedure.input(z.object({ id: z.int() })).mutation(({ input }) => prisma.serviceCheck.delete({ where: { id: input.id } })),
+    checkNow: procedure.input(z.object({ id: z.int() })).mutation(async ({ input }) =>
+      runServiceCheck(await prisma.serviceCheck.findUniqueOrThrow({ where: { id: input.id } })),
+    ),
   }),
   integrations: t.router({
     pihole: procedure.query(() => describePihole()),

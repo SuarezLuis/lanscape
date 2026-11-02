@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { pruneMcpCalls } from "../mcp";
+import { pruneServiceResults } from "./services";
 import { outagesBefore } from "../outages";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,7 +34,7 @@ export const rollUpOldPings = async (now = new Date()) => {
 
 export const startRetention = () => {
   const run = () =>
-    Promise.all([rollUpOldPings(), pruneMcpCalls()]).catch((error: unknown) => {
+    Promise.all([rollUpOldPings(), pruneMcpCalls(), pruneServiceResults()]).catch((error: unknown) => {
       console.error("Retention failed:", error instanceof Error ? error.message : error);
     });
   void run();
