@@ -8,7 +8,7 @@ Umbrel's own login doesn't cover apps on the host network, so LANscape has its o
 
 **Forgot it?** In Umbrel, open LANscape's settings, set `RESET_PASSWORD` to `yes` and restart the app. The password goes back to the one Umbrel shows. Clear the setting afterwards, or each restart resets it again.
 
-Running LANscape outside Umbrel, the first visit asks you to set a password. To clear a forgotten one, create an empty file named `reset-password` next to the database and restart.
+**Running LANscape on plain Docker** (see the README), set `APP_PASSWORD` in the compose file and sign in with it; **Reset to APP_PASSWORD** in Settings switches back to it. Without `APP_PASSWORD`, the first visit asks you to set a password. To reset a forgotten one, create an empty file named `reset-password` in the data folder (the volume mounted at `/data`) and restart the container: it goes back to `APP_PASSWORD`, or to the first-visit screen without one.
 
 ## Speed tests
 

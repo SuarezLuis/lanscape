@@ -89,6 +89,15 @@ const FAR_FUTURE = new Date("9999-01-01T00:00:00Z");
 
 export const outagesSince = (from: Date) => detect(from, FAR_FUTURE);
 
+// Saved and recent outages that started in [from, to)
+export const outagesBetween = async (from: Date, to: Date) => {
+  const [stored, recent] = await Promise.all([
+    prisma.outage.findMany({ where: { start: { gte: from, lt: to } }, select: { start: true, end: true, failedChecks: true, cause: true } }),
+    detect(from, to, to),
+  ]);
+  return [...stored.map((outage) => ({ ...outage, cause: outage.cause as Cause })), ...recent];
+};
+
 // Outages older than 90 days were saved when their checks were rolled up; newer ones come straight from the checks
 export const listOutages = async (range: OutageRange) => {
   const from = since(range)!;
