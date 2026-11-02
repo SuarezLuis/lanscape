@@ -18,9 +18,9 @@ Node 26 LTS, npm workspaces (`server/`, `web/`), Fastify + tRPC v11 with superjs
 - The server is bundled with esbuild. The web app imports only the `AppRouter` type from `@lanscape/server/router`.
 - In production Fastify serves `web/dist` next to `/trpc`. In dev, Vite on :5173 proxies `/trpc` to the server on :4545.
 - The Prisma client is generated into `server/src/generated/prisma` (gitignored) by the server's `postinstall`. Re-run `npm install` or `npm exec -w server -- prisma generate` after a schema change.
-- Local DB defaults to `server/dev.db`. Tests run against `file::memory:` (`server/vitest.config.ts`), and router tests call procedures through `appRouter.createCaller({})`.
-- Speed tests locally need `speedtest-go` on `PATH`, or `SPEEDTEST_BIN` pointing at it.
-- Checks: `npm run typecheck`, `npm test`, `npm run build`. One test file: `npm test -w server -- src/jobs/speedtest.test.ts` (add `-t "<name>"` for one test). Dev: `npm run dev`.
+- Local DB defaults to `server/dev.db`. Each test file gets its own SQLite file with the migrations applied, emptied before every test (`server/src/test/setup.ts`); router tests call procedures through `appRouter.createCaller({ token, ip, setCookie })`.
+- Speed tests locally need `speedtest-go` on `PATH`, or `SPEEDTEST_BIN` pointing at it. `ARP_SCAN_BIN` does the same for `arp-scan`; tests use both for stand-ins.
+- Checks: `npm run typecheck`, `npm test`, `npm run build`, then `npm run e2e` (Playwright on the built app; `e2e/start.mjs` seeds demo data with alert channels removed and uses the stubs in `e2e/stubs/`; locally it drives the installed Chrome). One test file: `npm test -w server -- src/jobs/speedtest.test.ts` (add `-t "<name>"` for one test). Dev: `npm run dev`.
 - Schema change: edit `server/prisma/schema.prisma`, then `npm exec -w server -- prisma migrate dev --name <change>` against a throwaway `DATABASE_URL`.
 
 ## How it runs on Umbrel
