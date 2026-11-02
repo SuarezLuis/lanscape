@@ -1,60 +1,64 @@
 # Roadmap
 
-Planned features, not yet built. Tick items off here as they ship. Core network monitoring must keep working without AI or external services.
+What's planned, and what shipped in which release. Tick items off here in the PR that ships them. Core network monitoring must keep working without AI or external services.
 
-## Next patch
-- [x] Sign-in trims whitespace around the password.
-- [ ] Official Umbrel App Store listing: submitted as getumbrel/umbrel-apps#6285, waiting on review.
+## Waiting
+- [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Stays on 1.1.0 until it's approved; updates follow.
 
-## v1.2 — Network intelligence and data ownership
-- [x] **Backup and restore:** export/import a versioned archive containing SQLite data, device names/trust settings, monitoring rules, schedules and configuration; consistency-safe backup, schema/version checks, restore preview, confirmation, automatic pre-restore safety backup, and recovery/rollback path. Explicitly warn about secrets and offer encrypted backups; test on clean install and across upgrades.
-- [x] **Internet Health Score (0–100):** derive from latency, loss, jitter and outages; explain score and comparison baseline. Last 24 hours against the last 7 days, each part shown with its points; also in the MCP summary.
-- [x] **Internet outage timeline:** timestamp and duration of disruptions; compare router vs internet reachability to avoid unsupported root-cause claims. Also an outage-ended alert and the `get_outages` MCP tool.
-- [ ] **Speed performance heatmap:** hourly/daily download and upload patterns, ISP plan target, long-term trends.
-- [x] **Unknown/new device alerts:** trusted-device workflow and randomized-MAC false-positive handling (extend existing new-device/offline alerts).
-- [x] **Per-device online alerts:** alert each time a chosen device comes online after a set time away (15 min to 4 hours).
-- [x] **Delete a device:** remove it with its history, so it's listed and alerted as new the next time it joins.
-- [x] **Donation support:** Buy Me a Coffee link in the README (so also the About page) and GitHub's Sponsor button. Anything more in-app waits on Umbrel's submission rules.
-- [x] **Buy Me a Coffee button in the app UI:** a "Buy me a coffee" link at the bottom of the sidebar, under About.
-
-## v1.3 — Advanced monitoring and AI foundations
-- [ ] **Network diagnostics:** guided ping, traceroute, DNS and gateway checks; exportable troubleshooting report.
-- [x] **Service health checks:** configurable HTTP/TCP/DNS checks for LAN services. Services page, down/back alerts, 24-hour uptime, and the `get_services` MCP tool.
-- [x] **Network Intelligence API:** bounded read-only analytics tools (`get_network_summary`, `get_latency_history`, `get_speed_history`, `list_devices`, `get_device_history`, `get_alert_history`); validated ranges, access control and factual output. Shipped as the MCP server's tools.
-- [ ] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (all devices' online/offline changes), and packet loss per bucket in latency history.
-- [x] **MCP server for external AI agents:** authenticated, read-only access to the analytics tools for OpenClaw and other MCP clients; off until a token is created, one replaceable token, rate limits and a request log.
-- [x] **Built-in AI chat:** bring-your-own OpenAI / Anthropic API key, local Ollama, and configurable OpenAI-compatible endpoint; tool calling, model selection, bounded context, evidence-backed answers and a clear offline/cloud data-disclosure policy. Secure server-side storage of secrets. The Assistant page, using the MCP tools; keys are write-only and conversations aren't stored.
-- [ ] **Streaming chat answers:** show the answer as it's written, and which tool it's reading, instead of one wait.
-
-## v1.4 — Smart diagnostics
+## Next
 - [ ] **Proactive AI analyst:** opt-in investigation and summaries of incidents LANscape already detects (outages, alert rules, services going down); local model option, consent before cloud transmission, no automatic network modifications.
-- [ ] **Network performance reports:** periodic summarized trends, issue comparisons and shareable ISP support diagnostics.
 
-## Existing roadmap items
-- [x] Pi-hole integration: device names, DNS activity per device, and recent DNS requests as a sign of life (Integrations page).
-- [ ] **Standalone Docker release (no Umbrel):** the image already runs on plain Docker (the first visit sets the password), but it isn't documented or released as such. Add a `docker run` / Compose example to the README (host network for device discovery, a volume for `/data`, `init: true`), say which capabilities `arp-scan` and `ping` need, test it on a plain Linux host, and announce it with the release.
-
-## Decided not to pursue
-Kept here so the reasons aren't lost. Revisit if the reason stops holding.
-- **Automatic problem detection** (baseline/anomaly detection and correlations): rules already compare against the 7-day median and outages are detected; real anomaly detection risks noisy alerts for little gain.
-- **Interactive network map:** a real topology needs router data; the owner's TP-Link has no API for it, and a grouped list is what the Network page already is.
-- **Router integrations (UniFi, SNMP):** no matching hardware to build or test against, and consumer routers rarely support SNMP. Revisit if a user with one asks.
-- **HTTPS:** Umbrel apps are served over plain http, and a self-signed certificate means browser warnings. A reverse proxy or Tailscale is the practical route.
-- **Browser push notifications:** browsers only allow push over HTTPS, so this waits on HTTPS; ntfy already covers phone notifications.
-- **Adoption/analytics:** no telemetry. For a rough count, "Total downloads" on the image's GHCR page (https://github.com/SuarezLuis/lanscape/pkgs/container/lanscape) counts installs plus updates; once the official listing is approved, ask Umbrel whether developers can see install counts.
-
-## Testing
-- [x] **Database-backed tests:** each test file gets a SQLite file with the real migrations applied, so router procedures, queries and jobs (outages, rollups, rules firing, backups, MCP tools) are tested against real data. CI also fails when the schema changes without a migration.
-- [x] **More database tests:** the device scan (scan → new device → alert, private-MAC matching, offline alerts) with a stubbed arp-scan, and a full restore with undo and an upgrade from an older backup.
-- [x] **UI end-to-end tests:** Playwright against a built server with a throwaway database and seeded demo data (`scripts/demo/`): sign in, run a speed test with a stubbed `speedtest-go`, rename a device, scan with a stubbed `arp-scan`, set up a rule, add a service, back up, restore and undo. Runs in CI on every PR (`e2e/`).
-
-## Design and release guardrails
-- Protect network telemetry and backup contents as sensitive data.
-- Keep all AI integrations optional; do not require internet connectivity for core monitoring.
-- Avoid privileged device discovery or router writes beyond the minimum necessary permissions.
-- Deliver new functionality via feature branches and PRs; do not modify the live official-store submission merely to track ideas.
+## v1.9.0 (in review: #37–#40)
+- [x] **Weekly speed pattern:** download, upload and ping by weekday and hour, against your plan speeds; long-term trends are the History chart's Year view.
+- [x] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (every device's online/offline changes), and packet loss per bucket in latency history.
+- [x] **Standalone Docker release (no Umbrel):** a Compose example and notes in the README, `APP_PASSWORD` wording without Umbrel in it, and `UMBREL=true` in the Umbrel stores' compose files.
+- [x] **Streaming chat answers:** the assistant's answer appears as it's written, with each data lookup shown as it happens.
+- [x] **Network diagnostics:** guided router, internet, DNS, HTTPS and traceroute checks with a plain-language verdict and a report to copy or download.
+- [x] **Network performance reports:** an opt-in weekly summary through the alert channels, and a 30-day report to send an internet provider.
 
 ## Shipped
+
+### v1.8.0
+- [x] **Built-in AI chat:** the Assistant page, with Claude, OpenAI, or a model on your own network (Ollama or any OpenAI-compatible server); read-only tools, the data behind each answer shown, a clear statement of where data goes, write-only API keys, and conversations kept only in the browser tab.
+- [x] **UI end-to-end tests:** Playwright on the built app with demo data and stand-ins for `speedtest-go` and `arp-scan`; runs on every PR.
+- [x] **More database tests:** the device scan with a stubbed `arp-scan`, and a full restore with undo and an upgrade from an older backup.
+- [x] Local speed tests on macOS work again (`script` was given a socket for input).
+
+### v1.7.0
+- [x] **Internet Health Score (0–100):** from uptime, packet loss, ping and jitter; the last 24 hours against the last 7 days, each part shown with its points; also in the MCP summary.
+- [x] **Service health checks:** HTTP, TCP and DNS checks for LAN services, down and back alerts, 24-hour uptime, and the `get_services` MCP tool.
+- [x] **Buy Me a Coffee in the app:** a link at the bottom of the sidebar.
+- [x] **Outages for a year:** outages are saved before their ping checks are rolled up into hourly rows.
+- [x] **Database-backed tests:** each test file gets a SQLite file with the real migrations; CI fails when the schema changes without a migration.
+
+### v1.6.0
+- [x] **Internet outage timeline:** when the internet was down, for how long, and whether the problem was past the router or in the home network; an alert when it's back, and the `get_outages` MCP tool.
+
+### v1.5.2
+- [x] Copy buttons on the AI agents tab work over plain http; the Claude Code command adds LANscape for every folder; example questions to ask.
+
+### v1.5.1
+- [x] A failed scheduled speed test tries once more a minute later, and a timeout says which step hung.
+
+### v1.5.0
+- [x] **MCP server for external AI agents:** read-only tools for OpenClaw, Claude and other MCP clients, off until a token is created, one replaceable token, rate limits and a request log.
+- [x] **Network Intelligence API:** the MCP tools (`get_network_summary`, `get_latency_history`, `get_speed_history`, `list_devices`, `get_device_history`, `get_alert_history`), with validated ranges and factual output.
+
+### v1.4.0
+- [x] **Pi-hole integration:** device names, DNS activity per device, and recent DNS requests as a sign of life, on a new Integrations page.
+
+### v1.3.0
+- [x] **Per-device online alerts:** alert each time a chosen device comes online after a set time away (15 minutes to 4 hours).
+- [x] **Delete a device:** remove it with its history, so it's listed and alerted as new the next time it joins.
+
+### v1.2.0
+- [x] **Backup and restore:** one file with everything, optionally encrypted, with a preview, a safety copy before restoring, and undo.
+- [x] **Unknown/new device alerts:** new-device alerts start after the first scan; an optional alert when an unknown device comes back; devices keep their identity across private MAC addresses.
+- [x] **Donation support:** Buy Me a Coffee in the README, the Help page, and GitHub's Sponsor button.
+- [x] Sign-in accepts a pasted password with spaces or a newline around it.
+
+### v1.1.1
+- [x] The latency chart sizes its buckets by the history there, not the range picked, so a new install isn't one or two points.
 
 ### v1.1.0
 - [x] Starts with Umbrel's per-install password (`APP_PASSWORD` + `deterministicPassword`): no first-run screen for someone else on the LAN to reach first.
@@ -79,3 +83,18 @@ Kept here so the reasons aren't lost. Revisit if the reason stops holding.
 - [x] Own login with sessions (host-network apps skip Umbrel's login); change password or sign out everywhere.
 - [x] Light, dark and system themes; works on phones; in-app Help page from `docs/HELP.md`.
 - [x] Multi-arch image (amd64 + arm64) on GHCR, published by CI; listed in the SZ community app store.
+
+## Decided not to pursue
+Kept here so the reasons aren't lost. Revisit if the reason stops holding.
+- **Automatic problem detection** (baseline/anomaly detection and correlations): rules already compare against the 7-day median and outages are detected; real anomaly detection risks noisy alerts for little gain.
+- **Interactive network map:** a real topology needs router data; the owner's TP-Link has no API for it, and a grouped list is what the Network page already is.
+- **Router integrations (UniFi, SNMP):** no matching hardware to build or test against, and consumer routers rarely support SNMP. Revisit if a user with one asks.
+- **HTTPS:** Umbrel apps are served over plain http, and a self-signed certificate means browser warnings. A reverse proxy or Tailscale is the practical route.
+- **Browser push notifications:** browsers only allow push over HTTPS, so this waits on HTTPS; ntfy already covers phone notifications.
+- **Adoption/analytics:** no telemetry. For a rough count, "Total downloads" on the image's GHCR page (https://github.com/SuarezLuis/lanscape/pkgs/container/lanscape) counts installs plus updates; once the official listing is approved, ask Umbrel whether developers can see install counts.
+
+## Design and release guardrails
+- Protect network telemetry and backup contents as sensitive data.
+- Keep all AI integrations optional; do not require internet connectivity for core monitoring.
+- Avoid privileged device discovery or router writes beyond the minimum necessary permissions.
+- Deliver new functionality via feature branches and PRs; do not modify the live official-store submission merely to track ideas.
