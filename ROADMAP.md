@@ -43,8 +43,8 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 
 ## Testing
 - [x] **Database-backed tests:** each test file gets a SQLite file with the real migrations applied, so router procedures, queries and jobs (outages, rollups, rules firing, backups, MCP tools) are tested against real data. CI also fails when the schema changes without a migration.
-- [ ] **More database tests:** the device scan (scan → new device → alert, private-MAC matching) with a stubbed arp-scan, and a full restore.
-- [ ] **UI end-to-end tests:** Playwright against a built server with a throwaway database and seeded demo data (`scripts/demo/`): sign in, run a speed test with a stubbed `speedtest-go`, rename a device, set up a rule, back up and restore. Run in CI on every PR.
+- [x] **More database tests:** the device scan (scan → new device → alert, private-MAC matching, offline alerts) with a stubbed arp-scan, and a full restore with undo and an upgrade from an older backup.
+- [x] **UI end-to-end tests:** Playwright against a built server with a throwaway database and seeded demo data (`scripts/demo/`): sign in, run a speed test with a stubbed `speedtest-go`, rename a device, scan with a stubbed `arp-scan`, set up a rule, add a service, back up, restore and undo. Runs in CI on every PR (`e2e/`).
 
 ## Design and release guardrails
 - Protect network telemetry and backup contents as sensitive data.

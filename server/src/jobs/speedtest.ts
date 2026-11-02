@@ -8,7 +8,8 @@ import { checkRules, testValues } from "./notify";
 import { pingTargets } from "./ping";
 
 const TIMEOUT_MS = 120_000;
-const ANSI_ESCAPE = /\x1b\[[0-9;?]*[A-Za-z]/g;
+// Terminal colors, and the "^D" plus backspaces macOS's script(1) echoes when its input ends
+const ANSI_ESCAPE = /\x1b\[[0-9;?]*[A-Za-z]|\^D\x08+/g;
 const MS_PER_UNIT: Record<string, number> = { ns: 1e-6, "µs": 1e-3, us: 1e-3, ms: 1, s: 1000 };
 
 export type SpeedtestProgress = {
@@ -100,7 +101,8 @@ const measure = (serverId: string | null) =>
     // speedtest-go only prints live progress to a terminal, so script(1) gives it one
     const args =
       process.platform === "darwin" ? ["-q", "/dev/null", ...command.split(" ")] : ["-qefc", command, "/dev/null"];
-    const child = spawn("script", args, { detached: true });
+    // macOS's script(1) fails on a socket for input, which is what a default pipe is there
+    const child = spawn("script", args, { detached: true, stdio: [process.platform === "darwin" ? "ignore" : "pipe", "pipe", "pipe"] });
     let ended: "cancelled" | "timed out" | null = null;
     // script(1) runs the command in a session of its own, so killing script's group alone orphans speedtest-go
     const kill = (reason: NonNullable<typeof ended>) => {
@@ -119,7 +121,7 @@ const measure = (serverId: string | null) =>
     const lines: string[] = [];
     let partial = "";
 
-    child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+    child.stdout!.setEncoding("utf8").on("data", (chunk: string) => {
       const parts = (partial + chunk).replace(ANSI_ESCAPE, "").split(/[\r\n]/);
       partial = parts.pop() ?? "";
       for (const line of parts.map((part) => part.trim()).filter(Boolean)) {

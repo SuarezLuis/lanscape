@@ -4,3 +4,5 @@ server/src/generated/
 *.db
 *.db-journal
 .env
+test-results/
+playwright-report/

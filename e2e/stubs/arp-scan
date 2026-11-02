@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stands in for arp-scan in end-to-end tests: two invented devices answer
+printf "192.168.1.1\te4:fa:c4:10:20:30\tTP-Link Systems Inc\n"
+printf "192.168.1.21\tf4:f5:d8:10:20:31\tGoogle, Inc.\n"

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Stands in for speedtest-go in end-to-end tests: an invented server and results, printed like the real thing
+if [ "$1" = "--list" ]; then
+  echo "[ 41870]    18.40km 9ms 	Riverside (Testland) by Lakeview Fiber"
+  exit 0
+fi
+echo "✓ Test Server: [41870] 18.40km Riverside (Testland) by Lakeview Fiber"
+printf "⠋ Latency: 12ms\r"
+sleep 0.3
+echo "✓ Latency: 11.2ms Jitter: 1.1ms Min: 10ms Max: 13ms"
+printf "⠋ Download: 320.50 Mbps\r"
+sleep 0.5
+echo "✓ Download: 640.12 Mbps (Used: 800.00MB)"
+printf "⠋ Upload: 400.00 Mbps\r"
+sleep 0.5
+echo "✓ Upload: 850.33 Mbps (Used: 1000.00MB)"
