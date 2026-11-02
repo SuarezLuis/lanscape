@@ -44,8 +44,8 @@ test("a scan finds the devices that answer", async ({ page }) => {
   test.skip(process.platform !== "linux", "Linux only");
   await signIn(page, "/network");
   await page.getByRole("button", { name: "Scan now" }).click();
-  await expect(page.getByText(/^\d+ online of \d+ seen · last scan/)).toContainText("online of", { timeout: 20_000 });
-  await expect(page.getByText(/^[23] online of/)).toBeVisible();
+  // A scan listens 5 seconds for mDNS names; the demo data's own last scan shows a different count until it's done
+  await expect(page.getByText(/^[23] online of/)).toBeVisible({ timeout: 20_000 });
 });
 
 test("adds a notification rule and it survives a reload", async ({ page }) => {
