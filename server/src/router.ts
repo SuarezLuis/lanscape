@@ -18,7 +18,7 @@ import {
 } from "./auth";
 import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
-import { aiSettings, chat, chatInput, DEFAULT_ANTHROPIC_MODEL, describeAi, removeAi, saveAi } from "./ai";
+import { aiSettings, DEFAULT_ANTHROPIC_MODEL, describeAi, providerError, removeAi, saveAi } from "./ai";
 import { planInput, readPlan, savePlan, weeklyPattern } from "./analytics";
 import { ispReport, readReportSettings, reportSettings, saveReportSettings, sendWeeklyReport } from "./reports";
 import { healthScore } from "./health";
@@ -28,6 +28,7 @@ import { listOutages, OUTAGE_ALERTS, OUTAGE_RANGES, outageAlertsOn } from "./out
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
+import { runDiagnostics } from "./jobs/diagnostics";
 import { findGateway } from "./jobs/ping";
 import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
@@ -101,13 +102,11 @@ const automationInput = z.discriminatedUnion("job", [
   }),
 ]);
 
-// The provider's own message ("invalid x-api-key", "model not found") is what the owner needs to see
 const providerCall = async <T>(run: () => Promise<T>) => {
   try {
     return await run();
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new TRPCError({ code: "BAD_REQUEST", message: /fetch failed|ECONNREFUSED|ENOTFOUND/i.test(message) ? "Couldn't reach the AI provider" : message });
+    throw new TRPCError({ code: "BAD_REQUEST", message: providerError(error) });
   }
 };
 
@@ -299,6 +298,8 @@ export const appRouter = t.router({
     sendNow: procedure.mutation(() => sendWeeklyReport()),
     isp: procedure.query(() => ispReport()),
   }),
+  // Takes 10 to 30 seconds: pings, lookups and a traceroute, one after another
+  diagnostics: t.router({ run: procedure.mutation(() => runDiagnostics()) }),
   services: t.router({
     list: procedure.query(() => listServices()),
     // A changed service starts its state over, so an edit can't inherit an old alert
@@ -315,7 +316,6 @@ export const appRouter = t.router({
     settings: procedure.query(async () => ({ saved: await describeAi(), defaultAnthropicModel: DEFAULT_ANTHROPIC_MODEL })),
     save: procedure.input(aiSettings).mutation(({ input }) => providerCall(() => saveAi(input))),
     remove: procedure.mutation(() => removeAi()),
-    chat: procedure.input(chatInput).mutation(({ input }) => providerCall(() => chat(input.messages))),
   }),
   integrations: t.router({
     pihole: procedure.query(() => describePihole()),
