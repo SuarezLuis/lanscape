@@ -118,3 +118,15 @@ test("sets up the assistant with a local model and answers from the network data
   await expect(page.getByText(/You have \d+ devices on your network\./)).toBeVisible();
   await expect(page.getByText("Looked at: list_devices")).toBeVisible();
 });
+
+test("runs a network check and offers the report", async ({ page }) => {
+  test.setTimeout(90_000);
+  await signIn(page, "/diagnostics");
+  await page.getByRole("button", { name: "Run a check" }).click();
+  await expect(page.getByRole("button", { name: "Download report" })).toBeVisible({ timeout: 75_000 });
+  await expect(page.getByText("Secure web (HTTPS)")).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download report" }).click();
+  const file = await (await downloading).path();
+  expect(readFileSync(file, "utf8")).toContain("LANscape network check");
+});

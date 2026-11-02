@@ -76,6 +76,19 @@ Then name it right there.
 
 Each service is checked every minute, 5 minutes or 15 minutes. One failed check shows as **Failing**; two in a row is **Down**, and LANscape alerts you, then again when it's back with how long it was down. Turn **Alert** off for a service you only want to see on the page. Each service shows its latest checks as a strip (green answered, red failed), its average answer time and its uptime over the last 24 hours. Results are kept for 90 days.
 
+## Diagnostics
+
+**Run a check** tests the path from the Umbrel to the internet, one link at a time, in a few seconds:
+
+1. **This machine:** its network connection and which router it uses.
+2. **Router:** whether the router answers pings.
+3. **Internet (by address):** whether your internet host (1.1.1.1 by default) answers.
+4. **DNS:** looking up a name through your own DNS servers, and through 1.1.1.1 for comparison.
+5. **Secure web:** loading a small HTTPS page Google provides for connection checks.
+6. **Route:** a traceroute to your internet host, hop by hop.
+
+The line at the top names the first link that failed: inside your home network, past your router, DNS, or secure web. Routers along the way often ignore traceroute, so hops shown as `*` aren't a problem on their own. Nothing is saved; **Copy report** or **Download report** gives you plain text to send to your internet provider.
+
 ## Automations
 
 - **Full speed test:** off by default. Choose every hour, 6 hours, 12 hours or daily, and a starting time. Times follow the time zone of the browser you last saved from. **Server** picks the speedtest.net server for every test; *Automatic* uses the nearest one, while a fixed server keeps results comparable over time.
