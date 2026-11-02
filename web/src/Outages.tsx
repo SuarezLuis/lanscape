@@ -76,7 +76,7 @@ export const Outages = () => {
                         top={0}
                         h="100%"
                         bg={`${CAUSES[outage.cause].color}.6`}
-                        style={{ left: `${left * 100}%`, width: `${width * 100}%`, minWidth: 3 }}
+                        style={{ left: `min(${left * 100}%, calc(100% - 4px))`, width: `${width * 100}%`, minWidth: 4 }}
                       />
                     </Tooltip>
                   );
