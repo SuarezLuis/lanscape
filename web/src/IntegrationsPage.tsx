@@ -152,7 +152,7 @@ const McpPanel = () => {
   );
   const endpoint = `${window.location.origin}/mcp`;
   const token = create.data;
-  const claudeCommand = `claude mcp add --transport http lanscape ${endpoint} --header "Authorization: Bearer ${token ?? "<token>"}"`;
+  const claudeCommand = `claude mcp add --transport http --scope user lanscape ${endpoint} --header "Authorization: Bearer ${token ?? "<token>"}"`;
   const config = JSON.stringify(
     { mcpServers: { lanscape: { type: "http", url: endpoint, headers: { Authorization: `Bearer ${token ?? "<token>"}` } } } },
     null,
@@ -228,7 +228,7 @@ const McpPanel = () => {
         <Text size="sm" c="dimmed">
           Server address <Code>{endpoint}</Code> (Streamable HTTP), with the token in an{" "}
           <Code>Authorization: Bearer</Code> header. Agents running on this Umbrel use the Umbrel's network address, not{" "}
-          <Code>localhost</Code>. Claude Code:
+          <Code>localhost</Code>. Claude Code (for every folder, not just the one you run it in):
         </Text>
         <Code block style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
           {claudeCommand}
