@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Card, Code, Group, List, PasswordInput, Stack, Table, Tabs, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Anchor, Autocomplete, Badge, Button, Card, Code, Group, List, PasswordInput, SegmentedControl, Stack, Table, Tabs, Text, TextInput, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTRPC } from "./trpc";
@@ -164,7 +164,7 @@ const Copy = ({ value }: { value: string }) => {
   );
 };
 
-const PROMPTS = [
+export const PROMPTS = [
   { prompt: "When was my internet slow this month, and was it my ISP or my home network?", hint: "compares router ping with internet ping" },
   { prompt: "Is there anything on my network I don't recognize?", hint: "devices you haven't marked as known" },
   { prompt: "When does the kids' tablet come online at night?", hint: "a device's online and offline history" },
@@ -330,15 +330,168 @@ const McpPanel = () => {
   );
 };
 
+type Choice = "anthropic" | "openai" | "other";
+const CHOICES: { value: Choice; label: string }[] = [
+  { value: "anthropic", label: "Claude" },
+  { value: "openai", label: "OpenAI" },
+  { value: "other", label: "Ollama or other" },
+];
+const OPENAI_URL = "https://api.openai.com/v1";
+// On Umbrel, apps share the host network, so an Ollama app on the same Umbrel answers on localhost
+const OLLAMA_URL = "http://localhost:11434/v1";
+
+const AiPanel = () => {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const ai = useQuery(trpc.ai.settings.queryOptions());
+  const refresh = () => queryClient.invalidateQueries(trpc.ai.settings.queryFilter());
+  const save = useMutation(trpc.ai.save.mutationOptions({ onSuccess: refresh }));
+  const remove = useMutation(trpc.ai.remove.mutationOptions({ onSuccess: () => (save.reset(), refresh()) }));
+  const saved = ai.data?.saved;
+  const [choice, setChoice] = useState<Choice>("anthropic");
+  const [url, setUrl] = useState(OLLAMA_URL);
+  const [model, setModel] = useState("");
+  const [apiKey, setApiKey] = useState("");
+
+  useEffect(() => {
+    if (!ai.data) return;
+    const current = ai.data.saved;
+    if (!current) return setModel(ai.data.defaultAnthropicModel);
+    setChoice(current.provider === "anthropic" ? "anthropic" : current.url === OPENAI_URL ? "openai" : "other");
+    if (current.provider === "openai" && current.url !== OPENAI_URL) setUrl(current.url);
+    setModel(current.model);
+  }, [ai.data]);
+
+  const pick = (next: Choice) => {
+    setChoice(next);
+    setApiKey("");
+    save.reset();
+    setModel(next === "anthropic" ? (ai.data?.defaultAnthropicModel ?? "") : "");
+  };
+  const sameProvider = saved && (choice === "anthropic") === (saved.provider === "anthropic");
+  const needsKey = choice !== "other" && !(sameProvider && saved?.keySet);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    save.mutate(
+      {
+        provider: choice === "anthropic" ? "anthropic" : "openai",
+        url: choice === "anthropic" ? undefined : choice === "openai" ? OPENAI_URL : url,
+        model,
+        // Blank keeps the saved key; for Ollama, blank means none
+        apiKey: apiKey || (choice === "other" && !sameProvider ? "" : undefined),
+      },
+      { onSuccess: () => setApiKey("") },
+    );
+  };
+
+  return (
+    <Stack gap="md" maw={620}>
+      <Text size="sm">
+        Ask questions about your network in plain language on the <Anchor href="/assistant">Assistant</Anchor> page. The
+        assistant reads the same data the AI agents tab offers (speed tests, latency, outages, devices, services and alerts)
+        and can't change anything.
+      </Text>
+      <Group gap="xs">
+        <Text size="sm" fw={600}>
+          Status
+        </Text>
+        {saved ? (
+          <Badge color="teal" variant="light">
+            {saved.model}
+          </Badge>
+        ) : (
+          <Badge color="gray" variant="light">
+            Not set up
+          </Badge>
+        )}
+      </Group>
+      <form onSubmit={submit}>
+        <Stack gap="sm">
+          <SegmentedControl value={choice} onChange={(value) => pick(value as Choice)} data={CHOICES} />
+          {choice === "other" ? (
+            <Alert color="teal" variant="light" p="xs">
+              <Text size="sm">
+                A model on your own network, like Ollama, keeps your questions and network data at home. Any server with an
+                OpenAI-compatible API works; the model needs to support tool calling.
+              </Text>
+            </Alert>
+          ) : (
+            <Alert color="yellow" variant="light" p="xs">
+              <Text size="sm">
+                Your questions, and the network data the assistant reads to answer them (speeds, outages, device names, IP
+                and MAC addresses, service names and alerts), are sent to {choice === "anthropic" ? "Anthropic" : "OpenAI"}{" "}
+                and handled under their API terms. Nothing is sent until you ask a question.
+              </Text>
+            </Alert>
+          )}
+          {choice === "other" && (
+            <TextInput
+              label="Server address"
+              description={
+                <>
+                  Its OpenAI-compatible endpoint. Ollama on this Umbrel is usually <Code>{OLLAMA_URL}</Code>.
+                </>
+              }
+              value={url}
+              onChange={(event) => setUrl(event.currentTarget.value)}
+            />
+          )}
+          <PasswordInput
+            label={choice === "other" ? "API key (if it needs one)" : "API key"}
+            description={choice === "anthropic" ? "From console.anthropic.com, under API keys." : choice === "openai" ? "From platform.openai.com, under API keys." : undefined}
+            placeholder={sameProvider && saved?.keySet ? "Saved. Enter a new one to replace it" : undefined}
+            autoComplete="off"
+            value={apiKey}
+            onChange={(event) => setApiKey(event.currentTarget.value)}
+          />
+          <Autocomplete
+            label="Model"
+            description={choice === "anthropic" ? "Claude Opus 5.5 is the default; any Claude model works." : "Its exact name, like llama3.1 for Ollama. It must support tool calling."}
+            value={model}
+            onChange={setModel}
+            data={choice === "anthropic" ? ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"] : []}
+          />
+          {save.isError && (
+            <Text size="sm" c="red">
+              {save.error.message}
+            </Text>
+          )}
+          {save.data && (
+            <Text size="sm">
+              Connected.{" "}
+              {save.data.modelFound ? "Ask away on the Assistant page." : `The provider didn't list ${model}; check the name if questions fail.`}
+            </Text>
+          )}
+          <Group>
+            <Button type="submit" loading={save.isPending} disabled={!model || (needsKey && !apiKey) || (choice === "other" && !url)}>
+              {saved ? "Save and test" : "Connect"}
+            </Button>
+            {saved && (
+              <Button variant="subtle" color="red" loading={remove.isPending} onClick={() => remove.mutate()}>
+                Disconnect
+              </Button>
+            )}
+          </Group>
+        </Stack>
+      </form>
+    </Stack>
+  );
+};
+
 export const IntegrationsPage = () => (
   <Card withBorder padding="md" radius="md">
     <Stack gap="md">
       <Title order={3}>Integrations</Title>
-      <Tabs defaultValue="pihole" keepMounted={false}>
+      <Tabs defaultValue={new URLSearchParams(location.search).get("tab") ?? "pihole"} keepMounted={false}>
         <Tabs.List>
           <Tabs.Tab value="pihole">Pi-hole</Tabs.Tab>
+          <Tabs.Tab value="ai">AI assistant</Tabs.Tab>
           <Tabs.Tab value="mcp">AI agents (MCP)</Tabs.Tab>
         </Tabs.List>
+        <Tabs.Panel value="ai" pt="md">
+          <AiPanel />
+        </Tabs.Panel>
         <Tabs.Panel value="pihole" pt="md">
           <PiholePanel />
         </Tabs.Panel>

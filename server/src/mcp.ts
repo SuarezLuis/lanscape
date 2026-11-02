@@ -223,12 +223,12 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
   }),
 };
 
-const toolList = Object.entries(TOOLS).map(([name, { description, input }]) => {
+export const toolList = Object.entries(TOOLS).map(([name, { description, input }]) => {
   const { $schema: _, ...inputSchema } = z.toJSONSchema(input, { io: "input" });
   return { name, description, inputSchema, annotations: { readOnlyHint: true, openWorldHint: false } };
 });
 
-const INSTRUCTIONS =
+export const INSTRUCTIONS =
   "LANscape monitors one home network: internet speed tests, ping checks to the router and an internet host, and devices on the LAN. All tools are read-only. Times are UTC. Report what the data shows; a slow test or lost pings alone don't say whether the cause is the ISP, the router or Wi-Fi.";
 
 const rpcMessage = z.object({
@@ -241,6 +241,24 @@ const rpcMessage = z.object({
 type RpcId = string | number | null;
 const reply = (id: RpcId, result: unknown) => ({ jsonrpc: "2.0", id, result });
 const failure = (id: RpcId, code: number, message: string) => ({ jsonrpc: "2.0", id, error: { code, message } });
+
+export const hasTool = (name: string) => Object.hasOwn(TOOLS, name);
+
+// Runs one tool and logs it; bad arguments and failures come back as errors the caller can read and retry on
+export const callTool = async (name: string, args: unknown, from: string) => {
+  let result: { text: string; isError: boolean };
+  try {
+    const definition = TOOLS[name];
+    if (!definition) throw new Error(`Unknown tool: ${name}`);
+    const input = definition.input.safeParse(args ?? {});
+    if (!input.success) throw new Error(z.prettifyError(input.error));
+    result = { text: JSON.stringify(await definition.run(input.data)), isError: false };
+  } catch (error) {
+    result = { text: error instanceof Error ? error.message : String(error), isError: true };
+  }
+  await prisma.mcpCall.create({ data: { tool: name, ok: !result.isError, ip: from } });
+  return result;
+};
 
 // One JSON-RPC message in, its response out; null for notifications, which get no response
 export const handleMcp = async (body: unknown, ip: string) => {
@@ -265,19 +283,9 @@ export const handleMcp = async (body: unknown, ip: string) => {
       return reply(id, { tools: toolList });
     case "tools/call": {
       const name = typeof params?.name === "string" ? params.name : "";
-      const definition = Object.hasOwn(TOOLS, name) ? TOOLS[name] : undefined;
-      if (!definition) return failure(id, -32602, `Unknown tool: ${name}`);
-      // Bad arguments and failures go back as tool errors, so the agent can read them and retry
-      let result: { content: { type: "text"; text: string }[]; isError?: boolean };
-      try {
-        const input = definition.input.safeParse(params?.arguments ?? {});
-        if (!input.success) throw new Error(z.prettifyError(input.error));
-        result = { content: [{ type: "text", text: JSON.stringify(await definition.run(input.data)) }] };
-      } catch (error) {
-        result = { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], isError: true };
-      }
-      await prisma.mcpCall.create({ data: { tool: name, ok: !result.isError, ip } });
-      return reply(id, result);
+      if (!hasTool(name)) return failure(id, -32602, `Unknown tool: ${name}`);
+      const { text, isError } = await callTool(name, params?.arguments, ip);
+      return reply(id, { content: [{ type: "text", text }], ...(isError ? { isError: true } : {}) });
     }
     default:
       return failure(id, -32601, `Method not found: ${method}`);
