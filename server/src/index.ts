@@ -5,6 +5,7 @@ import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import { preparePassword, readSessionCookie, sessionValid } from "./auth";
 import { BackupError, createBackup, inspectBackup, restoreBackup } from "./backup";
+import { chat, chatInput, providerError } from "./ai";
 import { EXPORTS, isExportName } from "./export";
 import { handleMcp, mcpEnabled, mcpTokenValid, withinRateLimit } from "./mcp";
 import { startRetention } from "./jobs/retention";
@@ -75,6 +76,23 @@ app.post(
 );
 app.post("/backup/inspect", backupRoute((request) => inspectBackup(request.body as Buffer, passphrase(request))));
 app.post("/backup/restore", backupRoute((request) => restoreBackup(request.body as Buffer, passphrase(request))));
+
+// The assistant streams its answer as JSON lines (text, tools as they run, then "done"), outside tRPC because the
+// history it's sent is too big for a subscription's URL
+app.post("/assistant/chat", async (request, reply) => {
+  if (!(await signedIn(request))) return reply.code(401).send({ error: "Sign in first" });
+  const input = chatInput.safeParse(request.body);
+  if (!input.success) return reply.code(400).send({ error: input.error.issues[0]?.message ?? "Bad request" });
+  reply.hijack();
+  reply.raw.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" });
+  const send = (event: object) => reply.raw.write(`${JSON.stringify(event)}\n`);
+  try {
+    send({ type: "done", ...(await chat(input.data.messages, send)) });
+  } catch (error) {
+    send({ type: "error", message: providerError(error) });
+  }
+  reply.raw.end();
+});
 
 // MCP for AI agents: a bearer token instead of the session cookie, and plain JSON answers (no event stream)
 app.post("/mcp", async (request, reply) => {

@@ -98,6 +98,12 @@ export const saveAi = async (input: z.output<typeof aiSettings>) => {
   return { models: models.length, modelFound: models.length === 0 || models.includes(settings.model) };
 };
 
+// The provider's own message ("invalid x-api-key", "model not found") is what the owner needs to see
+export const providerError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /fetch failed|ECONNREFUSED|ENOTFOUND/i.test(message) ? "Couldn't reach the AI provider" : message;
+};
+
 export const removeAi = () => prisma.setting.deleteMany({ where: { key: { in: Object.values(KEYS) } } });
 
 export const chatInput = z.object({
@@ -122,17 +128,31 @@ You are the assistant built into LANscape, answering the owner's questions about
 
 const clip = (text: string) => (text.length > MAX_TOOL_TEXT ? `${text.slice(0, MAX_TOOL_TEXT)}\n[cut at ${MAX_TOOL_TEXT} characters; ask for a narrower range]` : text);
 
-const runTool = async (name: string, input: unknown): Promise<ToolUse> => {
+// What the browser hears while an answer is worked out: text as it's written, and each tool as it runs.
+// "round" starts over the text: words written before a tool call are replaced by what comes after it
+export type ChatEvent =
+  | { type: "text"; text: string }
+  | { type: "round" }
+  | { type: "tool"; name: string; input: unknown }
+  | { type: "tool_done"; name: string; ok: boolean };
+type Emit = (event: ChatEvent) => void;
+
+const runTool = async (name: string, input: unknown, emit: Emit): Promise<ToolUse> => {
+  emit({ type: "tool", name, input });
   const { text, isError } = await callTool(name, input, "LANscape chat");
+  emit({ type: "tool_done", name, ok: !isError });
   return { name, input, ok: !isError, result: clip(text) };
 };
 
-const chatAnthropic = async (settings: Settings, history: ChatMessage[], used: ToolUse[]) => {
+const chatAnthropic = async (settings: Settings, history: ChatMessage[], used: ToolUse[], emit: Emit) => {
   const client = anthropic(settings);
+  // eager_input_streaming stays off: these inputs are a few bytes ({"range":"week"}), so buffered validation costs
+  // nothing, and callTool validates every input again anyway
   const tools = toolList.map(({ name, description, inputSchema }) => ({ name, description, input_schema: inputSchema as Anthropic.Beta.BetaTool.InputSchema }));
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((message) => ({ role: message.role, content: message.content }));
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const response = await client.beta.messages.create({
+    if (round > 0) emit({ type: "round" });
+    const stream = client.beta.messages.stream({
       model: settings.model,
       max_tokens: 16000,
       system: system(),
@@ -142,15 +162,18 @@ const chatAnthropic = async (settings: Settings, history: ChatMessage[], used: T
       fallbacks: "default",
       messages,
     });
+    stream.on("text", (text) => emit({ type: "text", text }));
+    const response = await stream.finalMessage();
     if (response.stop_reason === "refusal") return "The model declined to answer this one.";
     const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n").trim();
     const calls = response.content.filter((block): block is Anthropic.Beta.BetaToolUseBlock => block.type === "tool_use");
+    // A turn cut off at max_tokens may hold a half-written tool call, so its tools never run
     if (response.stop_reason !== "tool_use" || calls.length === 0 || round === MAX_TOOL_ROUNDS) {
       return (text || "No answer came back.") + (response.stop_reason === "max_tokens" ? "\n\n(The answer was cut off.)" : "");
     }
     messages.push({ role: "assistant", content: response.content });
     // Run together, listed in the order asked, and returned in one message so parallel calls stay parallel
-    const results = await Promise.all(calls.map((call) => runTool(call.name, call.input)));
+    const results = await Promise.all(calls.map((call) => runTool(call.name, call.input, emit)));
     used.push(...results);
     messages.push({
       role: "user",
@@ -160,26 +183,65 @@ const chatAnthropic = async (settings: Settings, history: ChatMessage[], used: T
   return "No answer came back.";
 };
 
+type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 type OpenAIMessage =
   | { role: "system" | "user"; content: string }
-  | { role: "assistant"; content: string | null; tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[] }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
   | { role: "tool"; tool_call_id: string; content: string };
+type Delta = { choices?: { finish_reason?: string | null; delta?: { content?: string | null; tool_calls?: { index: number; id?: string; function?: { name?: string; arguments?: string } }[] } }[] };
 
-const chatOpenAI = async (settings: Settings, history: ChatMessage[], used: ToolUse[]) => {
+// One streamed chat completion: server-sent "data:" lines, each a delta; tool calls arrive in pieces by index
+const openaiStream = async (settings: Settings, body: unknown, emit: Emit) => {
+  const response = await fetch(`${settings.url}/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {}) },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!response.ok || !response.body) {
+    const json = (await response.json().catch(() => null)) as { error?: { message?: string } | string } | null;
+    const message = typeof json?.error === "string" ? json.error : json?.error?.message;
+    throw new Error(`${destination(settings).name} answered ${response.status}${message ? `: ${message}` : ""}`);
+  }
+  let content = "";
+  let finish: string | null = null;
+  const calls: ToolCall[] = [];
+  let buffer = "";
+  const decoder = new TextDecoder();
+  for await (const chunk of response.body) {
+    buffer += decoder.decode(chunk as Uint8Array, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const data = line.startsWith("data:") ? line.slice(5).trim() : "";
+      if (!data || data === "[DONE]") continue;
+      const choice = (JSON.parse(data) as Delta).choices?.[0];
+      if (choice?.delta?.content) {
+        content += choice.delta.content;
+        emit({ type: "text", text: choice.delta.content });
+      }
+      for (const piece of choice?.delta?.tool_calls ?? []) {
+        const call = (calls[piece.index] ??= { id: "", type: "function", function: { name: "", arguments: "" } });
+        if (piece.id) call.id = piece.id;
+        call.function.name += piece.function?.name ?? "";
+        call.function.arguments += piece.function?.arguments ?? "";
+      }
+      if (choice?.finish_reason) finish = choice.finish_reason;
+    }
+  }
+  return { content, finish, calls: calls.filter(Boolean) };
+};
+
+const chatOpenAI = async (settings: Settings, history: ChatMessage[], used: ToolUse[], emit: Emit) => {
   const tools = toolList.map(({ name, description, inputSchema }) => ({ type: "function", function: { name, description, parameters: inputSchema } }));
   const messages: OpenAIMessage[] = [{ role: "system", content: system() }, ...history];
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const json = (await openaiFetch(settings, "/chat/completions", { model: settings.model, messages, tools })) as {
-      choices?: { finish_reason?: string; message?: Extract<OpenAIMessage, { role: "assistant" }> }[];
-    } | null;
-    const choice = json?.choices?.[0];
-    const message = choice?.message;
-    if (!message) throw new Error(`${destination(settings).name} sent no answer`);
-    const calls = message.tool_calls ?? [];
+    if (round > 0) emit({ type: "round" });
+    const { content, finish, calls } = await openaiStream(settings, { model: settings.model, messages, tools, stream: true }, emit);
     if (calls.length === 0 || round === MAX_TOOL_ROUNDS) {
-      return (message.content?.trim() || "No answer came back.") + (choice.finish_reason === "length" ? "\n\n(The answer was cut off.)" : "");
+      return (content.trim() || "No answer came back.") + (finish === "length" ? "\n\n(The answer was cut off.)" : "");
     }
-    messages.push({ role: "assistant", content: message.content ?? null, tool_calls: calls });
+    messages.push({ role: "assistant", content: content || null, tool_calls: calls });
     for (const call of calls) {
       let input: unknown = {};
       try {
@@ -188,7 +250,7 @@ const chatOpenAI = async (settings: Settings, history: ChatMessage[], used: Tool
         messages.push({ role: "tool", tool_call_id: call.id, content: "The arguments weren't valid JSON." });
         continue;
       }
-      const result = await runTool(call.function.name, input);
+      const result = await runTool(call.function.name, input, emit);
       used.push(result);
       messages.push({ role: "tool", tool_call_id: call.id, content: result.result });
     }
@@ -196,10 +258,10 @@ const chatOpenAI = async (settings: Settings, history: ChatMessage[], used: Tool
   return "No answer came back.";
 };
 
-export const chat = async (history: ChatMessage[]) => {
+export const chat = async (history: ChatMessage[], emit: Emit = () => {}) => {
   const settings = await readSettings();
   if (!settings) throw new Error("Set up the assistant first, under Integrations → AI assistant.");
   const used: ToolUse[] = [];
-  const reply = settings.provider === "anthropic" ? await chatAnthropic(settings, history, used) : await chatOpenAI(settings, history, used);
+  const reply = settings.provider === "anthropic" ? await chatAnthropic(settings, history, used, emit) : await chatOpenAI(settings, history, used, emit);
   return { reply, tools: used, ...destination(settings) };
 };
