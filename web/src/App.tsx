@@ -36,6 +36,7 @@ import { CircleHelpIcon } from "./icons/circle-help";
 import { SettingsIcon } from "./icons/settings";
 import { navigate, usePath } from "./route";
 import { SettingsPage } from "./SettingsPage";
+import { HealthScore } from "./HealthScore";
 import { Outages } from "./Outages";
 import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
@@ -49,6 +50,7 @@ const PAGES = [
     element: (
       <Stack gap="lg">
         <SpeedTestCard />
+        <HealthScore />
         <SpeedHistory />
         <Outages />
       </Stack>

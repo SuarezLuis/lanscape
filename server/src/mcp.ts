@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "./db";
+import { healthScore } from "./health";
 import { latencyHistory, since } from "./latency";
 import { listOutages, OUTAGE_RANGES } from "./outages";
 import { LAST_SCAN } from "./jobs/devices";
@@ -78,11 +79,13 @@ const tool = <Input extends z.ZodObject>(definition: Tool<Input>) => definition 
 export const TOOLS: Record<string, Tool<z.ZodObject>> = {
   get_network_summary: tool({
     description:
-      "Current state of the home network: the latest speed test, router and internet ping over the last 24 hours (average and packet loss), device counts, rules that are alerting now, and unread alerts.",
+      "Current state of the home network: the Internet Health Score (0-100, from uptime, packet loss, ping and jitter over the last 24 hours and 7 days, with each part's value and points), the latest speed test, router and internet ping over the last 24 hours (average and packet loss), device counts, rules that are alerting now, and unread alerts.",
     input: z.object({}),
     run: async () => {
       const day = since("day")!;
-      const [latest, pings, devices, scannedAt, alerting, unreadAlerts] = await Promise.all([
+      const [health24h, health7d, latest, pings, devices, scannedAt, alerting, unreadAlerts] = await Promise.all([
+        healthScore(1),
+        healthScore(7),
         prisma.speedTest.findFirst({ orderBy: { createdAt: "desc" } }),
         prisma.pingSample.groupBy({ by: ["target"], where: { createdAt: { gte: day } }, _avg: { avgMs: true }, _sum: { sent: true, received: true }, _count: true }),
         prisma.device.findMany({ select: { known: true, lastSeen: true } }),
@@ -92,6 +95,10 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
       ]);
       const online = devices.filter((device) => scannedAt !== null && device.lastSeen >= scannedAt);
       return {
+        healthScore: {
+          last24h: health24h && { score: health24h.score, grade: health24h.grade, parts: health24h.parts.map(({ label, value, unit, points, weight }) => ({ label, value, unit, points, weight })) },
+          last7d: health7d && { score: health7d.score, grade: health7d.grade },
+        },
         latestSpeedTest: latest && {
           at: latest.createdAt,
           downloadMbps: round(latest.downloadMbps),
