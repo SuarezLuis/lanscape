@@ -12,7 +12,7 @@ import { METRICS, type Metric } from "./jobs/notify";
  * switch to the SDK if LANscape needs resources, prompts or server-sent events.
  */
 
-const TOKEN = "mcp.token";
+export const MCP_TOKEN = "mcp.token";
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 const LOG_DAYS = 30;
 
@@ -22,14 +22,14 @@ const hash = (token: string) => createHash("sha256").update(token).digest();
 export const createMcpToken = async () => {
   const token = `lanscape_${randomBytes(32).toString("base64url")}`;
   const value = JSON.stringify({ hash: hash(token).toString("hex"), createdAt: new Date().toISOString() });
-  await prisma.setting.upsert({ where: { key: TOKEN }, create: { key: TOKEN, value }, update: { value } });
+  await prisma.setting.upsert({ where: { key: MCP_TOKEN }, create: { key: MCP_TOKEN, value }, update: { value } });
   return token;
 };
 
-export const revokeMcpToken = () => prisma.setting.deleteMany({ where: { key: TOKEN } });
+export const revokeMcpToken = () => prisma.setting.deleteMany({ where: { key: MCP_TOKEN } });
 
 const storedToken = async () => {
-  const row = await prisma.setting.findUnique({ where: { key: TOKEN } });
+  const row = await prisma.setting.findUnique({ where: { key: MCP_TOKEN } });
   return row ? (JSON.parse(row.value) as { hash: string; createdAt: string }) : null;
 };
 

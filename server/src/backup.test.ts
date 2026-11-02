@@ -22,7 +22,7 @@ test("packs a backup, encrypted or not, and refuses a wrong passphrase or an edi
   expect(() => unpack(pack({ ...header, version: 2 }, database))).toThrow("newer LANscape");
 });
 
-test("restores every table but keeps the current password and sessions", () => {
+test("restores every table but keeps the current password, sessions and MCP token", () => {
   const dir = mkdtempSync(join(tmpdir(), "lanscape-test-"));
   const make = (name: string, rows: string) => {
     const db = new Database(join(dir, name));
@@ -36,7 +36,7 @@ test("restores every table but keeps the current password and sessions", () => {
   try {
     const live = make("live.db", `INSERT INTO Setting VALUES ('auth.password', 'current'), ('theme', 'dark');
       INSERT INTO Device (name) VALUES ('phone'); INSERT INTO Session VALUES ('me')`);
-    const backup = make("backup.db", `INSERT INTO Setting VALUES ('auth.password', 'old'), ('ntfy.topic', 'home');
+    const backup = make("backup.db", `INSERT INTO Setting VALUES ('auth.password', 'old'), ('ntfy.topic', 'home'), ('mcp.token', 'revoked since');
       INSERT INTO Device (name) VALUES ('tv'), ('laptop'); INSERT INTO Session VALUES ('stranger')`);
     applyBackup(live, backup);
 

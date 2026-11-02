@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 import Database from "better-sqlite3";
 import { PASSWORD } from "./auth";
+import { MCP_TOKEN } from "./mcp";
 import { databasePath } from "./db";
 
 /**
@@ -107,7 +108,10 @@ const withTempDir = <T>(fn: (dir: string) => T) => {
   }
 };
 
-// VACUUM INTO takes a consistent copy while jobs keep writing. Sessions stay out: a backup shouldn't sign anyone in
+// Credentials that belong to this install, not its data: a restore keeps the current ones
+const KEPT_SETTINGS = [PASSWORD, MCP_TOKEN];
+
+// VACUUM INTO takes a consistent copy while jobs keep writing. Sessions and the MCP token stay out: a backup shouldn't let anyone in
 export const createBackup = (passphrase?: string) =>
   withTempDir((dir) => {
     const copy = join(dir, "lanscape.db");
@@ -119,6 +123,7 @@ export const createBackup = (passphrase?: string) =>
       live.close();
     }
     const snapshot = new Database(copy);
+    snapshot.prepare("DELETE FROM Setting WHERE key = ?").run(MCP_TOKEN);
     snapshot.exec("DELETE FROM Session; VACUUM");
     snapshot.close();
     const header = { format: FORMAT, version: FORMAT_VERSION, app: process.env.APP_VERSION ?? "dev", createdAt: new Date().toISOString(), encrypted: false } as const;
@@ -151,8 +156,8 @@ const stage = (dir: string, file: Buffer, passphrase?: string) => {
 export const inspectBackup = (file: Buffer, passphrase?: string) => withTempDir((dir) => stage(dir, file, passphrase).preview);
 
 /**
- * Replaces every table's rows with the backup's in one transaction, so a failure leaves the data as it was. Sessions
- * and the current password stay: whoever restores stays signed in and keeps the password they know.
+ * Replaces every table's rows with the backup's in one transaction, so a failure leaves the data as it was. Sessions,
+ * the current password and the MCP token stay: whoever restores stays signed in, and a revoked token can't come back.
  */
 export const applyBackup = (livePath: string, backupPath: string) => {
   const live = new Database(livePath, { fileMustExist: true });
@@ -165,13 +170,15 @@ export const applyBackup = (livePath: string, backupPath: string) => {
       .pluck()
       .all() as string[];
     live.transaction(() => {
-      const password = live.prepare("SELECT value FROM Setting WHERE key = ?").pluck().get(PASSWORD);
+      const kept = live.prepare(`SELECT key, value FROM Setting WHERE key IN (${KEPT_SETTINGS.map(() => "?").join(", ")})`).all(...KEPT_SETTINGS);
       for (const table of tables) {
         const columns = (live.prepare("SELECT name FROM pragma_table_info(?)").pluck().all(table) as string[]).map((name) => `"${name}"`).join(", ");
         live.exec(`DELETE FROM main."${table}"; INSERT INTO main."${table}" (${columns}) SELECT ${columns} FROM backup."${table}"`);
       }
       live.exec("DELETE FROM main.sqlite_sequence; INSERT INTO main.sqlite_sequence SELECT * FROM backup.sqlite_sequence");
-      if (password !== undefined) live.prepare("INSERT OR REPLACE INTO Setting (key, value) VALUES (?, ?)").run(PASSWORD, password);
+      live.prepare(`DELETE FROM Setting WHERE key IN (${KEPT_SETTINGS.map(() => "?").join(", ")})`).run(...KEPT_SETTINGS);
+      const keep = live.prepare("INSERT INTO Setting (key, value) VALUES (@key, @value)");
+      for (const row of kept) keep.run(row);
     })();
   } finally {
     live.close();

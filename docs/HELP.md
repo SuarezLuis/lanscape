@@ -101,6 +101,21 @@ To connect, create an app password in Pi-hole (Settings → Web interface / API 
 
 Pi-hole only knows names if it hands out addresses itself (its DHCP server), or if **conditional forwarding** (Settings → DNS) points at your router. Without either, you still get the activity and the online signal.
 
+### AI agents (MCP)
+
+AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Claude, can read LANscape's data, so you can ask them things like "was the internet slow last night?" or "what joined the network this week?". They get read-only tools for:
+
+- a summary of the network right now
+- speed test results and latency over time
+- the device list and each device's online/offline history
+- the alerts LANscape raised
+
+Agents can't change settings, run scans or speed tests, or see Pi-hole's DNS activity.
+
+It's off until you select **Create token** on the AI agents tab. Copy the token straight away: LANscape keeps only a fingerprint and can't show it again. Then give the agent the server address (`http://<your-umbrel>:4545/mcp`, Streamable HTTP) with the token in an `Authorization: Bearer` header. The tab shows the exact command for Claude Code and a JSON config that most other clients accept. An agent running on the Umbrel itself also uses the Umbrel's network address, not `localhost`.
+
+**Replace token** makes a new one and cuts off the old one; **Turn off** removes it. The tab lists the agents' recent requests, kept for 30 days. Backups leave the token out, and restoring one keeps the token you have now.
+
 ## Settings
 
 - **Change password**, which signs out every other browser.
@@ -125,6 +140,8 @@ LANscape keeps everything on your Umbrel. It only reaches the internet for:
 - speed tests (speedtest.net servers) and pings to your internet host
 - alert channels you set up
 - this help page, which your browser loads from GitHub
+
+If you connect an AI agent over MCP, whatever it reads goes to that agent, and to its AI provider if it uses a cloud model.
 
 Speed test results include your public IP address; LANscape never stores it.
 

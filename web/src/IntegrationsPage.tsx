@@ -204,7 +204,7 @@ const McpPanel = () => {
           <Text size="sm" fw={600}>
             Your token
           </Text>
-          <Group gap="xs" wrap="nowrap">
+          <Group gap="xs">
             <Code style={{ wordBreak: "break-all" }}>{token}</Code>
             <CopyButton value={token}>
               {({ copied, copy }) => (
@@ -236,7 +236,9 @@ const McpPanel = () => {
         <Text size="sm" c="dimmed">
           Most other clients take a JSON config like this:
         </Text>
-        <Code block>{config}</Code>
+        <Code block style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+          {config}
+        </Code>
       </Stack>
 
       <Stack gap={4}>
