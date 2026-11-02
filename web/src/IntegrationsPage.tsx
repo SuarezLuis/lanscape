@@ -137,7 +137,7 @@ const PiholePanel = () => {
 };
 
 // navigator.clipboard only exists on https and localhost, and LANscape is usually opened over plain http on the LAN
-const copyText = async (text: string) => {
+export const copyText = async (text: string) => {
   if (window.isSecureContext && navigator.clipboard) return navigator.clipboard.writeText(text);
   const area = document.createElement("textarea");
   area.value = text;

@@ -18,7 +18,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [x] **Buy Me a Coffee button in the app UI:** a "Buy me a coffee" link at the bottom of the sidebar, under About.
 
 ## v1.3 — Advanced monitoring and AI foundations
-- [ ] **Network diagnostics:** guided ping, traceroute, DNS and gateway checks; exportable troubleshooting report.
+- [x] **Network diagnostics:** guided ping, traceroute, DNS and gateway checks; exportable troubleshooting report.
 - [x] **Service health checks:** configurable HTTP/TCP/DNS checks for LAN services. Services page, down/back alerts, 24-hour uptime, and the `get_services` MCP tool.
 - [x] **Network Intelligence API:** bounded read-only analytics tools (`get_network_summary`, `get_latency_history`, `get_speed_history`, `list_devices`, `get_device_history`, `get_alert_history`); validated ranges, access control and factual output. Shipped as the MCP server's tools.
 - [x] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (all devices' online/offline changes), and packet loss per bucket in latency history.

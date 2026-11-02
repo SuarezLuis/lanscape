@@ -39,7 +39,7 @@ export const parsePingOutput = (stdout: string) => {
   };
 };
 
-const ping = async (host: string) => {
+export const ping = async (host: string) => {
   try {
     const { stdout } = await execFileAsync("ping", [...ARGS, host], { timeout: 15_000 });
     return parsePingOutput(stdout);
