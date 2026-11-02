@@ -164,6 +164,14 @@ const Copy = ({ value }: { value: string }) => {
   );
 };
 
+const PROMPTS = [
+  { prompt: "When was my internet slow this month, and was it my ISP or my home network?", hint: "compares router ping with internet ping" },
+  { prompt: "Is there anything on my network I don't recognize?", hint: "devices you haven't marked as known" },
+  { prompt: "When does the kids' tablet come online at night?", hint: "a device's online and offline history" },
+  { prompt: "Which devices never go offline?", hint: "good candidates to mark as known" },
+  { prompt: "Every Monday morning, send me a report on last week's network.", hint: "for agents that run on a schedule" },
+];
+
 const McpPanel = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -264,6 +272,23 @@ const McpPanel = () => {
         <Code block style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
           {config}
         </Code>
+      </Stack>
+
+      <Stack gap={6}>
+        <Text size="sm" fw={600}>
+          Things to ask
+        </Text>
+        {PROMPTS.map(({ prompt, hint }) => (
+          <Group key={prompt} gap="xs" wrap="nowrap" justify="space-between">
+            <div>
+              <Text size="sm">“{prompt}”</Text>
+              <Text size="xs" c="dimmed">
+                {hint}
+              </Text>
+            </div>
+            <Copy value={prompt} />
+          </Group>
+        ))}
       </Stack>
 
       <Stack gap={4}>
