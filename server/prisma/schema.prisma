@@ -124,3 +124,14 @@ model McpCall {
 
   @@index([at])
 }
+
+// Outages found in ping checks before they're rolled up into hourly rows (past 90 days), which would hide them
+model Outage {
+  id           Int      @id @default(autoincrement())
+  start        DateTime
+  end          DateTime
+  failedChecks Int
+  cause        String // "home" | "internet" | "unknown"
+
+  @@index([start])
+}

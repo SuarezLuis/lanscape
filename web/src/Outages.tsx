@@ -12,6 +12,7 @@ const RANGES: { value: Range; label: string; days: number; text: string }[] = [
   { value: "day", label: "24h", days: 1, text: "in the last 24 hours" },
   { value: "week", label: "Week", days: 7, text: "in the last week" },
   { value: "month", label: "Month", days: 30, text: "in the last month" },
+  { value: "year", label: "Year", days: 365, text: "in the last year" },
 ];
 
 const CAUSES = {

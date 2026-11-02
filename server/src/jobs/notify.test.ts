@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
-import { advance, breaches, median, pingValues, thresholdFor } from "./notify";
+import { prisma } from "../db";
+import { advance, breaches, checkRules, median, pingValues, thresholdFor } from "./notify";
 
 const at = (minute: number) => new Date(Date.UTC(2026, 9, 30, 12, minute));
 
@@ -42,4 +43,13 @@ test("turns ping samples into per-target ping and loss values", () => {
       { target: "internet", avgMs: null, sent: 5, received: 0 },
     ]),
   ).toEqual({ routerPing: 0.5, routerLoss: 0, internetPing: null, internetLoss: 100 });
+});
+
+test("a saved rule raises one problem, then one resolved, through the database", async () => {
+  await prisma.notificationRule.create({ data: { metric: "download", direction: "below", mode: "fixed", value: 100, sustainMinutes: 0, enabled: true } });
+  for (const download of [80, 70, 300, 300]) await checkRules({ download });
+  expect(await prisma.notification.findMany({ orderBy: { id: "asc" }, select: { kind: true, value: true } })).toEqual([
+    { kind: "problem", value: 80 },
+    { kind: "resolved", value: 300 },
+  ]);
 });

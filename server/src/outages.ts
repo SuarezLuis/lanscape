@@ -3,7 +3,7 @@ import { sendAll } from "./jobs/channels";
 import { since } from "./latency";
 
 export const OUTAGE_ALERTS = "notify.outage";
-export const OUTAGE_RANGES = ["day", "week", "month"] as const;
+export const OUTAGE_RANGES = ["day", "week", "month", "year"] as const;
 export type OutageRange = (typeof OUTAGE_RANGES)[number];
 
 // One lost check can be a blip; two in a row is an outage
@@ -22,10 +22,12 @@ export type Outage = { start: Date; end: Date | null; failedChecks: number; caus
 
 const failed = (sample: Sample) => sample.received === 0;
 
+const causeFrom = (failedChecks: number, checks: number): Cause =>
+  checks === 0 ? "unknown" : failedChecks * 2 >= checks ? "home" : "internet";
+
 const causeOf = (router: Sample[], start: Date, end: Date) => {
   const during = router.filter((sample) => sample.createdAt >= start && sample.createdAt <= end);
-  if (during.length === 0) return "unknown";
-  return during.filter(failed).length * 2 >= during.length ? "home" : "internet";
+  return causeFrom(during.filter(failed).length, during.length);
 };
 
 // Runs of internet checks where every packet was lost, oldest first; samples must be sorted by time
@@ -56,15 +58,50 @@ export const findOutages = (samples: Sample[], now = new Date()): Outage[] => {
   return outages;
 };
 
-const loadSamples = (from: Date) =>
-  prisma.pingSample.findMany({
-    // Hourly rollups can't say when within the hour things failed
-    where: { createdAt: { gte: from }, trigger: { not: "rollup" } },
-    select: { createdAt: true, target: true, received: true },
-    orderBy: { createdAt: "asc" },
-  });
+// Dates are stored as ISO text with "+00:00", so they compare as text in raw SQL
+const sqlDate = (date: Date) => date.toISOString().replace("Z", "+00:00");
 
-export const listOutages = async (range: OutageRange) => findOutages(await loadSamples(since(range)!)).toReversed();
+/**
+ * Outages among the checks in [from, before). A minute of checks for 90 days is ~260k rows, so SQL keeps only the
+ * failed internet checks and the check after each (all that runs and their ends need), and the router is counted per outage.
+ */
+const detect = async (from: Date, before: Date, now = new Date()) => {
+  const rows = await prisma.$queryRaw<{ createdAt: string; received: number }[]>`
+    SELECT createdAt, received FROM (
+      SELECT createdAt, received, LAG(received) OVER (ORDER BY createdAt) AS previous FROM PingSample
+      -- Hourly rollups can't say when within the hour things failed
+      WHERE target = 'internet' AND trigger != 'rollup' AND createdAt >= ${sqlDate(from)} AND createdAt < ${sqlDate(before)})
+    WHERE received = 0 OR previous = 0 ORDER BY createdAt`;
+  const outages = findOutages(rows.map((row) => ({ createdAt: new Date(row.createdAt), target: "internet", received: Number(row.received) })), now);
+  return Promise.all(
+    outages.map(async (outage) => {
+      const during = { target: "router", createdAt: { gte: outage.start, lte: outage.end ?? now } };
+      const [checks, failedChecks] = await Promise.all([
+        prisma.pingSample.count({ where: during }),
+        prisma.pingSample.count({ where: { ...during, received: 0 } }),
+      ]);
+      return { ...outage, cause: causeFrom(failedChecks, checks) };
+    }),
+  );
+};
+
+const FAR_FUTURE = new Date("9999-01-01T00:00:00Z");
+
+// Outages older than 90 days were saved when their checks were rolled up; newer ones come straight from the checks
+export const listOutages = async (range: OutageRange) => {
+  const from = since(range)!;
+  const [stored, recent] = await Promise.all([
+    prisma.outage.findMany({ where: { start: { gte: from } }, select: { start: true, end: true, failedChecks: true, cause: true } }),
+    detect(from, FAR_FUTURE),
+  ]);
+  return [...stored.map((outage) => ({ ...outage, end: outage.end as Date | null, cause: outage.cause as Cause })), ...recent].toSorted(
+    (a, b) => b.start.getTime() - a.start.getTime(),
+  );
+};
+
+// Before the retention job rolls checks up: an outage still going at the cutoff is saved as ending there
+export const outagesBefore = async (cutoff: Date) =>
+  (await detect(new Date(0), cutoff, cutoff)).map((outage) => ({ ...outage, end: outage.end ?? cutoff }));
 
 export const durationText = (ms: number) => {
   const minutes = Math.max(1, Math.round(ms / 60_000));
@@ -90,10 +127,12 @@ export const outageAlertsOn = async () => (await prisma.setting.findUnique({ whe
 export const alertIfOutageEnded = async () => {
   if (!(await outageAlertsOn())) return;
   // ponytail: looks back a day, so a longer outage is reported as starting a day ago; widen if that ever matters
-  const outages = findOutages(await loadSamples(since("day")!));
+  const outages = await detect(since("day")!, FAR_FUTURE);
   const latest = outages.at(-1);
   const lastInternet = await prisma.pingSample.findFirst({ where: { target: "internet" }, orderBy: { createdAt: "desc" } });
   if (!latest?.end || !lastInternet || latest.end.getTime() !== lastInternet.createdAt.getTime() || lastInternet.received === 0) return;
+  // A manual check overlapping a scheduled one mustn't send it twice
+  if (await prisma.notification.count({ where: { kind: "outage", createdAt: { gte: latest.end } } })) return;
   const { title, message } = outageAlert({ ...latest, end: latest.end });
   await prisma.notification.create({ data: { kind: "outage", value: (latest.end.getTime() - latest.start.getTime()) / 60_000, message } });
   await sendAll({ kind: "outage", title, message });

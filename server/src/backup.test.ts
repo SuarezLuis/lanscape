@@ -1,9 +1,12 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { expect, test } from "vitest";
-import { applyBackup, pack, unpack } from "./backup";
+import { createSession } from "./auth";
+import { applyBackup, createBackup, inspectBackup, pack, unpack } from "./backup";
+import { prisma } from "./db";
+import { createMcpToken } from "./mcp";
 
 const header = { format: "lanscape-backup", version: 1, app: "1.2.0", createdAt: "2026-10-31T00:00:00.000Z", encrypted: false } as const;
 
@@ -49,6 +52,27 @@ test("restores every table but keeps the current password, sessions and MCP toke
     expect(db.prepare("SELECT tokenHash FROM Session").pluck().all()).toEqual(["me"]);
     expect(db.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'Device'").pluck().get()).toBe(2);
     db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a backup of the live database carries the data but no sessions or MCP token", async () => {
+  await prisma.device.create({ data: { mac: "aa:bb:cc:dd:ee:01", ip: "192.168.0.20", lastSeen: new Date(), name: "Printer" } });
+  await createSession();
+  await createMcpToken();
+
+  const file = createBackup("a passphrase");
+  expect(inspectBackup(file, "a passphrase")).toMatchObject({ encrypted: true, upgrades: 0, counts: expect.objectContaining({ devices: 1 }) });
+  const dir = mkdtempSync(join(tmpdir(), "lanscape-test-"));
+  try {
+    const path = join(dir, "copy.db");
+    writeFileSync(path, unpack(file, "a passphrase").database);
+    const copy = new Database(path, { readonly: true });
+    expect(copy.prepare("SELECT name FROM Device").pluck().all()).toEqual(["Printer"]);
+    expect(copy.prepare("SELECT COUNT(*) FROM Session").pluck().get()).toBe(0);
+    expect(copy.prepare("SELECT COUNT(*) FROM Setting WHERE key = 'mcp.token'").pluck().get()).toBe(0);
+    copy.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

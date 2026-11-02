@@ -22,14 +22,14 @@ Before each test LANscape also pings your router and your internet host, so the 
 
 ### Outages
 
-**Outages** lists the times your internet was down over the last day, week or month: when each started, how long it lasted, and where the problem was, with a timeline above. An outage is two or more ping checks in a row where every packet to your internet host was lost; one lost check on its own is treated as a blip. Outages come from ping checks, so ping checks need to be on (Automations).
+**Outages** lists the times your internet was down over the last day, week, month or year: when each started, how long it lasted, and where the problem was, with a timeline above. An outage is two or more ping checks in a row where every packet to your internet host was lost; one lost check on its own is treated as a blip. Outages come from ping checks, so ping checks need to be on (Automations).
 
 Each outage is compared with your router's pings at the same time:
 
 - **Past router:** the router kept answering, so the problem was with your internet provider or beyond.
 - **Home network:** the router didn't answer either, so it was the router itself, or the Umbrel's connection to it (cable, switch or Wi-Fi).
 
-LANscape keeps raw ping checks for 90 days, so outages go back a month.
+Ping checks older than 90 days are kept as hourly averages, but the outages in them are saved first, so the year view still shows short ones.
 
 ## Network
 
