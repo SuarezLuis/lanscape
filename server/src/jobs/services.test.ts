@@ -59,3 +59,8 @@ test("a service that stops answering alerts once, then again when it's back", as
   ]);
   expect(await prisma.serviceResult.count({ where: { checkId: check.id } })).toBe(4);
 });
+
+test("an empty address gets the hint for its kind", () => {
+  const result = serviceInput.safeParse({ name: "NAS", kind: "tcp", target: "", everyMinutes: 1, enabled: true, alert: true });
+  expect(result.error?.issues.map((issue) => issue.message)).toEqual(["Enter host:port, like 192.168.0.10:22"]);
+});

@@ -111,7 +111,8 @@ export const serviceInput = z
     id: z.int().optional(),
     name: z.string().trim().min(1, "Give it a name").max(60),
     kind: z.enum(["http", "tcp", "dns"]),
-    target: z.string().trim().min(1).max(500),
+    // No min length here: the per-kind check below says what to enter
+    target: z.string().trim().max(500),
     query: z.string().trim().max(253).nullish(),
     everyMinutes: z.union(SERVICE_EVERY.map((minutes) => z.literal(minutes))),
     enabled: z.boolean(),

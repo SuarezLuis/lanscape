@@ -110,8 +110,8 @@ const ServiceRow = ({ service, edit }: { service: Service; edit: () => void }) =
   return (
     <Card withBorder padding="sm" radius="md">
       <Stack gap={6}>
-        <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
+        <Group justify="space-between" align="flex-start">
+          <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: "1 1 220px" }}>
             <Badge color={status.color} variant="light" style={{ flexShrink: 0 }}>
               {status.label}
             </Badge>
@@ -154,7 +154,7 @@ const ServiceRow = ({ service, edit }: { service: Service; edit: () => void }) =
           )}
           {service.uptime24h !== null && (
             <Text size="xs" c="dimmed">
-              {service.uptime24h.toFixed(service.uptime24h === 100 ? 0 : 1)}% up in 24 h
+              {Number(service.uptime24h.toFixed(1))}% up in 24 h
             </Text>
           )}
         </Group>
