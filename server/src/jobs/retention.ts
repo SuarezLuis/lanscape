@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { pruneMcpCalls } from "../mcp";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -28,8 +29,8 @@ export const rollUpOldPings = async (now = new Date()) => {
 
 export const startRetention = () => {
   const run = () =>
-    rollUpOldPings().catch((error: unknown) => {
-      console.error("Rolling up old pings failed:", error instanceof Error ? error.message : error);
+    Promise.all([rollUpOldPings(), pruneMcpCalls()]).catch((error: unknown) => {
+      console.error("Retention failed:", error instanceof Error ? error.message : error);
     });
   void run();
   setInterval(run, DAY_MS);
