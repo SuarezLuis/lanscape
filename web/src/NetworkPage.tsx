@@ -269,6 +269,40 @@ const OFFLINE_ALERT = [
 ];
 
 // What the device asks DNS for, when Pi-hole is connected (Integrations page)
+const IDENTITY_LABELS: Record<string, string> = {
+  model: "Model",
+  "dhcp-host": "DHCP hostname",
+  "dhcp-vendor": "DHCP vendor class",
+  cast: "Google Cast id",
+  airplay: "AirPlay id",
+  hap: "HomeKit id",
+  ssdp: "UPnP id",
+  "dhcp-fp": "DHCP fingerprint",
+};
+
+// What the device says about itself; also how LANscape recognizes it on a new private address
+const Identity = ({ mac }: { mac: string }) => {
+  const trpc = useTRPC();
+  const identity = useQuery(trpc.devices.identity.queryOptions({ mac }));
+  const entries = Object.entries(identity.data ?? {}).toSorted(([a], [b]) => Object.keys(IDENTITY_LABELS).indexOf(a) - Object.keys(IDENTITY_LABELS).indexOf(b));
+  if (entries.length === 0) return null;
+  return (
+    <Stack gap={4}>
+      <Title order={5}>Identity</Title>
+      {entries.map(([kind, value]) => (
+        <Text key={kind} size="sm">
+          <Text span c="dimmed">
+            {IDENTITY_LABELS[kind] ?? kind}:
+          </Text>{" "}
+          <Text span ff={kind === "model" || kind === "dhcp-host" || kind === "dhcp-vendor" ? undefined : "monospace"} size="sm" style={{ wordBreak: "break-all" }}>
+            {value}
+          </Text>
+        </Text>
+      ))}
+    </Stack>
+  );
+};
+
 const PiholeActivity = ({ mac }: { mac: string }) => {
   const trpc = useTRPC();
   const activity = useQuery(trpc.integrations.piholeActivity.queryOptions({ mac }));
@@ -369,6 +403,7 @@ const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () 
             }
             allowDeselect={false}
           />
+          <Identity mac={device.mac} />
           <PiholeActivity mac={device.mac} />
           <Title order={5}>History</Title>
           {history.data?.length === 0 && (

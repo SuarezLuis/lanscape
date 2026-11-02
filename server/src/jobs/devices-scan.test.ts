@@ -8,7 +8,8 @@ import { runDeviceScan } from "./devices";
 // The scan with its outside world stubbed: arp-scan prints a fixture, the route and mDNS names are fixed
 let names = new Map<string, string>();
 vi.mock("./ping", async (original) => ({ ...(await original()), findDefaultRoute: async () => ({ iface: "lanscape-test0", gateway: "192.168.0.1" }) }));
-vi.mock("./mdns", () => ({ discoverNames: async () => names }));
+vi.mock("./mdns", () => ({ discoverNames: async () => ({ names, traits: new Map() }) }));
+vi.mock("./ssdp", () => ({ discoverSsdp: async () => new Map() }));
 
 const dir = mkdtempSync(join(tmpdir(), "lanscape-arp-"));
 const fixture = join(dir, "answers.txt");
@@ -75,4 +76,18 @@ test("a watched device going offline alerts after its time, and again when it's 
     ["problem", "NAS (192.168.0.21) hasn't answered for 5 minutes."],
     ["resolved", "NAS (192.168.0.21) is back online."],
   ]);
+});
+
+test("a phone that changes its private address keeps its name when DHCP heard both join", async () => {
+  const fingerprint = { "dhcp-host": "Android", "dhcp-fp": "1,3,6,15,26,28,51,58,59,43,114" };
+  await prisma.macTrait.createMany({ data: Object.entries(fingerprint).map(([kind, value]) => ({ mac: "da:00:00:00:00:21", kind, value })) });
+  await scan([TV, "192.168.0.50 da:00:00:00:00:21"]);
+  await prisma.device.update({ where: { mac: "da:00:00:00:00:21" }, data: { name: "Sam's phone" } });
+  await scan([TV]);
+
+  // Rejoins on a new private address; DHCP heard the same hostname and fingerprint
+  await prisma.macTrait.createMany({ data: Object.entries(fingerprint).map(([kind, value]) => ({ mac: "de:00:00:00:00:22", kind, value })) });
+  await scan([TV, "192.168.0.51 de:00:00:00:00:22"]);
+  expect(await prisma.device.findMany({ where: { name: "Sam's phone" }, select: { mac: true, ip: true } })).toEqual([{ mac: "de:00:00:00:00:22", ip: "192.168.0.51" }]);
+  expect(await alerts()).toEqual([]);
 });
