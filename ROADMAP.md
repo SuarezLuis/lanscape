@@ -34,6 +34,15 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [x] Pi-hole integration: device names, DNS activity per device, and recent DNS requests as a sign of life (Integrations page).
 - [ ] **Standalone Docker release (no Umbrel):** the image already runs on plain Docker (the first visit sets the password), but it isn't documented or released as such. Add a `docker run` / Compose example to the README (host network for device discovery, a volume for `/data`, `init: true`), say which capabilities `arp-scan` and `ping` need, test it on a plain Linux host, and announce it with the release.
 
+## Decided not to pursue
+Kept here so the reasons aren't lost. Revisit if the reason stops holding.
+- **Automatic problem detection** (baseline/anomaly detection and correlations): rules already compare against the 7-day median and outages are detected; real anomaly detection risks noisy alerts for little gain.
+- **Interactive network map:** a real topology needs router data; the owner's TP-Link has no API for it, and a grouped list is what the Network page already is.
+- **Router integrations (UniFi, SNMP):** no matching hardware to build or test against, and consumer routers rarely support SNMP. Revisit if a user with one asks.
+- **HTTPS:** Umbrel apps are served over plain http, and a self-signed certificate means browser warnings. A reverse proxy or Tailscale is the practical route.
+- **Browser push notifications:** browsers only allow push over HTTPS, so this waits on HTTPS; ntfy already covers phone notifications.
+- **Adoption/analytics:** no telemetry. For a rough count, "Total downloads" on the image's GHCR page (https://github.com/SuarezLuis/lanscape/pkgs/container/lanscape) counts installs plus updates; once the official listing is approved, ask Umbrel whether developers can see install counts.
+
 ## Testing
 - [x] **Database-backed tests:** each test file gets a SQLite file with the real migrations applied, so router procedures, queries and jobs (outages, rollups, rules firing, backups, MCP tools) are tested against real data. CI also fails when the schema changes without a migration.
 - [x] **More database tests:** the device scan (scan → new device → alert, private-MAC matching, offline alerts) with a stubbed arp-scan, and a full restore with undo and an upgrade from an older backup.
