@@ -10,6 +10,9 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 
 ## Shipped
 
+### v1.10.1
+- [x] A **Model** column in the device list: the announced model, or the OS from a device's DHCP vendor class (Android 14, Windows); status badges no longer get cut off.
+
 ### v1.10.0
 - [x] **Device identity across private MACs, from mDNS:** stable Google Cast, AirPlay and HomeKit ids and the model from mDNS TXT records.
 - [x] **Device identity from DHCP:** a passive listener for DHCP requests (hostname, vendor class, option-55 fingerprint), matched when exactly one missing device fits.

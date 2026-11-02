@@ -3,7 +3,7 @@ import { prisma } from "../db";
 import { parseDhcpRequest } from "./dhcp";
 import { txtTraits } from "./mdns";
 import { parseDescription, parseSsdpReply } from "./ssdp";
-import { readTraits, saveTraits } from "./traits";
+import { displayModel, readTraits, saveTraits } from "./traits";
 
 // A DHCPDISCOVER as a phone sends it: hostname, vendor class, and the options it asks for
 const discover = () => {
@@ -47,4 +47,12 @@ test("traits are kept per MAC, the latest value per kind", async () => {
   await saveTraits("da:00:00:00:00:01", { model: "Nest Mini (2nd gen)", "dhcp-host": undefined });
   expect((await readTraits(["da:00:00:00:00:01", "da:00:00:00:00:02"])).get("da:00:00:00:00:01")).toEqual({ cast: "abc", model: "Nest Mini (2nd gen)" });
   expect(await prisma.macTrait.count()).toBe(2);
+});
+
+test("the Model column falls back to the OS a DHCP vendor class names", () => {
+  expect(displayModel({ model: "Google TV Streamer", "dhcp-vendor": "android-dhcp-14" })).toBe("Google TV Streamer");
+  expect(displayModel({ "dhcp-vendor": "android-dhcp-14" })).toBe("Android 14");
+  expect(displayModel({ "dhcp-vendor": "MSFT 5.0" })).toBe("Windows");
+  expect(displayModel({ "dhcp-vendor": "something-else" })).toBeNull();
+  expect(displayModel(undefined)).toBeNull();
 });

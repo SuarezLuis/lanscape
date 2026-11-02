@@ -70,7 +70,7 @@ Phones and laptops use a private, made-up MAC address for each Wi-Fi network, an
 - **What a device says when it joins** (its DHCP request): its hostname, its vendor class (like `android-dhcp-14`), and the list of settings it asks for, which tells the operating system and version apart. LANscape listens for these but doesn't answer them; your router does.
 - **Its announced name**, as before.
 
-A new private address is treated as a known device only when exactly one device that isn't answering fits, by stable ID first, then hostname plus DHCP fingerprint, then name; a different stable ID rules a device out. The same details give more devices a name (UPnP friendly names, DHCP hostnames) and a model, shown under **Identity** in the device's panel.
+A new private address is treated as a known device only when exactly one device that isn't answering fits, by stable ID first, then hostname plus DHCP fingerprint, then name; a different stable ID rules a device out. The same details give more devices a name (UPnP friendly names, DHCP hostnames) and a model: the **Model** column in the device list shows it, or the operating system a device's DHCP requests name (like Android 14 or Windows) when it announces no model. The full details are under **Identity** in the device's panel.
 
 Listening for DHCP needs UDP port 67, so it stays off if another DHCP server runs on the same machine (such as Pi-hole's, if you turned it on).
 

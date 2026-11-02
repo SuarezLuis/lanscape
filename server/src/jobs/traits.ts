@@ -12,6 +12,19 @@ export const saveTraits = async (mac: string, traits: TraitMap, now = new Date()
   }
 };
 
+// A readable OS from a DHCP vendor class: "android-dhcp-14" is Android 14, "MSFT 5.0" is Windows
+export const osFromVendor = (vendor: string | undefined) => {
+  if (!vendor) return null;
+  const android = /^android-dhcp-(\d+)/i.exec(vendor);
+  if (android) return `Android ${android[1]}`;
+  if (/^MSFT/i.test(vendor)) return "Windows";
+  if (/^(dhcpcd|udhcp)/i.test(vendor)) return "Linux";
+  return null;
+};
+
+// What the device list shows as its model: the announced model, else the OS its DHCP requests suggest
+export const displayModel = (traits: TraitMap | undefined) => traits?.model ?? osFromVendor(traits?.["dhcp-vendor"]);
+
 export const readTraits = async (macs: string[]) => {
   const rows = await prisma.macTrait.findMany({ where: { mac: { in: macs } } });
   const traits = new Map<string, TraitMap>();

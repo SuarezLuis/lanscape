@@ -102,6 +102,7 @@ const DeviceDetails = ({ device }: { device: Device }) => {
         device.vendor ?? <Text span c="dimmed" fz="sm">Unknown</Text>
       ),
     ],
+    ["Model", device.model ?? <Text span c="dimmed" fz="sm">Not announced yet</Text>],
     ["IP address", <Text span ff="monospace" fz="sm">{device.ip}</Text>],
     ["MAC address", <Text span ff="monospace" fz="sm">{device.mac}</Text>],
     ["First seen", when(device.firstSeen)],
@@ -461,7 +462,7 @@ export const NetworkPage = () => {
   const needle = filter.trim().toLowerCase();
   const rows = devices
     .filter((device) =>
-      [device.name, device.hostname, device.vendor, device.ip, device.mac].some((value) => value?.toLowerCase().includes(needle)),
+      [device.name, device.hostname, device.vendor, device.model, device.ip, device.mac].some((value) => value?.toLowerCase().includes(needle)),
     )
     .toSorted((a, b) => Number(b.online) - Number(a.online) || ipOrder(a.ip) - ipOrder(b.ip));
   const online = devices.filter((device) => device.online).length;
@@ -526,6 +527,7 @@ export const NetworkPage = () => {
                   <Table.Th>Name</Table.Th>
                   <Table.Th>IP</Table.Th>
                   <Table.Th>Maker</Table.Th>
+                  <Table.Th>Model</Table.Th>
                   <Table.Th>MAC</Table.Th>
                   <Table.Th>First seen</Table.Th>
                   <Table.Th>Last seen</Table.Th>
@@ -535,7 +537,7 @@ export const NetworkPage = () => {
                 {rows.map((device) => (
                   <Table.Tr key={device.mac} onClick={() => setOpenMac(device.mac)} style={{ cursor: "pointer" }}>
                     <Table.Td>
-                      <Badge variant="dot" color={device.online ? "teal" : "gray"}>
+                      <Badge variant="dot" color={device.online ? "teal" : "gray"} style={{ flexShrink: 0, overflow: "visible" }} miw={84}>
                         {device.online ? "Online" : "Away"}
                       </Badge>
                     </Table.Td>
@@ -567,6 +569,7 @@ export const NetworkPage = () => {
                       {device.ip}
                     </Table.Td>
                     <Table.Td fz="sm">{device.vendor ?? <Text span c="dimmed" fz="sm">Unknown</Text>}</Table.Td>
+                    <Table.Td fz="sm">{device.model ?? <Text span c="dimmed" fz="sm">–</Text>}</Table.Td>
                     <Table.Td ff="monospace" fz="sm">
                       {device.mac}
                     </Table.Td>
