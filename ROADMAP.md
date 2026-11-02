@@ -15,6 +15,9 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [x] **Per-device online alerts:** alert each time a chosen device comes online after a set time away (15 min to 4 hours).
 - [x] **Delete a device:** remove it with its history, so it's listed and alerted as new the next time it joins.
 - [ ] **Adoption/analytics:** ask Umbrel maintainers whether aggregate install counts or a developer dashboard are available; if not, evaluate *explicit opt-in*, anonymous privacy-preserving telemetry for installs, active installs, versions, and feature usage. No IPs, MACs, device names, or network measurements; document consent, retention, and disabling; do not silently track.
+  - **Now (no code):** watch "Total downloads" on the image's package page in GitHub Container Registry (GHCR), https://github.com/SuarezLuis/lanscape/pkgs/container/lanscape. Every Umbrel install and update pulls the image, so it's a rough count of installs plus updates (43 on 2026-11-02, mostly the owner's own updates). GitHub repo traffic isn't useful: clones are CI and test builds.
+  - **Once the official listing is approved:** ask Umbrel (in the PR, Discord or forum) whether developers can see install counts. Community stores have none.
+  - **Only if feature usage matters:** an opt-in daily heartbeat (random install ID, version, CPU type, which features are on), off by default and asked once in the app, sent to a Cloudflare Worker with a small database that drops IPs on arrival. Expect a minority to opt in, so treat it as a lower bound. No silent "update check" phoning home.
 - [x] **Donation support:** Buy Me a Coffee link in the README (so also the About page) and GitHub's Sponsor button. Anything more in-app waits on Umbrel's submission rules.
 - [x] **Buy Me a Coffee button in the app UI:** a "Buy me a coffee" link at the bottom of the sidebar, under About.
 
