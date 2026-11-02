@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Card, Code, CopyButton, Group, List, PasswordInput, Stack, Table, Tabs, Text, TextInput, Title } from "@mantine/core";
+import { Anchor, Badge, Button, Card, Code, Group, List, PasswordInput, Stack, Table, Tabs, Text, TextInput, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTRPC } from "./trpc";
@@ -136,6 +136,34 @@ const PiholePanel = () => {
   );
 };
 
+// navigator.clipboard only exists on https and localhost, and LANscape is usually opened over plain http on the LAN
+const copyText = async (text: string) => {
+  if (window.isSecureContext && navigator.clipboard) return navigator.clipboard.writeText(text);
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.append(area);
+  area.select();
+  const copied = document.execCommand("copy");
+  area.remove();
+  if (!copied) throw new Error("Copy failed");
+};
+
+const Copy = ({ value }: { value: string }) => {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  const copy = () =>
+    copyText(value)
+      .then(() => setState("copied"))
+      .catch(() => setState("failed"))
+      .finally(() => setTimeout(() => setState("idle"), 2000));
+  return (
+    <Button size="xs" variant="light" color={state === "failed" ? "red" : undefined} onClick={copy}>
+      {state === "copied" ? "Copied" : state === "failed" ? "Select and copy it instead" : "Copy"}
+    </Button>
+  );
+};
+
 const McpPanel = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -206,13 +234,7 @@ const McpPanel = () => {
           </Text>
           <Group gap="xs">
             <Code style={{ wordBreak: "break-all" }}>{token}</Code>
-            <CopyButton value={token}>
-              {({ copied, copy }) => (
-                <Button size="xs" variant="light" onClick={copy}>
-                  {copied ? "Copied" : "Copy"}
-                </Button>
-              )}
-            </CopyButton>
+            <Copy value={token} />
           </Group>
           <Text size="sm" c="dimmed">
             Copy it now; LANscape keeps only a fingerprint and can't show it again. Anyone with it can read your network
@@ -233,6 +255,9 @@ const McpPanel = () => {
         <Code block style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
           {claudeCommand}
         </Code>
+        <Group>
+          <Copy value={claudeCommand} />
+        </Group>
         <Text size="sm" c="dimmed">
           Most other clients take a JSON config like this:
         </Text>
