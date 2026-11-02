@@ -146,7 +146,7 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
   }),
   get_outages: tool({
     description:
-      "Internet outages, newest first: two or more ping checks in a row with every packet lost. cause \"internet\" means the router kept answering, so the problem was past it (the ISP or beyond); \"home\" means the router didn't answer either (router, or the Umbrel's connection to it); \"unknown\" means no router checks to compare. end is null while an outage is ongoing. Raw checks are kept 90 days, so the range goes up to a month.",
+      "Internet outages, newest first: two or more ping checks in a row with every packet lost. cause \"internet\" means the router kept answering, so the problem was past it (the ISP or beyond); \"home\" means the router didn't answer either (router, or the Umbrel's connection to it); \"unknown\" means no router checks to compare. end is null while an outage is ongoing. Range goes up to a year.",
     input: z.object({ range: z.enum(OUTAGE_RANGES).default("week").describe("How far back to look") }),
     run: async ({ range }) =>
       (await listOutages(range)).map((outage) => ({

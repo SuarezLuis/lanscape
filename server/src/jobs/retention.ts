@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { pruneMcpCalls } from "../mcp";
+import { outagesBefore } from "../outages";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -14,8 +15,11 @@ export const rollupCutoff = (now: Date) =>
  * (trigger "rollup"), which keeps a year of history around 17k rows instead of a million.
  */
 export const rollUpOldPings = async (now = new Date()) => {
+  const outages = await outagesBefore(rollupCutoff(now));
   const cutoff = rollupCutoff(now).toISOString().replace("Z", "+00:00");
-  const [inserted, deleted] = await prisma.$transaction([
+  // ponytail: an outage running across the cutoff is saved in two parts; join them if that ever shows
+  const [, inserted, deleted] = await prisma.$transaction([
+    prisma.outage.createMany({ data: outages }),
     prisma.$executeRaw`
       INSERT INTO PingSample (createdAt, target, host, sent, received, avgMs, jitterMs, trigger)
       SELECT substr(createdAt, 1, 13) || ':00:00.000+00:00', target, MAX(host), SUM(sent), SUM(received),

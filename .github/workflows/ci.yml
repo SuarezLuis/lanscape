@@ -17,6 +17,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # Fails when schema.prisma changed without a migration
+      - run: npm exec -w server -- prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
       - run: npm test
       - run: npm run build
 
