@@ -8,15 +8,15 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 ## v1.10.0 (next)
 - [ ] **Proactive AI analyst:** opt-in investigation and summaries of incidents LANscape already detects (outages, alert rules, services going down); local model option, consent before cloud transmission, no automatic network modifications.
 
-## v1.9.0 (in review: #37–#40)
+## Shipped
+
+### v1.9.0
 - [x] **Weekly speed pattern:** download, upload and ping by weekday and hour, against your plan speeds; long-term trends are the History chart's Year view.
 - [x] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (every device's online/offline changes), and packet loss per bucket in latency history.
 - [x] **Standalone Docker release (no Umbrel):** a Compose example and notes in the README, `APP_PASSWORD` wording without Umbrel in it, and `UMBREL=true` in the Umbrel stores' compose files.
 - [x] **Streaming chat answers:** the assistant's answer appears as it's written, with each data lookup shown as it happens.
 - [x] **Network diagnostics:** guided router, internet, DNS, HTTPS and traceroute checks with a plain-language verdict and a report to copy or download.
 - [x] **Network performance reports:** an opt-in weekly summary through the alert channels, and a 30-day report to send an internet provider.
-
-## Shipped
 
 ### v1.8.0
 - [x] **Built-in AI chat:** the Assistant page, with Claude, OpenAI, or a model on your own network (Ollama or any OpenAI-compatible server); read-only tools, the data behind each answer shown, a clear statement of where data goes, write-only API keys, and conversations kept only in the browser tab.
