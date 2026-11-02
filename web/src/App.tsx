@@ -32,8 +32,10 @@ import { ActivityIcon } from "./icons/activity";
 import { MessageCircleIcon } from "./icons/message-circle";
 import { CoffeeIcon } from "./icons/coffee";
 import { PlugIcon } from "./icons/plug";
+import { StethoscopeIcon } from "./icons/stethoscope";
 import { AssistantPage } from "./AssistantPage";
 import { AuthScreen } from "./AuthScreen";
+import { DiagnosticsPage } from "./DiagnosticsPage";
 import { GitHubDoc } from "./GitHubDoc";
 import { BookTextIcon } from "./icons/book-text";
 import { CircleHelpIcon } from "./icons/circle-help";
@@ -78,6 +80,12 @@ const PAGES = [
     label: "Assistant",
     icon: MessageCircleIcon,
     element: <AssistantPage />,
+  },
+  {
+    path: "/diagnostics",
+    label: "Diagnostics",
+    icon: StethoscopeIcon,
+    element: <DiagnosticsPage />,
   },
   {
     path: "/automations",

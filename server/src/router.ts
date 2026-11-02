@@ -25,6 +25,7 @@ import { listOutages, OUTAGE_ALERTS, OUTAGE_RANGES, outageAlertsOn } from "./out
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
+import { runDiagnostics } from "./jobs/diagnostics";
 import { findGateway } from "./jobs/ping";
 import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
@@ -284,6 +285,8 @@ export const appRouter = t.router({
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
   }),
+  // Takes 10 to 30 seconds: pings, lookups and a traceroute, one after another
+  diagnostics: t.router({ run: procedure.mutation(() => runDiagnostics()) }),
   services: t.router({
     list: procedure.query(() => listServices()),
     // A changed service starts its state over, so an edit can't inherit an old alert
