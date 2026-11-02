@@ -26,7 +26,7 @@ Before each test LANscape also pings your router and your internet host, so the 
 
 Each outage is compared with your router's pings at the same time:
 
-- **Past your router:** the router kept answering, so the problem was with your internet provider or beyond.
+- **Past router:** the router kept answering, so the problem was with your internet provider or beyond.
 - **Home network:** the router didn't answer either, so it was the router itself, or the Umbrel's connection to it (cable, switch or Wi-Fi).
 
 LANscape keeps raw ping checks for 90 days, so outages go back a month.

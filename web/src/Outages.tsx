@@ -15,7 +15,7 @@ const RANGES: { value: Range; label: string; days: number; text: string }[] = [
 ];
 
 const CAUSES = {
-  internet: { label: "Past your router", color: "orange", tip: "Your router kept answering: your internet provider or beyond." },
+  internet: { label: "Past router", color: "orange", tip: "Your router kept answering: your internet provider or beyond." },
   home: { label: "Home network", color: "red", tip: "Your router didn't answer either: the router, or the Umbrel's connection to it." },
   unknown: { label: "Unknown", color: "gray", tip: "No router checks to compare with." },
 } as const;
