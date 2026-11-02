@@ -35,7 +35,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] **Automatic problem detection:** rule-based baseline/anomaly detection, correlations and human-readable explanations; differentiate observations from possible causes.
 - [ ] **Router integrations:** start with UniFi, expand to SNMP and supported router APIs for WAN, bandwidth, and connected-client metrics where permissions allow.
 - [ ] **Proactive AI analyst:** opt-in investigation and summaries of unusual incidents; local model option, consent before cloud transmission, no automatic network modifications.
-- [ ] **Network performance reports:** periodic summarized trends, issue comparisons and shareable ISP support diagnostics.
+- [x] **Network performance reports:** periodic summarized trends, issue comparisons and shareable ISP support diagnostics.
 
 ## Existing roadmap items
 - [x] Pi-hole integration: device names, DNS activity per device, and recent DNS requests as a sign of life (Integrations page).

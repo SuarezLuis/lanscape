@@ -4,6 +4,7 @@ import { runDeviceScan } from "./devices";
 import { recordFailure, recordStatus } from "./status";
 import { DEFAULT_INTERNET_HOST, runPingCheck } from "./ping";
 import { runDueServiceChecks } from "./services";
+import { sendReportIfDue } from "../reports";
 import { runSpeedtest, speedtestRunning } from "./speedtest";
 
 const MINUTE_MS = 60_000;
@@ -100,6 +101,7 @@ export const startScheduler = () => {
       })
       .catch(logFailure("tick"));
     runDueServiceChecks(now).catch(logFailure("service checks"));
+    sendReportIfDue(now).catch(logFailure("weekly report"));
   };
   atNextMinute(tick);
 };

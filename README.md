@@ -13,6 +13,7 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 - **Internet Health Score** from 0 to 100, from uptime, packet loss, ping and jitter, with each part shown.
 - **Outage timeline:** when the internet was down, for how long, and whether the problem was in your home network or past your router, with an alert when it's back.
 - **Service checks:** watch web apps (HTTP), open ports (TCP) and DNS servers on your LAN, with alerts when they go down and come back.
+- **Reports:** an optional weekly summary through your alert channels, and a 30-day report to send your ISP.
 - **Device list** from ARP scans every 5 minutes: IP, MAC, maker (from the IEEE OUI registry), names announced over mDNS, and your own names. Includes the Umbrel itself.
 - **Identify a device** by switching it off and on between scans.
 - **Per-device history and offline alerts:** mark devices as known, see when each came and went, and get alerted when a chosen device has been offline for a while.

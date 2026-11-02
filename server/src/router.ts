@@ -20,6 +20,7 @@ import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
 import { aiSettings, chat, chatInput, DEFAULT_ANTHROPIC_MODEL, describeAi, removeAi, saveAi } from "./ai";
 import { planInput, readPlan, savePlan, weeklyPattern } from "./analytics";
+import { ispReport, readReportSettings, reportSettings, saveReportSettings, sendWeeklyReport } from "./reports";
 import { healthScore } from "./health";
 import { latencyHistory, RANGES, since } from "./latency";
 import { createMcpToken, describeMcp, revokeMcpToken } from "./mcp";
@@ -291,6 +292,12 @@ export const appRouter = t.router({
     update: procedure
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
+  }),
+  reports: t.router({
+    settings: procedure.query(() => readReportSettings()),
+    save: procedure.input(reportSettings).mutation(({ input }) => saveReportSettings(input)),
+    sendNow: procedure.mutation(() => sendWeeklyReport()),
+    isp: procedure.query(() => ispReport()),
   }),
   services: t.router({
     list: procedure.query(() => listServices()),
