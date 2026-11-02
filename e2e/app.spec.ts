@@ -15,8 +15,10 @@ test("a wrong password is refused, the right one signs in", async ({ page }) => 
   await expect(page.getByText("Wrong password")).toBeVisible();
   await page.getByRole("textbox", { name: "Password" }).fill("e2e-password-1");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Internet health" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Outages" })).toBeVisible();
+  // Signing in lands on the Overview
+  await expect(page).toHaveURL(/\/overview$/);
+  for (const tile of ["Internet", "Speed", "Outages", "Services", "Devices", "Alerts"]) await expect(page.getByRole("heading", { name: tile, exact: true })).toBeVisible();
+  await expect(page.getByText("Living Room TV").or(page.getByText("New since yesterday"))).toBeVisible();
 });
 
 test("runs a speed test and shows the result", async ({ page }) => {
@@ -117,4 +119,27 @@ test("sets up the assistant with a local model and answers from the network data
   await page.getByLabel("Your question").press("Enter");
   await expect(page.getByText(/You have \d+ devices on your network\./)).toBeVisible();
   await expect(page.getByText("Looked at: list_devices")).toBeVisible();
+});
+
+test("sends a weekly summary now and downloads the ISP report", async ({ page }) => {
+  await signIn(page, "/notifications");
+  await page.getByRole("button", { name: "Send a summary now" }).click();
+  await expect(page.getByText("Sent. It's also in Recent alerts above.")).toBeVisible();
+  await expect(page.getByText(/^Your network, /).first()).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download ISP report" }).click();
+  const file = await (await downloading).path();
+  expect(readFileSync(file, "utf8")).toContain("OUTAGES PAST THE HOME ROUTER");
+});
+
+test("runs a network check and offers the report", async ({ page }) => {
+  test.setTimeout(90_000);
+  await signIn(page, "/diagnostics");
+  await page.getByRole("button", { name: "Run a check" }).click();
+  await expect(page.getByRole("button", { name: "Download report" })).toBeVisible({ timeout: 75_000 });
+  await expect(page.getByText("Secure web (HTTPS)")).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download report" }).click();
+  const file = await (await downloading).path();
+  expect(readFileSync(file, "utf8")).toContain("LANscape network check");
 });

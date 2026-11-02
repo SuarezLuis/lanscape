@@ -98,6 +98,8 @@ export const recordLogin = (ip: string, ok: boolean) => {
 
 // On Umbrel, APP_PASSWORD is the per-install password the dashboard shows for LANscape (deterministicPassword)
 export const umbrelPassword = () => process.env.APP_PASSWORD || null;
+// The Umbrel stores' compose files set UMBREL=true; plain Docker with an APP_PASSWORD gets wording without Umbrel in it
+export const onUmbrel = () => process.env.UMBREL === "true";
 
 // "umbrel": use Umbrel's password; "clear": back to first-run setup; null: leave it
 export const passwordAction = (state: { hasPassword: boolean; onUmbrel: boolean; resetSetting: boolean; resetFile: boolean }) => {

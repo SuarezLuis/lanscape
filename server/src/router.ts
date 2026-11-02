@@ -13,18 +13,23 @@ import {
   sessionCookie,
   sessionValid,
   setPassword,
+  onUmbrel,
   umbrelPassword,
 } from "./auth";
 import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
-import { aiSettings, chat, chatInput, DEFAULT_ANTHROPIC_MODEL, describeAi, removeAi, saveAi } from "./ai";
+import { aiSettings, DEFAULT_ANTHROPIC_MODEL, describeAi, providerError, removeAi, saveAi } from "./ai";
+import { planInput, readPlan, savePlan, weeklyPattern } from "./analytics";
+import { ispReport, readReportSettings, reportSettings, saveReportSettings, sendWeeklyReport } from "./reports";
 import { healthScore } from "./health";
+import { overview, visitWindow } from "./overview";
 import { latencyHistory, RANGES, since } from "./latency";
 import { createMcpToken, describeMcp, revokeMcpToken } from "./mcp";
 import { listOutages, OUTAGE_ALERTS, OUTAGE_RANGES, outageAlertsOn } from "./outages";
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
+import { runDiagnostics } from "./jobs/diagnostics";
 import { findGateway } from "./jobs/ping";
 import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
@@ -98,13 +103,11 @@ const automationInput = z.discriminatedUnion("job", [
   }),
 ]);
 
-// The provider's own message ("invalid x-api-key", "model not found") is what the owner needs to see
 const providerCall = async <T>(run: () => Promise<T>) => {
   try {
     return await run();
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new TRPCError({ code: "BAD_REQUEST", message: /fetch failed|ECONNREFUSED|ENOTFOUND/i.test(message) ? "Couldn't reach the AI provider" : message });
+    throw new TRPCError({ code: "BAD_REQUEST", message: providerError(error) });
   }
 };
 
@@ -113,7 +116,9 @@ export const appRouter = t.router({
     status: publicProcedure.query(async ({ ctx }) => ({
       passwordSet: await passwordIsSet(),
       signedIn: await sessionValid(ctx.token),
-      onUmbrel: umbrelPassword() !== null,
+      onUmbrel: onUmbrel(),
+      // APP_PASSWORD: Umbrel's per-install password, or one set in a plain Docker compose file
+      presetPassword: umbrelPassword() !== null,
     })),
     // First run only: whoever opens LANscape first sets the password, like Umbrel's own setup
     setup: publicProcedure.input(z.object({ password })).mutation(async ({ ctx, input }) => {
@@ -144,7 +149,7 @@ export const appRouter = t.router({
     // Back to the password Umbrel shows on its dashboard; other browsers are signed out
     resetToUmbrel: procedure.mutation(async ({ ctx }) => {
       const umbrel = umbrelPassword();
-      if (!umbrel) throw new TRPCError({ code: "BAD_REQUEST", message: "Not running on Umbrel" });
+      if (!umbrel) throw new TRPCError({ code: "BAD_REQUEST", message: "No APP_PASSWORD is set" });
       await setPassword(umbrel);
       await endAllSessions(ctx.token ?? undefined);
     }),
@@ -153,6 +158,8 @@ export const appRouter = t.router({
       ctx.setCookie(sessionCookie(null));
     }),
   }),
+  // The home screen; `since` is the viewer's previous visit
+  overview: procedure.input(z.object({ since: z.date().optional() })).query(({ input }) => overview(visitWindow(input.since))),
   health: publicProcedure.query(async () => {
     await prisma.$queryRaw`SELECT 1`;
     return { ok: true, version: process.env.APP_VERSION ?? "dev" };
@@ -171,6 +178,10 @@ export const appRouter = t.router({
       const [day, week] = await Promise.all([healthScore(1), healthScore(7)]);
       return { day, week };
     }),
+    // The viewer's UTC offset, so hours are local to them
+    pattern: procedure.input(z.object({ offsetMinutes: z.int().min(-14 * 60).max(14 * 60) })).query(({ input }) => weeklyPattern(input.offsetMinutes)),
+    plan: procedure.query(() => readPlan()),
+    setPlan: procedure.input(planInput).mutation(({ input }) => savePlan(input)),
     outages: procedure.input(z.object({ range: z.enum(OUTAGE_RANGES) })).query(({ input }) => listOutages(input.range)),
     servers: procedure.query(() => listServers()),
     server: procedure.query(async () => (await prisma.setting.findUnique({ where: { key: SERVER_SETTING } }))?.value || null),
@@ -284,6 +295,14 @@ export const appRouter = t.router({
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
   }),
+  reports: t.router({
+    settings: procedure.query(() => readReportSettings()),
+    save: procedure.input(reportSettings).mutation(({ input }) => saveReportSettings(input)),
+    sendNow: procedure.mutation(() => sendWeeklyReport()),
+    isp: procedure.query(() => ispReport()),
+  }),
+  // Takes 10 to 30 seconds: pings, lookups and a traceroute, one after another
+  diagnostics: t.router({ run: procedure.mutation(() => runDiagnostics()) }),
   services: t.router({
     list: procedure.query(() => listServices()),
     // A changed service starts its state over, so an edit can't inherit an old alert
@@ -300,7 +319,6 @@ export const appRouter = t.router({
     settings: procedure.query(async () => ({ saved: await describeAi(), defaultAnthropicModel: DEFAULT_ANTHROPIC_MODEL })),
     save: procedure.input(aiSettings).mutation(({ input }) => providerCall(() => saveAi(input))),
     remove: procedure.mutation(() => removeAi()),
-    chat: procedure.input(chatInput).mutation(({ input }) => providerCall(() => chat(input.messages))),
   }),
   integrations: t.router({
     pihole: procedure.query(() => describePihole()),

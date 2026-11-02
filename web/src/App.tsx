@@ -31,9 +31,13 @@ import { IntegrationsPage } from "./IntegrationsPage";
 import { ActivityIcon } from "./icons/activity";
 import { MessageCircleIcon } from "./icons/message-circle";
 import { CoffeeIcon } from "./icons/coffee";
+import { DashboardIcon } from "./icons/dashboard";
 import { PlugIcon } from "./icons/plug";
+import { StethoscopeIcon } from "./icons/stethoscope";
 import { AssistantPage } from "./AssistantPage";
 import { AuthScreen } from "./AuthScreen";
+import { OverviewPage } from "./OverviewPage";
+import { DiagnosticsPage } from "./DiagnosticsPage";
 import { GitHubDoc } from "./GitHubDoc";
 import { BookTextIcon } from "./icons/book-text";
 import { CircleHelpIcon } from "./icons/circle-help";
@@ -44,10 +48,17 @@ import { SettingsPage } from "./SettingsPage";
 import { HealthScore } from "./HealthScore";
 import { Outages } from "./Outages";
 import { SpeedHistory } from "./SpeedHistory";
+import { SpeedPattern } from "./SpeedPattern";
 import { SpeedTestCard } from "./SpeedTestCard";
 import { useTRPC } from "./trpc";
 
 const PAGES = [
+  {
+    path: "/overview",
+    label: "Overview",
+    icon: DashboardIcon,
+    element: <OverviewPage />,
+  },
   {
     path: "/speedtests",
     label: "Speed tests",
@@ -57,6 +68,7 @@ const PAGES = [
         <SpeedTestCard />
         <HealthScore />
         <SpeedHistory />
+        <SpeedPattern />
         <Outages />
       </Stack>
     ),
@@ -78,6 +90,12 @@ const PAGES = [
     label: "Assistant",
     icon: MessageCircleIcon,
     element: <AssistantPage />,
+  },
+  {
+    path: "/diagnostics",
+    label: "Diagnostics",
+    icon: StethoscopeIcon,
+    element: <DiagnosticsPage />,
   },
   {
     path: "/automations",
@@ -126,7 +144,7 @@ export const App = () => {
   const auth = useQuery(trpc.auth.status.queryOptions());
   if (!auth.data) return null;
   if (!auth.data.passwordSet) return <AuthScreen mode="setup" />;
-  if (!auth.data.signedIn) return <AuthScreen mode="login" onUmbrel={auth.data.onUmbrel} />;
+  if (!auth.data.signedIn) return <AuthScreen mode="login" onUmbrel={auth.data.onUmbrel} presetPassword={auth.data.presetPassword} />;
   return <Shell />;
 };
 

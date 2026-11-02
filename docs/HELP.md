@@ -8,7 +8,13 @@ Umbrel's own login doesn't cover apps on the host network, so LANscape has its o
 
 **Forgot it?** In Umbrel, open LANscape's settings, set `RESET_PASSWORD` to `yes` and restart the app. The password goes back to the one Umbrel shows. Clear the setting afterwards, or each restart resets it again.
 
-Running LANscape outside Umbrel, the first visit asks you to set a password. To clear a forgotten one, create an empty file named `reset-password` next to the database and restart.
+**Running LANscape on plain Docker** (see the README), set `APP_PASSWORD` in the compose file and sign in with it; **Reset to APP_PASSWORD** in Settings switches back to it. Without `APP_PASSWORD`, the first visit asks you to set a password. To reset a forgotten one, create an empty file named `reset-password` in the data folder (the volume mounted at `/data`) and restart the container: it goes back to `APP_PASSWORD`, or to the first-visit screen without one.
+
+## Overview
+
+The home screen, with one tile per question: is the internet **up** right now (and its health score), the **latest speed test** (against your plan, if you've entered it), **outages** in the last week, **services** with trouble, **devices** online and new since your last visit, and the **latest alerts**. Each tile's **Details** opens the full page. It refreshes every 30 seconds.
+
+"New since your last visit" is remembered by your browser, so each browser keeps its own; the first time, it shows the last day.
 
 ## Speed tests
 
@@ -76,6 +82,19 @@ Then name it right there.
 
 Each service is checked every minute, 5 minutes or 15 minutes. One failed check shows as **Failing**; two in a row is **Down**, and LANscape alerts you, then again when it's back with how long it was down. Turn **Alert** off for a service you only want to see on the page. Each service shows its latest checks as a strip (green answered, red failed), its average answer time and its uptime over the last 24 hours. Results are kept for 90 days.
 
+## Diagnostics
+
+**Run a check** tests the path from the Umbrel to the internet, one link at a time, in a few seconds:
+
+1. **This machine:** its network connection and which router it uses.
+2. **Router:** whether the router answers pings.
+3. **Internet (by address):** whether your internet host (1.1.1.1 by default) answers.
+4. **DNS:** looking up a name through your own DNS servers, and through 1.1.1.1 for comparison.
+5. **Secure web:** loading a small HTTPS page Google provides for connection checks.
+6. **Route:** a traceroute to your internet host, hop by hop.
+
+The line at the top names the first link that failed: inside your home network, past your router, DNS, or secure web. Routers along the way often ignore traceroute, so hops shown as `*` aren't a problem on their own. Nothing is saved; **Copy report** or **Download report** gives you plain text to send to your internet provider.
+
 ## Automations
 
 - **Full speed test:** off by default. Choose every hour, 6 hours, 12 hours or daily, and a starting time. Times follow the time zone of the browser you last saved from. **Server** picks the speedtest.net server for every test; *Automatic* uses the nearest one, while a fixed server keeps results comparable over time.
@@ -104,6 +123,12 @@ Each rule sends **one** alert when a problem starts and **one** when it clears. 
 **New device joins the network** alerts when a device LANscape has never seen appears. The very first scan only records what's already there. Devices that were asleep for it alert when they turn up, and several found in the same scan come as one alert.
 
 **Unknown device is back** (off by default) alerts when a device you haven't marked as known comes back after an hour or more away, like a visitor's phone or something that only joins now and then. Mark your own devices as known on the Network page first, or you'll hear about them too.
+
+### Reports
+
+**Weekly summary** (off by default) sends a short report on the day and hour you pick, in your time zone, to every alert channel: this week against last for the health score, average speeds, ping and packet loss, outages, new devices and alerts. **Send a summary now** sends one straight away. Summaries also appear in Recent alerts.
+
+**Download ISP report** gives a plain-text report of the last 30 days to send your internet provider: speed tests against your plan (enter your plan speeds on the Speed tests page, under Weekly pattern), how many tests came in under 80% of it, ping and packet loss, and every outage where your router kept answering but the internet didn't. Outages inside your home network are left out, since they aren't the provider's.
 
 ### Where alerts go
 
@@ -139,7 +164,7 @@ Pi-hole only knows names if it hands out addresses itself (its DHCP server), or 
 
 ### AI assistant
 
-The **Assistant** page answers questions about your network in plain language: "When was my internet slow this month?", "Is there anything on my network I don't recognize?", "Has the NAS been flaky?". It reads the same data as the AI agents tab below (speed tests, latency, outages, devices, services and alerts) and can't change anything. Under each answer, **Looked at** shows exactly which data it read, so you can check it.
+The **Assistant** page answers questions about your network in plain language: "When was my internet slow this month?", "Is there anything on my network I don't recognize?", "Has the NAS been flaky?". It reads the same data as the AI agents tab below (speed tests, latency, outages, devices, services and alerts) and can't change anything. Answers appear as they're written, with each piece of data it reads shown as it happens. Under each answer, **Looked at** shows exactly which data it read, so you can check it.
 
 Set it up on the **AI assistant** tab with one of:
 

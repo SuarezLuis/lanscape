@@ -8,11 +8,14 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 
 ## Features
 
+- **Overview home screen:** internet up or down, health score, latest speed, outages, services with trouble, new devices and the latest alerts at a glance.
 - **Speed tests** on demand or on a schedule, with a live gauge, ping, jitter, and router and internet latency measured just before each test. History charts and a sortable table, from the last 24 hours to all time.
 - **Ping checks** every minute to your router and an internet host (1.1.1.1 by default), tracking latency and packet loss with almost no data. Raw samples older than 90 days are kept as hourly averages.
 - **Internet Health Score** from 0 to 100, from uptime, packet loss, ping and jitter, with each part shown.
 - **Outage timeline:** when the internet was down, for how long, and whether the problem was in your home network or past your router, with an alert when it's back.
 - **Service checks:** watch web apps (HTTP), open ports (TCP) and DNS servers on your LAN, with alerts when they go down and come back.
+- **Diagnostics:** a one-click check of router, internet, DNS, HTTPS and the route, with a plain-language verdict and a report to send your ISP.
+- **Reports:** an optional weekly summary through your alert channels, and a 30-day report to send your ISP.
 - **Device list** from ARP scans every 5 minutes: IP, MAC, maker (from the IEEE OUI registry), names announced over mDNS, and your own names. Includes the Umbrel itself.
 - **Identify a device** by switching it off and on between scans.
 - **Per-device history and offline alerts:** mark devices as known, see when each came and went, and get alerted when a chosen device has been offline for a while.
@@ -65,15 +68,34 @@ Locally you need `speedtest-go` on your `PATH` (or `SPEEDTEST_BIN` pointing at i
 
 Schema changes: edit `server/prisma/schema.prisma`, then `npm exec -w server -- prisma migrate dev --name <change>`. The container applies migrations on start.
 
-## Run
+## Run with Docker (no Umbrel)
 
-The image needs host networking, for ARP scans and mDNS, and a volume at `/data`:
+LANscape runs on any Linux machine with Docker (amd64 or arm64), not only on Umbrel. Save this as `compose.yaml` and run `docker compose up -d`:
 
-```sh
-docker run -d --init --network host -v lanscape-data:/data ghcr.io/suarezluis/lanscape:edge
+```yaml
+services:
+  lanscape:
+    image: ghcr.io/suarezluis/lanscape:latest
+    restart: unless-stopped
+    # Device discovery (ARP scans, mDNS) needs the real network, not Docker's bridge
+    network_mode: host
+    # Node runs as PID 1; without an init process, stopped speed tests leave zombie processes
+    init: true
+    environment:
+      # The password to sign in with. Without it, the first visit sets one, so set it
+      APP_PASSWORD: "choose-a-long-password"
+      # TZ isn't needed: schedules use the time zone you pick in the app
+    volumes:
+      - ./data:/data
 ```
 
-`--init` (or `init: true` in Compose) matters: Node runs as PID 1, and without an init process, stopped speed tests leave zombie processes behind. It serves on port 4545; set `PORT` to change it.
+Then open `http://<that machine>:4545`. Set `PORT` to use another port.
+
+- **Linux only:** host networking, which device discovery needs, isn't available to containers on Docker Desktop for Mac or Windows. Speed tests and ping checks work there; device scans don't.
+- **Permissions:** `ping` and `arp-scan` need the `NET_RAW` capability, which Docker gives containers by default. If you've dropped it (or use rootless Podman), add `cap_add: [NET_RAW]`.
+- **Data:** everything is in `./data/lanscape.db`. Back it up from Settings, or copy the folder while the container is stopped.
+- **Updating:** `docker compose pull && docker compose up -d`. Database migrations run on start. To stay on a version, use a tag like `ghcr.io/suarezluis/lanscape:1.8.0` instead of `latest`.
+- **Forgot the password:** create an empty file named `reset-password` in `./data` (`sudo touch data/reset-password`, since Docker creates the folder as root) and restart. With `APP_PASSWORD` set it goes back to that; without it, the next visit sets a new one.
 
 ## Release
 
