@@ -11,6 +11,7 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 ## Shipped
 
 ### v1.9.0
+- [x] **Overview home screen:** internet up or down, health score, latest speed, outages, services with trouble, new devices since your last visit, and the latest alerts; where sign-in lands.
 - [x] **Weekly speed pattern:** download, upload and ping by weekday and hour, against your plan speeds; long-term trends are the History chart's Year view.
 - [x] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (every device's online/offline changes), and packet loss per bucket in latency history.
 - [x] **Standalone Docker release (no Umbrel):** a Compose example and notes in the README, `APP_PASSWORD` wording without Umbrel in it, and `UMBREL=true` in the Umbrel stores' compose files.
