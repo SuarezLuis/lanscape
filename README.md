@@ -19,6 +19,7 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 - **Choose the speed test server**, or let it pick the nearest.
 - **CSV export** of speed tests, ping checks and devices.
 - **Pi-hole integration:** names for devices that don't announce one, DNS activity per device, and fewer sleepy devices shown as away.
+- **MCP server for AI agents:** read-only tools for OpenClaw, Claude and other MCP clients to answer questions about your network, behind a token you can replace or turn off, with a log of their requests.
 - **Backup and restore** of everything in one file, optionally encrypted with a passphrase, with a preview before restoring and an undo after.
 - **Password protection:** on Umbrel it starts with the password Umbrel shows for the app; change it or sign out everywhere in Settings.
 - Light, dark and system themes; works on phones.

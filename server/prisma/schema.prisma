@@ -113,3 +113,14 @@ model Session {
   createdAt DateTime @default(now())
   expiresAt DateTime
 }
+
+// One row per tool call from an AI agent over MCP, kept 30 days
+model McpCall {
+  id   Int      @id @default(autoincrement())
+  at   DateTime @default(now())
+  tool String
+  ok   Boolean
+  ip   String
+
+  @@index([at])
+}

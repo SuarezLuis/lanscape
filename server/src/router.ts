@@ -18,6 +18,7 @@ import {
 import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
+import { createMcpToken, describeMcp, revokeMcpToken } from "./mcp";
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
@@ -276,6 +277,10 @@ export const appRouter = t.router({
       }
     }),
     removePihole: procedure.mutation(() => removePihole()),
+    mcp: procedure.query(() => describeMcp()),
+    // Replaces any earlier token, so creating one also cuts off whoever had the old one
+    createMcpToken: procedure.mutation(() => createMcpToken()),
+    revokeMcpToken: procedure.mutation(() => revokeMcpToken()),
     piholeActivity: procedure.input(z.object({ mac: z.string() })).query(async ({ input }) => {
       try {
         return await piholeActivity(input.mac);

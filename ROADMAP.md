@@ -22,8 +22,9 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] **Network diagnostics:** guided ping, traceroute, DNS and gateway checks; exportable troubleshooting report.
 - [ ] **Interactive network map:** devices grouped by role/status; draw physical/topology connections only with reliable evidence.
 - [ ] **Service health checks:** configurable HTTP/TCP/DNS checks for LAN services.
-- [ ] **Network Intelligence API:** bounded read-only analytics tools (`get_network_summary`, `get_latency_history`, `get_speed_history`, `list_devices`, `get_device_history`, `get_network_events`, `compare_periods`, `get_alert_history`); validated ranges, access control and factual output.
-- [ ] **MCP server for external AI agents:** authenticated, read-only access to the analytics tools for OpenClaw and other MCP clients; local-only by default, scoped tokens, rate limits and audit logs.
+- [x] **Network Intelligence API:** bounded read-only analytics tools (`get_network_summary`, `get_latency_history`, `get_speed_history`, `list_devices`, `get_device_history`, `get_alert_history`); validated ranges, access control and factual output. Shipped as the MCP server's tools.
+- [ ] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (all devices' online/offline changes), and packet loss per bucket in latency history.
+- [x] **MCP server for external AI agents:** authenticated, read-only access to the analytics tools for OpenClaw and other MCP clients; off until a token is created, one replaceable token, rate limits and a request log.
 - [ ] **Built-in AI chat:** bring-your-own OpenAI / Anthropic API key, local Ollama, and configurable OpenAI-compatible endpoint; tool calling, model selection, bounded context, evidence-backed answers and a clear offline/cloud data-disclosure policy. Secure server-side storage of secrets.
 
 ## v1.4 — Smart diagnostics
