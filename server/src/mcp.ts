@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "./db";
+import { comparePeriods, networkEvents, PERIOD_DAYS } from "./analytics";
 import { healthScore } from "./health";
 import { latencyHistory, since } from "./latency";
 import { listOutages, OUTAGE_RANGES } from "./outages";
@@ -141,7 +142,7 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
   }),
   get_latency_history: tool({
     description:
-      "Latency over time in ms, averaged into buckets (a minute to a day wide, depending on the range): routerMs and internetMs from the regular ping checks, testPingMs and testJitterMs from speed tests. Null means no data in that bucket, or every ping was lost.",
+      "Latency over time in ms, averaged into buckets (a minute to a day wide, depending on the range): routerMs and internetMs from the regular ping checks with routerLossPercent and internetLossPercent, testPingMs and testJitterMs from speed tests. Null means no data in that bucket, or every ping was lost.",
     input: z.object({ range }),
     run: async ({ range }) =>
       (await latencyHistory(range)).map((point) => ({
@@ -150,6 +151,8 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
         internetMs: round(point.internetMs),
         testPingMs: round(point.testPingMs),
         testJitterMs: round(point.testJitterMs),
+        routerLossPercent: round(point.routerLossPercent),
+        internetLossPercent: round(point.internetLossPercent),
       })),
   }),
   get_outages: tool({
@@ -179,6 +182,17 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
         averageMs24h: round(service.avgMs24h),
         uptimePercent24h: round(service.uptime24h),
       })),
+  }),
+  compare_periods: tool({
+    description:
+      "The last day, week or month against the one just before it: average speed test results, internet and router ping with packet loss, outages (count, minutes, and whether past the router or in the home network), new devices, and alerts by kind. Use it for \"is it worse than last week?\" questions.",
+    input: z.object({ period: z.enum(Object.keys(PERIOD_DAYS) as ["day", "week", "month"]).default("week") }),
+    run: ({ period }) => comparePeriods(period),
+  }),
+  get_network_events: tool({
+    description: "Every device going online or offline, newest first, with the device's name, IP and whether the owner marked it known. Use it for \"what came and went last night?\" questions.",
+    input: z.object({ range: z.enum(["day", "week", "month"]).default("day").describe("How far back to look"), limit: limit(500, 200) }),
+    run: ({ range, limit }) => networkEvents(since(range)!, limit),
   }),
   list_devices: tool({
     description:

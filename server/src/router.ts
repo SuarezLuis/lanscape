@@ -13,11 +13,13 @@ import {
   sessionCookie,
   sessionValid,
   setPassword,
+  onUmbrel,
   umbrelPassword,
 } from "./auth";
 import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
 import { aiSettings, chat, chatInput, DEFAULT_ANTHROPIC_MODEL, describeAi, removeAi, saveAi } from "./ai";
+import { planInput, readPlan, savePlan, weeklyPattern } from "./analytics";
 import { healthScore } from "./health";
 import { latencyHistory, RANGES, since } from "./latency";
 import { createMcpToken, describeMcp, revokeMcpToken } from "./mcp";
@@ -113,7 +115,9 @@ export const appRouter = t.router({
     status: publicProcedure.query(async ({ ctx }) => ({
       passwordSet: await passwordIsSet(),
       signedIn: await sessionValid(ctx.token),
-      onUmbrel: umbrelPassword() !== null,
+      onUmbrel: onUmbrel(),
+      // APP_PASSWORD: Umbrel's per-install password, or one set in a plain Docker compose file
+      presetPassword: umbrelPassword() !== null,
     })),
     // First run only: whoever opens LANscape first sets the password, like Umbrel's own setup
     setup: publicProcedure.input(z.object({ password })).mutation(async ({ ctx, input }) => {
@@ -144,7 +148,7 @@ export const appRouter = t.router({
     // Back to the password Umbrel shows on its dashboard; other browsers are signed out
     resetToUmbrel: procedure.mutation(async ({ ctx }) => {
       const umbrel = umbrelPassword();
-      if (!umbrel) throw new TRPCError({ code: "BAD_REQUEST", message: "Not running on Umbrel" });
+      if (!umbrel) throw new TRPCError({ code: "BAD_REQUEST", message: "No APP_PASSWORD is set" });
       await setPassword(umbrel);
       await endAllSessions(ctx.token ?? undefined);
     }),
@@ -171,6 +175,10 @@ export const appRouter = t.router({
       const [day, week] = await Promise.all([healthScore(1), healthScore(7)]);
       return { day, week };
     }),
+    // The viewer's UTC offset, so hours are local to them
+    pattern: procedure.input(z.object({ offsetMinutes: z.int().min(-14 * 60).max(14 * 60) })).query(({ input }) => weeklyPattern(input.offsetMinutes)),
+    plan: procedure.query(() => readPlan()),
+    setPlan: procedure.input(planInput).mutation(({ input }) => savePlan(input)),
     outages: procedure.input(z.object({ range: z.enum(OUTAGE_RANGES) })).query(({ input }) => listOutages(input.range)),
     servers: procedure.query(() => listServers()),
     server: procedure.query(async () => (await prisma.setting.findUnique({ where: { key: SERVER_SETTING } }))?.value || null),

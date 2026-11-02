@@ -45,3 +45,13 @@ test("alert switches: new devices and outages on by default, each can be turned 
   await api.notifications.setDeviceAlert({ alert: "unknownBack", on: true });
   expect(await api.notifications.deviceAlerts()).toEqual({ newDevice: true, unknownBack: true, outage: false });
 });
+
+test("tells Umbrel apart from plain Docker with a preset password", async () => {
+  process.env.APP_PASSWORD = "from-compose-file";
+  expect(await caller().auth.status()).toMatchObject({ onUmbrel: false, presetPassword: true });
+  process.env.UMBREL = "true";
+  expect(await caller().auth.status()).toMatchObject({ onUmbrel: true, presetPassword: true });
+  delete process.env.APP_PASSWORD;
+  delete process.env.UMBREL;
+  expect(await caller().auth.status()).toMatchObject({ onUmbrel: false, presetPassword: false });
+});

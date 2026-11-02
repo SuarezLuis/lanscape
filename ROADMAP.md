@@ -10,7 +10,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [x] **Backup and restore:** export/import a versioned archive containing SQLite data, device names/trust settings, monitoring rules, schedules and configuration; consistency-safe backup, schema/version checks, restore preview, confirmation, automatic pre-restore safety backup, and recovery/rollback path. Explicitly warn about secrets and offer encrypted backups; test on clean install and across upgrades.
 - [x] **Internet Health Score (0–100):** derive from latency, loss, jitter and outages; explain score and comparison baseline. Last 24 hours against the last 7 days, each part shown with its points; also in the MCP summary.
 - [x] **Internet outage timeline:** timestamp and duration of disruptions; compare router vs internet reachability to avoid unsupported root-cause claims. Also an outage-ended alert and the `get_outages` MCP tool.
-- [ ] **Speed performance heatmap:** hourly/daily download and upload patterns, ISP plan target, long-term trends.
+- [x] **Speed performance heatmap:** hourly/daily download and upload patterns, ISP plan target, long-term trends. The Weekly pattern card (download, upload, ping by weekday and hour) with plan speeds; long-term trends are the History chart's Year view.
 - [x] **Unknown/new device alerts:** trusted-device workflow and randomized-MAC false-positive handling (extend existing new-device/offline alerts).
 - [x] **Per-device online alerts:** alert each time a chosen device comes online after a set time away (15 min to 4 hours).
 - [x] **Delete a device:** remove it with its history, so it's listed and alerted as new the next time it joins.
@@ -21,7 +21,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [ ] **Network diagnostics:** guided ping, traceroute, DNS and gateway checks; exportable troubleshooting report.
 - [x] **Service health checks:** configurable HTTP/TCP/DNS checks for LAN services. Services page, down/back alerts, 24-hour uptime, and the `get_services` MCP tool.
 - [x] **Network Intelligence API:** bounded read-only analytics tools (`get_network_summary`, `get_latency_history`, `get_speed_history`, `list_devices`, `get_device_history`, `get_alert_history`); validated ranges, access control and factual output. Shipped as the MCP server's tools.
-- [ ] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (all devices' online/offline changes), and packet loss per bucket in latency history.
+- [x] **More analytics tools:** `compare_periods` (this week vs last), `get_network_events` (all devices' online/offline changes), and packet loss per bucket in latency history.
 - [x] **MCP server for external AI agents:** authenticated, read-only access to the analytics tools for OpenClaw and other MCP clients; off until a token is created, one replaceable token, rate limits and a request log.
 - [x] **Built-in AI chat:** bring-your-own OpenAI / Anthropic API key, local Ollama, and configurable OpenAI-compatible endpoint; tool calling, model selection, bounded context, evidence-backed answers and a clear offline/cloud data-disclosure policy. Secure server-side storage of secrets. The Assistant page, using the MCP tools; keys are write-only and conversations aren't stored.
 - [ ] **Streaming chat answers:** show the answer as it's written, and which tool it's reading, instead of one wait.
@@ -32,7 +32,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 
 ## Existing roadmap items
 - [x] Pi-hole integration: device names, DNS activity per device, and recent DNS requests as a sign of life (Integrations page).
-- [ ] **Standalone Docker release (no Umbrel):** the image already runs on plain Docker (the first visit sets the password), but it isn't documented or released as such. Add a `docker run` / Compose example to the README (host network for device discovery, a volume for `/data`, `init: true`), say which capabilities `arp-scan` and `ping` need, test it on a plain Linux host, and announce it with the release.
+- [x] **Standalone Docker release (no Umbrel):** the image already runs on plain Docker (the first visit sets the password), but it isn't documented or released as such. Add a `docker run` / Compose example to the README (host network for device discovery, a volume for `/data`, `init: true`), say which capabilities `arp-scan` and `ping` need, test it on a plain Linux host, and announce it with the release.
 
 ## Decided not to pursue
 Kept here so the reasons aren't lost. Revisit if the reason stops holding.
