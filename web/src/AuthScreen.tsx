@@ -4,7 +4,7 @@ import { type FormEvent, useState } from "react";
 import { useTRPC } from "./trpc";
 
 // First run sets the password; after that it's a sign-in screen
-export const AuthScreen = ({ mode, onUmbrel = false }: { mode: "setup" | "login"; onUmbrel?: boolean }) => {
+export const AuthScreen = ({ mode, onUmbrel = false, presetPassword = false }: { mode: "setup" | "login"; onUmbrel?: boolean; presetPassword?: boolean }) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const onSuccess = () => queryClient.invalidateQueries();
@@ -42,7 +42,9 @@ export const AuthScreen = ({ mode, onUmbrel = false }: { mode: "setup" | "login"
               <Text size="sm" c="dimmed">
                 {onUmbrel
                   ? "Sign in with the password Umbrel shows for LANscape. Open LANscape's menu on the Umbrel home screen to see it, unless you've changed it in Settings."
-                  : "Sign in to continue."}
+                  : presetPassword
+                    ? "Sign in with the password set in APP_PASSWORD, unless you've changed it in Settings."
+                    : "Sign in to continue."}
               </Text>
             )}
             <PasswordInput
