@@ -8,7 +8,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 
 ## v1.2 — Network intelligence and data ownership
 - [x] **Backup and restore:** export/import a versioned archive containing SQLite data, device names/trust settings, monitoring rules, schedules and configuration; consistency-safe backup, schema/version checks, restore preview, confirmation, automatic pre-restore safety backup, and recovery/rollback path. Explicitly warn about secrets and offer encrypted backups; test on clean install and across upgrades.
-- [ ] **Internet Health Score (0–100):** derive from latency, loss, jitter and outages; explain score and comparison baseline.
+- [x] **Internet Health Score (0–100):** derive from latency, loss, jitter and outages; explain score and comparison baseline. Last 24 hours against the last 7 days, each part shown with its points; also in the MCP summary.
 - [x] **Internet outage timeline:** timestamp and duration of disruptions; compare router vs internet reachability to avoid unsupported root-cause claims. Also an outage-ended alert and the `get_outages` MCP tool.
 - [ ] **Speed performance heatmap:** hourly/daily download and upload patterns, ISP plan target, long-term trends.
 - [x] **Unknown/new device alerts:** trusted-device workflow and randomized-MAC false-positive handling (extend existing new-device/offline alerts).
@@ -16,7 +16,7 @@ Planned features, not yet built. Tick items off here as they ship. Core network 
 - [x] **Delete a device:** remove it with its history, so it's listed and alerted as new the next time it joins.
 - [ ] **Adoption/analytics:** ask Umbrel maintainers whether aggregate install counts or a developer dashboard are available; if not, evaluate *explicit opt-in*, anonymous privacy-preserving telemetry for installs, active installs, versions, and feature usage. No IPs, MACs, device names, or network measurements; document consent, retention, and disabling; do not silently track.
 - [x] **Donation support:** Buy Me a Coffee link in the README (so also the About page) and GitHub's Sponsor button. Anything more in-app waits on Umbrel's submission rules.
-- [ ] **Buy Me a Coffee button in the app UI:** a discreet link in the app itself (e.g. the sidebar or Settings), once Umbrel's submission rules on in-app donation links are confirmed.
+- [x] **Buy Me a Coffee button in the app UI:** a "Buy me a coffee" link at the bottom of the sidebar, under About.
 
 ## v1.3 — Advanced monitoring and AI foundations
 - [ ] **Network diagnostics:** guided ping, traceroute, DNS and gateway checks; exportable troubleshooting report.

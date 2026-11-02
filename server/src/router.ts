@@ -17,6 +17,7 @@ import {
 } from "./auth";
 import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
+import { healthScore } from "./health";
 import { latencyHistory, RANGES, since } from "./latency";
 import { createMcpToken, describeMcp, revokeMcpToken } from "./mcp";
 import { listOutages, OUTAGE_ALERTS, OUTAGE_RANGES, outageAlertsOn } from "./outages";
@@ -155,6 +156,10 @@ export const appRouter = t.router({
       });
     }),
     latency: procedure.input(rangeInput).query(({ input }) => latencyHistory(input.range)),
+    health: procedure.query(async () => {
+      const [day, week] = await Promise.all([healthScore(1), healthScore(7)]);
+      return { day, week };
+    }),
     outages: procedure.input(z.object({ range: z.enum(OUTAGE_RANGES) })).query(({ input }) => listOutages(input.range)),
     servers: procedure.query(() => listServers()),
     server: procedure.query(async () => (await prisma.setting.findUnique({ where: { key: SERVER_SETTING } }))?.value || null),

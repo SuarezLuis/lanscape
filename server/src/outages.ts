@@ -87,6 +87,8 @@ const detect = async (from: Date, before: Date, now = new Date()) => {
 
 const FAR_FUTURE = new Date("9999-01-01T00:00:00Z");
 
+export const outagesSince = (from: Date) => detect(from, FAR_FUTURE);
+
 // Outages older than 90 days were saved when their checks were rolled up; newer ones come straight from the checks
 export const listOutages = async (range: OutageRange) => {
   const from = since(range)!;

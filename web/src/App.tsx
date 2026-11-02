@@ -29,6 +29,7 @@ import { NetworkPage } from "./NetworkPage";
 import { NotificationsPage } from "./NotificationsPage";
 import { IntegrationsPage } from "./IntegrationsPage";
 import { ActivityIcon } from "./icons/activity";
+import { CoffeeIcon } from "./icons/coffee";
 import { PlugIcon } from "./icons/plug";
 import { AuthScreen } from "./AuthScreen";
 import { GitHubDoc } from "./GitHubDoc";
@@ -38,6 +39,7 @@ import { SettingsIcon } from "./icons/settings";
 import { navigate, usePath } from "./route";
 import { ServicesPage } from "./ServicesPage";
 import { SettingsPage } from "./SettingsPage";
+import { HealthScore } from "./HealthScore";
 import { Outages } from "./Outages";
 import { SpeedHistory } from "./SpeedHistory";
 import { SpeedTestCard } from "./SpeedTestCard";
@@ -51,6 +53,7 @@ const PAGES = [
     element: (
       <Stack gap="lg">
         <SpeedTestCard />
+        <HealthScore />
         <SpeedHistory />
         <Outages />
       </Stack>
@@ -92,7 +95,7 @@ const PAGES = [
 ] as const;
 const [HOME] = PAGES;
 
-const NavItem = ({ icon: Icon, ...props }: NavLinkProps & { icon: AnimatedIcon; href: string; onClick: (event: React.MouseEvent) => void }) => {
+const NavItem = ({ icon: Icon, ...props }: NavLinkProps & { icon: AnimatedIcon; href: string; onClick?: (event: React.MouseEvent) => void; target?: string; rel?: string }) => {
   const { ref, hover } = useIconHover();
   return <NavLink {...props} {...hover} leftSection={<Icon ref={ref} size={18} />} />;
 };
@@ -196,6 +199,9 @@ const Shell = () => {
               }}
             />
           ))}
+          {section === 1 && (
+            <NavItem icon={CoffeeIcon} href="https://www.buymeacoffee.com/suarezluis" target="_blank" rel="noreferrer" label="Buy me a coffee" c="dimmed" />
+          )}
         </AppShell.Section>
         ))}
       </AppShell.Navbar>

@@ -20,6 +20,19 @@ Before each test LANscape also pings your router and your internet host, so the 
 - **History** shows speed and latency over the last day, week, month, year or all time. The latency chart can show full tests, ping checks, or both.
 - Click a column header in the table to sort by it.
 
+### Internet health
+
+**Internet health** scores your connection from 0 to 100 over the last 24 hours, with the last 7 days next to it for comparison. It comes from the ping checks to your internet host, in four parts:
+
+| Part | Weight | Full points | No points |
+| --- | --- | --- | --- |
+| Uptime (time not in an outage) | 40% | 100% | 98% or less (about 30 minutes down a day) |
+| Packet loss, outside outages | 25% | 0% | 5% or more |
+| Internet ping (median) | 20% | 20 ms or less | 150 ms or more |
+| Jitter (median) | 15% | 2 ms or less | 30 ms or more |
+
+Each part scores in a straight line between those values, and the score is their weighted average: 90 and up is Excellent, 75 Good, 50 Fair, below that Poor. The card shows each part's value and points, so you can see what pulled the score down. It needs half an hour of ping checks to start.
+
 ### Outages
 
 **Outages** lists the times your internet was down over the last day, week, month or year: when each started, how long it lasted, and where the problem was, with a timeline above. An outage is two or more ping checks in a row where every packet to your internet host was lost; one lost check on its own is treated as a blip. Outages come from ping checks, so ping checks need to be on (Automations).
@@ -128,7 +141,7 @@ Pi-hole only knows names if it hands out addresses itself (its DHCP server), or 
 
 AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Claude, can read LANscape's data, so you can ask them things like "was the internet slow last night?" or "what joined the network this week?". They get read-only tools for:
 
-- a summary of the network right now
+- a summary of the network right now, including the Internet Health Score
 - speed test results and latency over time
 - the device list and each device's online/offline history
 - internet outages, and whether each was in your home network or past your router
@@ -179,6 +192,6 @@ Speed test results include your public IP address; LANscape never stores it.
 
 ## Support LANscape
 
-LANscape is free and open source. If it's useful to you, you can buy me a coffee:
+LANscape is free and open source. If it's useful to you, you can buy me a coffee, here or with **Buy me a coffee** at the bottom of the sidebar:
 
 [![Buy me a coffee](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/buy-me-a-coffee.svg)](https://www.buymeacoffee.com/suarezluis)
