@@ -10,6 +10,12 @@ Umbrel's own login doesn't cover apps on the host network, so LANscape has its o
 
 **Running LANscape on plain Docker** (see the README), set `APP_PASSWORD` in the compose file and sign in with it; **Reset to APP_PASSWORD** in Settings switches back to it. Without `APP_PASSWORD`, the first visit asks you to set a password. To reset a forgotten one, create an empty file named `reset-password` in the data folder (the volume mounted at `/data`) and restart the container: it goes back to `APP_PASSWORD`, or to the first-visit screen without one.
 
+## Overview
+
+The home screen, with one tile per question: is the internet **up** right now (and its health score), the **latest speed test** (against your plan, if you've entered it), **outages** in the last week, **services** with trouble, **devices** online and new since your last visit, and the **latest alerts**. Each tile's **Details** opens the full page. It refreshes every 30 seconds.
+
+"New since your last visit" is remembered by your browser, so each browser keeps its own; the first time, it shows the last day.
+
 ## Speed tests
 
 **Run speed test** measures ping, download and upload against a nearby speedtest.net server, with a live gauge. **Stop** cancels it.

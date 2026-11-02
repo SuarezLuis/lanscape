@@ -15,8 +15,10 @@ test("a wrong password is refused, the right one signs in", async ({ page }) => 
   await expect(page.getByText("Wrong password")).toBeVisible();
   await page.getByRole("textbox", { name: "Password" }).fill("e2e-password-1");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Internet health" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Outages" })).toBeVisible();
+  // Signing in lands on the Overview
+  await expect(page).toHaveURL(/\/overview$/);
+  for (const tile of ["Internet", "Speed", "Outages", "Services", "Devices", "Alerts"]) await expect(page.getByRole("heading", { name: tile, exact: true })).toBeVisible();
+  await expect(page.getByText("Living Room TV").or(page.getByText("New since yesterday"))).toBeVisible();
 });
 
 test("runs a speed test and shows the result", async ({ page }) => {
