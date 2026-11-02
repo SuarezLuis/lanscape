@@ -20,6 +20,17 @@ Before each test LANscape also pings your router and your internet host, so the 
 - **History** shows speed and latency over the last day, week, month, year or all time. The latency chart can show full tests, ping checks, or both.
 - Click a column header in the table to sort by it.
 
+### Outages
+
+**Outages** lists the times your internet was down over the last day, week or month: when each started, how long it lasted, and where the problem was, with a timeline above. An outage is two or more ping checks in a row where every packet to your internet host was lost; one lost check on its own is treated as a blip. Outages come from ping checks, so ping checks need to be on (Automations).
+
+Each outage is compared with your router's pings at the same time:
+
+- **Past router:** the router kept answering, so the problem was with your internet provider or beyond.
+- **Home network:** the router didn't answer either, so it was the router itself, or the Umbrel's connection to it (cable, switch or Wi-Fi).
+
+LANscape keeps raw ping checks for 90 days, so outages go back a month.
+
 ## Network
 
 The **Network** page lists every device that answers on your network: name, IP address, maker, MAC address, and when it was first and last seen.
@@ -65,6 +76,8 @@ For ping rules, **how long** sets how long the problem has to last before you he
 
 Each rule sends **one** alert when a problem starts and **one** when it clears. Three starter rules are included, all off.
 
+**Internet outage ends** (on by default) alerts once the internet is back after an outage, with how long it was down and whether your router answered. It can't alert during the outage, since the alert itself needs the internet.
+
 **New device joins the network** alerts when a device LANscape has never seen appears. The very first scan only records what's already there. Devices that were asleep for it alert when they turn up, and several found in the same scan come as one alert.
 
 **Unknown device is back** (off by default) alerts when a device you haven't marked as known comes back after an hour or more away, like a visitor's phone or something that only joins now and then. Mark your own devices as known on the Network page first, or you'll hear about them too.
@@ -108,6 +121,7 @@ AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Cl
 - a summary of the network right now
 - speed test results and latency over time
 - the device list and each device's online/offline history
+- internet outages, and whether each was in your home network or past your router
 - the alerts LANscape raised
 
 Agents can't change settings, run scans or speed tests, or see Pi-hole's DNS activity. The tab has a few questions to start with, like "When was my internet slow this month, and was it my ISP or my home network?" or "Which devices never go offline?".

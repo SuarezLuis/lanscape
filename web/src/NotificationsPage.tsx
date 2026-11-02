@@ -134,6 +134,7 @@ const KIND: Record<string, { label: string; color: string }> = {
   problem: { label: "Problem", color: "red" },
   resolved: { label: "Resolved", color: "teal" },
   device: { label: "New device", color: "blue" },
+  outage: { label: "Outage", color: "orange" },
 };
 
 type Channel = inferRouterOutputs<AppRouter>["notifications"]["channels"][number];
@@ -402,6 +403,12 @@ export const NotificationsPage = () => {
             Each rule notifies once when a problem starts and once when it clears. "Normal" is the median of the last 7
             days, and needs at least 5 speed tests or an hour of ping checks.
           </Text>
+          <Switch
+            label="Internet outage ends"
+            description="Two or more ping checks in a row lost every packet. Sent once the internet is back, with how long it was down and whether your router answered."
+            checked={deviceAlerts.data?.outage ?? true}
+            onChange={(event) => setDeviceAlert.mutate({ alert: "outage", on: event.currentTarget.checked })}
+          />
           <Switch
             label="New device joins the network"
             checked={deviceAlerts.data?.newDevice ?? true}

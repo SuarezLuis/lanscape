@@ -19,6 +19,7 @@ import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
 import { latencyHistory, RANGES, since } from "./latency";
 import { createMcpToken, describeMcp, revokeMcpToken } from "./mcp";
+import { listOutages, OUTAGE_ALERTS, OUTAGE_RANGES, outageAlertsOn } from "./outages";
 import { CHANNEL_IDS, describeChannels, saveChannel, sendTest } from "./jobs/channels";
 import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
@@ -153,6 +154,7 @@ export const appRouter = t.router({
       });
     }),
     latency: procedure.input(rangeInput).query(({ input }) => latencyHistory(input.range)),
+    outages: procedure.input(z.object({ range: z.enum(OUTAGE_RANGES) })).query(({ input }) => listOutages(input.range)),
     servers: procedure.query(() => listServers()),
     server: procedure.query(async () => (await prisma.setting.findUnique({ where: { key: SERVER_SETTING } }))?.value || null),
     setServer: procedure
@@ -190,11 +192,11 @@ export const appRouter = t.router({
     unread: procedure.query(() => prisma.notification.count({ where: { read: false } })),
     markAllRead: procedure.mutation(() => prisma.notification.updateMany({ where: { read: false }, data: { read: true } })),
     channels: procedure.query(() => describeChannels()),
-    deviceAlerts: procedure.query(() => readDeviceAlerts()),
+    deviceAlerts: procedure.query(async () => ({ ...(await readDeviceAlerts()), outage: await outageAlertsOn() })),
     setDeviceAlert: procedure
-      .input(z.object({ alert: z.enum(["newDevice", "unknownBack"]), on: z.boolean() }))
+      .input(z.object({ alert: z.enum(["newDevice", "unknownBack", "outage"]), on: z.boolean() }))
       .mutation(({ input }) => {
-        const key = input.alert === "newDevice" ? NEW_DEVICE_ALERTS : UNKNOWN_BACK_ALERTS;
+        const key = { newDevice: NEW_DEVICE_ALERTS, unknownBack: UNKNOWN_BACK_ALERTS, outage: OUTAGE_ALERTS }[input.alert];
         const value = input.on ? "on" : "off";
         return prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
       }),
