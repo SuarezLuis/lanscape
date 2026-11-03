@@ -134,7 +134,8 @@ const RuleRow = ({ rule, metrics, save, remove }: { rule: Rule; metrics: Metrics
 const KIND: Record<string, { label: string; color: string }> = {
   problem: { label: "Problem", color: "red" },
   resolved: { label: "Resolved", color: "teal" },
-  device: { label: "New device", color: "blue" },
+  device: { label: "Device", color: "blue" },
+  port: { label: "Port", color: "violet" },
   outage: { label: "Outage", color: "orange" },
   report: { label: "Report", color: "grape" },
 };
@@ -421,6 +422,18 @@ export const NotificationsPage = () => {
             description="A device you haven't marked as known returns after an hour or more away. Mark your own devices as known on the Network page first."
             checked={deviceAlerts.data?.unknownBack ?? false}
             onChange={(event) => setDeviceAlert.mutate({ alert: "unknownBack", on: event.currentTarget.checked })}
+          />
+          <Switch
+            label="A device opens a new port"
+            description="After a port scan (Network page or Automations), when a device has a port open that it didn't have on its previous scan. Nothing on a device's first scan."
+            checked={deviceAlerts.data?.portOpened ?? true}
+            onChange={(event) => setDeviceAlert.mutate({ alert: "portOpened", on: event.currentTarget.checked })}
+          />
+          <Switch
+            label="A device closes a port"
+            description="When a port that was open on the previous scan isn't anymore, like a service that stopped."
+            checked={deviceAlerts.data?.portClosed ?? false}
+            onChange={(event) => setDeviceAlert.mutate({ alert: "portClosed", on: event.currentTarget.checked })}
           />
           {rules.data?.rules.map((rule) => (
             <RuleRow

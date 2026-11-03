@@ -38,12 +38,13 @@ test("editing a rule starts its alert state over", async () => {
   expect(edited).toMatchObject({ value: 200, alerting: false, pendingSince: null });
 });
 
-test("alert switches: new devices and outages on by default, each can be turned off", async () => {
+test("alert switches: new devices, outages and new ports on by default, each can be switched", async () => {
   const api = await signedIn();
-  expect(await api.notifications.deviceAlerts()).toEqual({ newDevice: true, unknownBack: false, outage: true });
+  expect(await api.notifications.deviceAlerts()).toEqual({ newDevice: true, unknownBack: false, outage: true, portOpened: true, portClosed: false });
   await api.notifications.setDeviceAlert({ alert: "outage", on: false });
   await api.notifications.setDeviceAlert({ alert: "unknownBack", on: true });
-  expect(await api.notifications.deviceAlerts()).toEqual({ newDevice: true, unknownBack: true, outage: false });
+  await api.notifications.setDeviceAlert({ alert: "portClosed", on: true });
+  expect(await api.notifications.deviceAlerts()).toEqual({ newDevice: true, unknownBack: true, outage: false, portOpened: true, portClosed: true });
 });
 
 test("tells Umbrel apart from plain Docker with a preset password", async () => {
