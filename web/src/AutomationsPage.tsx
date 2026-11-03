@@ -9,6 +9,7 @@ type AutomationInput = inferRouterInputs<AppRouter>["automations"]["update"];
 type SpeedtestInput = Extract<AutomationInput, { job: "speedtest" }>;
 type PingInput = Extract<AutomationInput, { job: "ping" }>;
 type DevicesInput = Extract<AutomationInput, { job: "devices" }>;
+type PortsInput = Extract<AutomationInput, { job: "ports" }>;
 
 const SPEEDTEST_EVERY = [
   { value: "off", label: "Off" },
@@ -28,6 +29,12 @@ const DEVICES_EVERY = [
   { value: "15", label: "Every 15 minutes" },
   { value: "30", label: "Every 30 minutes" },
   { value: "60", label: "Every hour" },
+];
+const PORTS_EVERY = [
+  { value: "off", label: "Off" },
+  { value: "360", label: "Every 6 hours" },
+  { value: "720", label: "Every 12 hours" },
+  { value: "1440", label: "Daily" },
 ];
 const HOURS = Array.from({ length: 24 }, (_, hour) => ({
   value: String(hour * 60),
@@ -80,7 +87,8 @@ export const AutomationsPage = () => {
   const speedtest = list.data?.automations.find((a) => a.job === "speedtest");
   const ping = list.data?.automations.find((a) => a.job === "ping");
   const devices = list.data?.automations.find((a) => a.job === "devices");
-  if (!speedtest || !ping || !devices) return null;
+  const ports = list.data?.automations.find((a) => a.job === "ports");
+  if (!speedtest || !ping || !devices || !ports) return null;
 
   const savedTarget = ping.target ?? "1.1.1.1";
   const draftTarget = target ?? savedTarget;
@@ -90,6 +98,14 @@ export const AutomationsPage = () => {
       job: "speedtest",
       everyMinutes: speedtest.everyMinutes as SpeedtestInput["everyMinutes"],
       offsetMinutes: speedtest.offsetMinutes,
+      ...changes,
+      timeZone: browserTimeZone,
+    });
+  const savePorts = (changes: Partial<Pick<PortsInput, "everyMinutes" | "offsetMinutes">>) =>
+    update.mutate({
+      job: "ports",
+      everyMinutes: ports.everyMinutes as PortsInput["everyMinutes"],
+      offsetMinutes: ports.offsetMinutes,
       ...changes,
       timeZone: browserTimeZone,
     });
@@ -208,6 +224,37 @@ export const AutomationsPage = () => {
             {nextRunText(devices.nextRun)}
           </Text>
           <LastRun status={devices.status} />
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="md" radius="md">
+        <Stack gap="sm">
+          <Title order={3}>Port scan</Title>
+          <Text size="sm" c="dimmed">
+            Checks about 90 common ports on every online device and notes what answers, so the Network page's Ports column
+            stays current. It only connects, one device at a time; nothing on the devices changes. Off by default.
+          </Text>
+          <Group grow align="flex-end">
+            <Select
+              label="How often"
+              data={PORTS_EVERY}
+              value={fromEvery(ports.everyMinutes)}
+              onChange={(value) => savePorts({ everyMinutes: toEvery(value) as PortsInput["everyMinutes"] })}
+              allowDeselect={false}
+            />
+            <Select
+              label="Starting at"
+              data={HOURS}
+              value={String(Math.floor(ports.offsetMinutes / 60) * 60)}
+              onChange={(value) => savePorts({ offsetMinutes: Number(value) })}
+              disabled={!ports.everyMinutes}
+              allowDeselect={false}
+            />
+          </Group>
+          <Text size="sm" c="dimmed">
+            {nextRunText(ports.nextRun)} {ports.everyMinutes ? `Times follow ${ports.timeZone}.` : ""}
+          </Text>
+          <LastRun status={ports.status} />
         </Stack>
       </Card>
     </Stack>

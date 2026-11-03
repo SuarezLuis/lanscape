@@ -34,6 +34,7 @@ import { findGateway } from "./jobs/ping";
 import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
 import { readStatus } from "./jobs/status";
+import { devicePorts, scanDevicePorts } from "./jobs/ports";
 import { displayModel, readTraits } from "./jobs/traits";
 import { findTelegramChats } from "./jobs/telegram";
 import { loadAutomations, nextRun } from "./jobs/scheduler";
@@ -90,6 +91,12 @@ const automationInput = z.discriminatedUnion("job", [
   z.object({
     job: z.literal("speedtest"),
     everyMinutes: z.union([z.literal(60), z.literal(360), z.literal(720), z.literal(1440)]).nullable(),
+    offsetMinutes: z.int().min(0).max(1439),
+    timeZone: z.string().refine(validTimeZone, "Unknown time zone"),
+  }),
+  z.object({
+    job: z.literal("ports"),
+    everyMinutes: z.union([z.literal(360), z.literal(720), z.literal(1440)]).nullable(),
     offsetMinutes: z.int().min(0).max(1439),
     timeZone: z.string().refine(validTimeZone, "Unknown time zone"),
   }),
@@ -238,14 +245,19 @@ export const appRouter = t.router({
   devices: t.router({
     list: procedure.query(async () => {
       const [devices, lastScan] = await Promise.all([
-        prisma.device.findMany(),
+        prisma.device.findMany({ include: { ports: { select: { port: true }, orderBy: { port: "asc" } } } }),
         prisma.setting.findUnique({ where: { key: LAST_SCAN } }),
       ]);
       const scannedAt = lastScan ? new Date(lastScan.value) : null;
       const traits = await readTraits(devices.map((device) => device.mac));
       return {
         lastScan: scannedAt,
-        devices: devices.map((device) => ({ ...device, model: displayModel(traits.get(device.mac)), online: scannedAt !== null && device.lastSeen >= scannedAt })),
+        devices: devices.map(({ ports, ...device }) => ({
+          ...device,
+          model: displayModel(traits.get(device.mac)),
+          online: scannedAt !== null && device.lastSeen >= scannedAt,
+          openPorts: ports.map((entry) => entry.port),
+        })),
       };
     }),
     scan: procedure
@@ -277,6 +289,15 @@ export const appRouter = t.router({
     // What the device announces about itself (Cast id, model, DHCP hostname...), used to follow it across MACs
     identity: procedure.input(z.object({ mac: z.string() })).query(async ({ input }) => (await readTraits([input.mac])).get(input.mac) ?? {}),
     dhcpStatus: procedure.query(() => readStatus("integration.dhcp")),
+    ports: procedure.input(z.object({ mac: z.string() })).query(({ input }) => devicePorts(input.mac)),
+    // Only devices on the list, at the address they were last seen at
+    scanPorts: procedure.input(z.object({ mac: z.string() })).mutation(async ({ input }) => {
+      try {
+        await scanDevicePorts(input.mac);
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : String(error) });
+      }
+    }),
     history: procedure
       .input(z.object({ mac: z.string() }))
       .query(({ input }) => prisma.deviceEvent.findMany({ where: { mac: input.mac }, orderBy: { at: "desc" }, take: 100 })),

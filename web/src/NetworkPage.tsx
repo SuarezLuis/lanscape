@@ -304,6 +304,88 @@ const Identity = ({ mac }: { mac: string }) => {
   );
 };
 
+// The first few open ports from the latest port scan, all of them on hover
+const PortsCell = ({ device }: { device: Device }) => {
+  if (!device.portsScannedAt) return <Text span c="dimmed" fz="sm">–</Text>;
+  if (device.openPorts.length === 0) return <Text span c="dimmed" fz="sm">None open</Text>;
+  const shown = device.openPorts.slice(0, 3).join(", ");
+  const more = device.openPorts.length - 3;
+  return (
+    <Tooltip label={device.openPorts.join(", ")} disabled={more <= 0} multiline maw={260}>
+      <Text span ff="monospace" fz="sm" style={{ whiteSpace: "nowrap" }}>
+        {shown}
+        {more > 0 && <Text span c="dimmed" fz="sm">{` +${more}`}</Text>}
+      </Text>
+    </Tooltip>
+  );
+};
+
+// What answers on the device's common ports, scanned when asked (or on the Automations schedule)
+const OpenPorts = ({ mac }: { mac: string }) => {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const ports = useQuery(trpc.devices.ports.queryOptions({ mac }));
+  const scan = useMutation(
+    trpc.devices.scanPorts.mutationOptions({
+      onSuccess: () => Promise.all([queryClient.invalidateQueries(trpc.devices.ports.queryFilter({ mac })), queryClient.invalidateQueries(trpc.devices.list.queryFilter())]),
+    }),
+  );
+  const data = ports.data;
+  return (
+    <Stack gap={6}>
+      <Group justify="space-between" wrap="nowrap">
+        <Title order={5}>Open ports</Title>
+        <Button size="xs" variant="light" loading={scan.isPending} onClick={() => scan.mutate({ mac })}>
+          {data?.scannedAt ? "Scan again" : "Scan ports"}
+        </Button>
+      </Group>
+      <Text size="xs" c="dimmed">
+        Checks about 90 common ports and what answers on them. It only connects; nothing on the device changes.
+        {data?.scannedAt ? ` Last scanned ${when(data.scannedAt)}.` : ""}
+      </Text>
+      {scan.isError && (
+        <Text size="sm" c="red">
+          {scan.error.message}
+        </Text>
+      )}
+      {data?.scannedAt && data.ports.length === 0 && <Text size="sm">No common ports are open.</Text>}
+      {data?.ports.map((entry) => {
+        // "Usually PostgreSQL, but answering as Pi-hole" when what answered isn't what usually runs there
+        const usual = entry.usual ? `Usually ${entry.usual}` : null;
+        const plain = (text: string) => text.toLowerCase().replace(/^an? /, "");
+        // Any web app on a port that's usually just "a web server" is no surprise
+        const same =
+          entry.service && entry.usual && (/^a web server/.test(entry.usual) || plain(entry.usual).includes(plain(entry.service)) || plain(entry.service).includes(plain(entry.usual)));
+        return (
+          <Group key={entry.port} gap="sm" wrap="nowrap" align="flex-start">
+            <Text ff="monospace" size="sm" w={52} ta="right" style={{ flexShrink: 0 }}>
+              {entry.port}
+            </Text>
+            <Stack gap={0}>
+              <Text size="sm">{entry.service ?? (entry.usual ? `Probably ${entry.usual}` : "Something answered")}</Text>
+              {entry.service && !same && usual && (
+                <Text size="xs" c="dimmed">
+                  {usual}, but this is what answered
+                </Text>
+              )}
+              {!entry.service && (
+                <Text size="xs" c="dimmed">
+                  It accepted a connection but didn't say what it is{usual ? `; this port is usually ${entry.usual}` : ""}.
+                </Text>
+              )}
+              {entry.detail && entry.detail !== entry.service && (
+                <Text size="xs" c="dimmed" style={{ wordBreak: "break-all" }}>
+                  {entry.detail}
+                </Text>
+              )}
+            </Stack>
+          </Group>
+        );
+      })}
+    </Stack>
+  );
+};
+
 const PiholeActivity = ({ mac }: { mac: string }) => {
   const trpc = useTRPC();
   const activity = useQuery(trpc.integrations.piholeActivity.queryOptions({ mac }));
@@ -405,6 +487,7 @@ const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () 
             allowDeselect={false}
           />
           <Identity mac={device.mac} />
+          <OpenPorts mac={device.mac} />
           <PiholeActivity mac={device.mac} />
           <Title order={5}>History</Title>
           {history.data?.length === 0 && (
@@ -528,6 +611,7 @@ export const NetworkPage = () => {
                   <Table.Th>IP</Table.Th>
                   <Table.Th>Maker</Table.Th>
                   <Table.Th>Model</Table.Th>
+                  <Table.Th>Ports</Table.Th>
                   <Table.Th>MAC</Table.Th>
                   <Table.Th>First seen</Table.Th>
                   <Table.Th>Last seen</Table.Th>
@@ -558,7 +642,7 @@ export const NetworkPage = () => {
                               .filter(Boolean)
                               .join(" · ")}
                           >
-                            <Badge size="xs" color="orange" variant="light">
+                            <Badge size="xs" color="orange" variant="light" style={{ flexShrink: 0, overflow: "visible" }}>
                               Watched
                             </Badge>
                           </Tooltip>
@@ -570,6 +654,9 @@ export const NetworkPage = () => {
                     </Table.Td>
                     <Table.Td fz="sm">{device.vendor ?? <Text span c="dimmed" fz="sm">Unknown</Text>}</Table.Td>
                     <Table.Td fz="sm">{device.model ?? <Text span c="dimmed" fz="sm">–</Text>}</Table.Td>
+                    <Table.Td fz="sm">
+                      <PortsCell device={device} />
+                    </Table.Td>
                     <Table.Td ff="monospace" fz="sm">
                       {device.mac}
                     </Table.Td>

@@ -39,7 +39,7 @@ const load = (ms) => {
 db.exec(`
   DELETE FROM SpeedTest; DELETE FROM PingSample; DELETE FROM DeviceEvent; DELETE FROM Device;
   DELETE FROM Notification; DELETE FROM Automation; DELETE FROM Outage; DELETE FROM ServiceResult; DELETE FROM ServiceCheck;
-  DELETE FROM MacTrait;
+  DELETE FROM MacTrait; DELETE FROM DevicePort;
   DELETE FROM Setting WHERE key NOT LIKE 'auth.%';
 `);
 
@@ -154,6 +154,23 @@ const traits = db.prepare(`INSERT INTO MacTrait (mac, kind, value, seenAt) VALUE
   ["Work laptop", "dhcp-vendor", "MSFT 5.0"],
 ].forEach(([device, kind, value]) => traits.run(macs[device], kind, value, iso(scanAt)));
 
+// Last night's port scan: what answered on each device's common ports
+const ports = db.prepare(`INSERT INTO DevicePort (mac, port, service, detail) VALUES (?,?,?,?)`);
+const portsScannedAt = iso(now - 8 * HOUR);
+[
+  ["Router", [[53, null, null], [80, "a web server (HTTP)", "Opening..."], [443, "a web server (HTTPS)", null]]],
+  ["umbrel", [[22, "OpenSSH 9.6p1", "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.5"], [80, "umbrelOS", "umbrelOS"], [3000, "Uptime Kuma", "Uptime Kuma"],
+    [4545, "LANscape", "LANscape"], [8082, "Pi-hole", "Pi-hole - umbrel"], [8123, "Home Assistant", "Home Assistant"]]],
+  ["Living Room TV", [[8008, "a web server (HTTP)", null], [8009, null, null]]],
+  ["Office printer", [[80, "a web server (HTTP)", "HP OfficeJet Pro 9015e"], [443, "a web server (HTTPS)", "HP OfficeJet Pro 9015e"], [631, null, null], [9100, null, null]]],
+  ["Studio Mac mini", [[22, "OpenSSH 9.8", "SSH-2.0-OpenSSH_9.8"], [5900, "screen sharing (VNC)", "RFB 003.889"], [32400, "Plex", "Plex Media Server"]]],
+  ["Living Room Sonos", [[1400, "a web server (HTTP), Linux UPnP/1.0 Sonos", "Linux UPnP/1.0 Sonos/80.1"]]],
+  ["Front door camera", [[80, "a web server (HTTP)", null], [554, null, null]]],
+].forEach(([device, open]) => {
+  for (const [port, service, detail] of open) ports.run(macs[device], port, service, detail);
+});
+db.prepare(`UPDATE Device SET portsScannedAt = ? WHERE mac IN (${Object.keys(macs).map(() => "?").join(",")})`).run(portsScannedAt, ...Object.values(macs));
+
 // Service checks every 15 minutes for a day; Plex stopped answering 40 minutes ago
 const services = db.prepare(`INSERT INTO ServiceCheck (name, kind, target, query, everyMinutes, createdAt, failures, failingSince, alerted)
   VALUES (?,?,?,?,15,?,?,?,?)`);
@@ -204,6 +221,7 @@ const automations = db.prepare(`INSERT INTO Automation (job, everyMinutes, offse
 automations.run("speedtest", 360, ((Math.floor(minuteNow / 60) + 3) % 24) * 60, TIME_ZONE, null);
 automations.run("devices", 60, (minuteNow + 40) % 60, TIME_ZONE, null);
 automations.run("ping", 5, (minuteNow + 3) % 5, TIME_ZONE, "1.1.1.1");
+automations.run("ports", 1440, 3 * 60, TIME_ZONE, null);
 
 const settings = db.prepare(`INSERT INTO Setting (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
 const status = (summary, ago) => JSON.stringify({ at: new Date(now - ago).toISOString(), ok: true, summary });
@@ -216,6 +234,7 @@ const status = (summary, ago) => JSON.stringify({ at: new Date(now - ago).toISOS
   ["status.job.speedtest", status("648 down / 872 up Mbps", 2 * HOUR)],
   ["status.job.ping", status("Router 0.5 ms, Internet 10.4 ms", 3 * MIN)],
   ["status.job.devices", status("18 devices answered", 2 * MIN)],
+  ["status.job.ports", status("18 devices scanned, 21 open ports", 8 * HOUR)],
   ["status.channel.ntfy", JSON.stringify({ at: new Date(now - 75 * MIN).toISOString(), ok: true })],
   ["status.channel.telegram", JSON.stringify({ at: new Date(now - 75 * MIN).toISOString(), ok: true })],
 ].forEach(([key, value]) => settings.run(key, value));

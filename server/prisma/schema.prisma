@@ -94,10 +94,24 @@ model Device {
   offlineAlerted      Boolean       @default(false)
   // Alert each time it comes online after at least this long away; null = off
   alertOnlineMinutes  Int?
+  // When its ports were last scanned (on request); ports holds what that scan found open
+  portsScannedAt      DateTime?
   events              DeviceEvent[]
+  ports               DevicePort[]
 }
 
 // A device going online or offline between scans
+// An open TCP port from the device's latest port scan, with what answered on it
+model DevicePort {
+  mac     String
+  device  Device  @relation(fields: [mac], references: [mac], onDelete: Cascade)
+  port    Int
+  service String? // what LANscape recognized answering, like "Pi-hole" or "OpenSSH 9.6"; null when it couldn't tell
+  detail  String? // the web page title, server header or banner it was recognized from
+
+  @@id([mac, port])
+}
+
 model DeviceEvent {
   id     Int      @id @default(autoincrement())
   mac    String

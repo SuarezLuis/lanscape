@@ -103,7 +103,7 @@ test("unknown devices back after a while come as one alert", () => {
 test("alerts on arrival only for watched devices back after the chosen time away", () => {
   const now = new Date("2026-10-31T18:00:00Z");
   const previousScan = new Date("2026-10-31T17:55:00Z");
-  const phone = { mac: "aa", ip: "192.168.0.80", vendor: null, hostname: null, name: "Alex's phone", firstSeen: now, known: true, alertOfflineMinutes: null, offlineAlerted: false, alertOnlineMinutes: 30 };
+  const phone = { mac: "aa", ip: "192.168.0.80", vendor: null, hostname: null, name: "Alex's phone", firstSeen: now, known: true, alertOfflineMinutes: null, offlineAlerted: false, alertOnlineMinutes: 30, portsScannedAt: null };
   const awayFor = (minutes: number) => ({ ...phone, lastSeen: new Date(now.getTime() - minutes * 60_000) });
   expect(onlineAlertDue(awayFor(45), previousScan, now)).toBe(true);
   expect(onlineAlertDue(awayFor(10), previousScan, now)).toBe(false); // dozed for a couple of scans

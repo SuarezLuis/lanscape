@@ -19,11 +19,12 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 - **Reports:** an optional weekly summary through your alert channels, and a 30-day report to send your ISP.
 - **Device list** from ARP scans every 5 minutes: IP, MAC, maker (from the IEEE OUI registry), model, names announced over mDNS, UPnP and DHCP, and your own names. Includes the Umbrel itself.
 - **Devices keep their identity across private MAC addresses**, matched by the stable ids they announce (Google Cast, AirPlay, HomeKit, UPnP), what they say when they join (DHCP), or their name.
+- **Open ports** per device, on demand or on a schedule, with what actually answers on each one (Pi-hole, Home Assistant, Plex, OpenSSH...) next to what usually runs on that port.
 - **Identify a device** by switching it off and on between scans.
 - **Per-device history and alerts:** mark devices as known, see when each came and went, and get alerted when a chosen device has been offline for a while or comes back online, like a phone arriving home. Delete a device to hear about it as new next time.
 - **Notification rules** on any measurement, against a fixed value or a percentage from the 7-day median, with a "how long" window. Each rule alerts once when a problem starts and once when it clears. Also alerts when a new device joins, and optionally when an unknown one comes back.
 - **Alert channels:** ntfy, Telegram (the bot answers messages with your chat ID), Discord, Slack and a generic JSON webhook.
-- **Automations page** to schedule speed tests, ping checks and device scans, showing each job's last run and errors.
+- **Automations page** to schedule speed tests, ping checks, device scans and port scans, showing each job's last run and errors.
 - **Choose the speed test server**, or let it pick the nearest.
 - **CSV export** of speed tests, ping checks and devices.
 - **Pi-hole integration:** names for devices that don't announce one, DNS activity per device, and fewer sleepy devices shown as away.
