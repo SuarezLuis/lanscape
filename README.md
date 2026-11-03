@@ -4,7 +4,7 @@
 
 Home network monitoring for [Umbrel](https://umbrel.com) or any Linux machine with Docker: internet speed, latency and outages over time, every device on your network, the services you rely on, and alerts when something changes. Ask an AI assistant about it in plain language, with a model on your own network if you prefer.
 
-Install it from an Umbrel app store: it's in the [SZ community app store](https://github.com/SuarezLuis/umbrel-apps) (add `https://github.com/SuarezLuis/umbrel-apps` under App Store → Community App Stores). User guide: [docs/HELP.md](docs/HELP.md), also on the app's Help page.
+Install it from an Umbrel app store: it's in the [SZ community app store](https://github.com/SuarezLuis/umbrel-apps) (add `https://github.com/SuarezLuis/umbrel-apps` under App Store → Community App Stores). Website: [lanscape.org](https://lanscape.org). User guide: [docs/HELP.md](docs/HELP.md), also on the app's Help page.
 
 ## Features
 
