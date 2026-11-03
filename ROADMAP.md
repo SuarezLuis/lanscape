@@ -3,7 +3,7 @@
 What's planned, and what shipped in which release. Tick items off in the PR that ships them; once a version is released it moves under Shipped, and anything still open moves to the next version. Core network monitoring must keep working without AI or external services.
 
 ## Waiting
-- [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Stays on 1.1.0 until it's approved; updates follow.
+- [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Updated to 1.10.1 before any review; later versions go in update PRs once it's approved.
 
 ## v1.11.0 (next)
 - [ ] **AI write actions (assistant and MCP):** let the assistant and MCP agents change LANscape's own data, starting with naming devices, then marking devices known, setting per-device online/offline alerts, adding service checks and turning alert rules on or off. Safeguards: the MCP server gets a separate write-scope token (the current one stays read-only); the assistant asks before each change and shows exactly what it will do; every change is logged with who made it and can be undone; and nothing touches the network itself (no router, DNS or firewall changes).
