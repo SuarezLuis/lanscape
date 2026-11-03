@@ -3,6 +3,7 @@ import type { Automation } from "../generated/prisma/client";
 import { runDeviceScan } from "./devices";
 import { recordFailure, recordStatus } from "./status";
 import { DEFAULT_INTERNET_HOST, runPingCheck } from "./ping";
+import { resumeDuePauses } from "./pihole";
 import { scanOnlineDevicePorts } from "./ports";
 import { runDueServiceChecks } from "./services";
 import { sendReportIfDue } from "../reports";
@@ -129,6 +130,7 @@ export const startScheduler = () => {
       .catch(logFailure("tick"));
     runDueServiceChecks(now).catch(logFailure("service checks"));
     sendReportIfDue(now).catch(logFailure("weekly report"));
+    resumeDuePauses(now).catch(logFailure("resuming paused devices"));
   };
   atNextMinute(tick);
 };

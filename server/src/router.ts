@@ -31,9 +31,10 @@ import { METRIC_KEYS, METRICS } from "./jobs/notify";
 import { LAST_SCAN, NEW_DEVICE_ALERTS, readDeviceAlerts, runDeviceScan, UNKNOWN_BACK_ALERTS } from "./jobs/devices";
 import { runDiagnostics } from "./jobs/diagnostics";
 import { findGateway } from "./jobs/ping";
-import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
+import { describePihole, PAUSE_MINUTES, pauseDevice, pausedUntil, piholeActivity, piholeSettings, removePihole, resumeDevice, savePihole } from "./jobs/pihole";
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
 import { readStatus } from "./jobs/status";
+import { guessDevice } from "./jobs/guess";
 import { devicePorts, PORT_CLOSED_ALERTS, PORT_OPENED_ALERTS, readPortAlerts, scanDevicePorts } from "./jobs/ports";
 import { displayModel, readTraits } from "./jobs/traits";
 import { findTelegramChats } from "./jobs/telegram";
@@ -110,6 +111,15 @@ const automationInput = z.discriminatedUnion("job", [
     target: pingHost,
   }),
 ]);
+
+const piholeCall = async <T>(run: () => Promise<T>) => {
+  try {
+    return await run();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new TRPCError({ code: "BAD_REQUEST", message: /fetch failed|aborted|timeout|ECONNREFUSED/i.test(message) ? "Couldn't reach Pi-hole" : message });
+  }
+};
 
 const providerCall = async <T>(run: () => Promise<T>) => {
   try {
@@ -296,6 +306,24 @@ export const appRouter = t.router({
     identity: procedure.input(z.object({ mac: z.string() })).query(async ({ input }) => (await readTraits([input.mac])).get(input.mac) ?? {}),
     dhcpStatus: procedure.query(() => readStatus("integration.dhcp")),
     ports: procedure.input(z.object({ mac: z.string() })).query(({ input }) => devicePorts(input.mac)),
+    // What it probably is, from its maker, name, DHCP details, open ports and (with Pi-hole) the domains it looks up
+    guess: procedure.input(z.object({ mac: z.string() })).query(async ({ input }) => {
+      const device = await prisma.device.findUnique({ where: { mac: input.mac }, include: { ports: { select: { port: true } } } });
+      if (!device) return null;
+      const [traits, activity] = await Promise.all([readTraits([input.mac]), piholeActivity(input.mac).catch(() => null)]);
+      return guessDevice({
+        vendor: device.vendor,
+        hostname: device.hostname,
+        traits: traits.get(input.mac),
+        ports: device.ports.map((entry) => entry.port),
+        domains: activity?.found ? activity.topDomains.map((entry) => entry.domain) : [],
+      });
+    }),
+    pausedUntil: procedure.input(z.object({ mac: z.string() })).query(({ input }) => pausedUntil(input.mac)),
+    pause: procedure
+      .input(z.object({ mac: z.string(), minutes: z.union(PAUSE_MINUTES.map((minutes) => z.literal(minutes))) }))
+      .mutation(({ input }) => piholeCall(() => pauseDevice(input.mac, input.minutes))),
+    resume: procedure.input(z.object({ mac: z.string() })).mutation(({ input }) => piholeCall(() => resumeDevice(input.mac))),
     // Only devices on the list, at the address they were last seen at
     scanPorts: procedure.input(z.object({ mac: z.string() })).mutation(async ({ input }) => {
       try {

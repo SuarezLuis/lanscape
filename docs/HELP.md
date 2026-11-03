@@ -80,6 +80,10 @@ A new private address is treated as a known device only when exactly one device 
 
 Listening for DHCP needs UDP port 67, so it stays off if another DHCP server runs on the same machine (such as Pi-hole's, if you turned it on).
 
+### What a device probably is
+
+When a device doesn't name its model, its panel shows a best guess, like **Probably: Camera** or **Probably: Roku**, with the clues behind it: open ports (8009 is Google Cast, 62078 an iPhone or iPad, 554 a camera…), the name it announces, what it says when it joins (an Android or Windows DHCP request), its maker, and, with Pi-hole connected, the domains it looks up (`roku.com`, `xboxlive.com`…). It's a guess: check the reasons before renaming the device.
+
 ### Open ports
 
 Open a device and select **Scan ports** to see which of about 90 common ports it has open (web pages, SSH, file sharing, printers, media servers, databases and so on) and what answers on each. LANscape reads the web page title, the server's name or the greeting a service sends, and names it when it recognizes it, like Pi-hole, Home Assistant, Plex or OpenSSH 9.6. When that isn't what usually runs on the port, it says so: *Uptime Kuma, usually Grafana or a development web server*. When a port accepts a connection but doesn't say what it is, you see what usually runs there.
@@ -95,6 +99,8 @@ Not sure what `Espressif Inc. · 192.168.0.43` is? Click **Identify a device**:
 3. If more than one device went quiet, turn it back on and scan once more. Only the one that comes back is it.
 
 Then name it right there.
+
+**With Pi-hole connected** there's a gentler way: open the device and select **Pause internet** (1, 2 or 5 minutes). Pi-hole answers every lookup from that device with "blocked", so whatever suddenly can't load anything is that device: open an app on the one you suspect. The device stays on your Wi-Fi and the pause ends by itself, even if LANscape restarts. LANscape does this with a Pi-hole group called *LANscape pause* that blocks everything, and puts the device back the way it was afterwards. It only works for devices that use Pi-hole for DNS, and an app that's already connected may keep working until it looks something up again.
 
 ## Services
 
@@ -183,7 +189,8 @@ If you run [Pi-hole](https://pi-hole.net) (version 6 or later), connecting it gi
 
 - **Names** for devices that don't announce one. Your own names and announced names still come first.
 - **A sign of life** for sleepy devices: a device that asked Pi-hole for something in the last 10 minutes counts as online, even if it slept through the scan. (Identify a device ignores this, so a device you just switched off isn't counted.)
-- **DNS activity** in each device's panel on the Network page: how many requests it made, how many were blocked, and the domains it asks for most. It helps tell what a mystery device is.
+- **DNS activity** in each device's panel on the Network page: how many requests it made, how many were blocked, and the domains it asks for most. It helps tell what a mystery device is, and feeds the device's *Probably* guess.
+- **Pause internet** for a device for a few minutes, to find out which one it is (see Identify a device).
 
 To connect, create an app password in Pi-hole (Settings → Web interface / API → Configure app password), then enter it with Pi-hole's address on the Pi-hole tab. On Umbrel the address is `http://localhost:8082`. LANscape tests the connection before saving it.
 
