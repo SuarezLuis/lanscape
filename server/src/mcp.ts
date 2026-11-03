@@ -7,6 +7,7 @@ import { latencyHistory, since } from "./latency";
 import { listOutages, OUTAGE_RANGES } from "./outages";
 import { LAST_SCAN } from "./jobs/devices";
 import { listServices } from "./jobs/services";
+import { guessDevice } from "./jobs/guess";
 import { devicePorts } from "./jobs/ports";
 import { readTraits } from "./jobs/traits";
 import { METRICS, type Metric } from "./jobs/notify";
@@ -215,7 +216,7 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
     },
   }),
   get_device_history: tool({
-    description: "One device's details, what it announces about itself (identity: model, Cast/AirPlay/HomeKit/UPnP ids, the hostname, vendor class and fingerprint from its DHCP requests), its open ports from the latest port scan (each with what usually runs there and what LANscape recognized answering; portsScannedAt is null if never scanned), and when it went online or offline (latest 100 changes). Find the MAC with list_devices.",
+    description: "One device's details, what it announces about itself (identity: model, Cast/AirPlay/HomeKit/UPnP ids, the hostname, vendor class and fingerprint from its DHCP requests), a best guess at what kind of device it is (probably: kind and reasons) when it doesn't name its model, its open ports from the latest port scan (each with what usually runs there and what LANscape recognized answering; portsScannedAt is null if never scanned), and when it went online or offline (latest 100 changes). Find the MAC with list_devices.",
     input: z.object({ mac: z.string().trim().toLowerCase().regex(/^([\da-f]{2}:){5}[\da-f]{2}$/, "A MAC like aa:bb:cc:dd:ee:ff") }),
     run: async ({ mac }) => {
       const [device, scannedAt] = await Promise.all([
@@ -224,9 +225,12 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
       ]);
       if (!device) throw new Error(`No device with MAC ${mac}`);
       const { scannedAt: portsScannedAt, ports } = await devicePorts(mac);
+      const identity = (await readTraits([mac])).get(mac) ?? {};
       return {
         ...deviceView(device, scannedAt),
-        identity: (await readTraits([mac])).get(mac) ?? {},
+        identity,
+        // What it probably is, with the clues; null when it names its model or nothing hints at a kind
+        probably: guessDevice({ vendor: device.vendor, hostname: device.hostname, traits: identity, ports: ports.map((entry) => entry.port), domains: [] }),
         portsScannedAt,
         openPorts: ports.map(({ port, usual, service, detail }) => ({ port, usuallyRuns: usual, answeredAs: service, detail })),
         changes: device.events.map((event) => ({ at: event.at, online: event.online })),

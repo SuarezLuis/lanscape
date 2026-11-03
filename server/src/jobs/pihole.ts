@@ -46,20 +46,33 @@ const signIn = async ({ url, password }: Config) => {
   return { url, password, sid: body.session.sid, expires: Date.now() + (body.session.validity - 30) * 1000 };
 };
 
-const api = async <T>(config: Config, path: string): Promise<T> => {
+const request = async (config: Config, path: string, method = "GET", body?: unknown) => {
   const call = async () => {
     if (!session || session.url !== config.url || session.password !== config.password || session.expires < Date.now()) {
       session = await signIn(config);
     }
-    return fetch(`${config.url}/api${path}`, { headers: { "X-FTL-SID": session.sid }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    return fetch(`${config.url}/api${path}`, {
+      method,
+      headers: { "X-FTL-SID": session.sid, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
   };
   let response = await call();
   if (response.status === 401) {
     session = null;
     response = await call();
   }
-  if (!response.ok) throw new Error(`Pi-hole answered ${response.status}`);
-  return response.json() as Promise<T>;
+  return response;
+};
+
+const api = async <T>(config: Config, path: string, method = "GET", body?: unknown): Promise<T> => {
+  const response = await request(config, path, method, body);
+  if (!response.ok) {
+    const error = (await response.json().catch(() => null)) as { error?: { message?: string; hint?: string } } | null;
+    throw new Error(`Pi-hole answered ${response.status}${error?.error?.message ? `: ${error.error.message}` : ""}`);
+  }
+  return (response.status === 204 ? null : response.json()) as Promise<T>;
 };
 
 const MAC = /^([\da-f]{2}:){5}[\da-f]{2}$/;
@@ -137,6 +150,9 @@ export const savePihole = async (input: z.output<typeof piholeSettings>) => {
 };
 
 export const removePihole = async () => {
+  // Resume paused devices while LANscape can still reach Pi-hole
+  const paused = await prisma.setting.findMany({ where: { key: { startsWith: PAUSE_PREFIX } } });
+  for (const row of paused) await resumeDevice(row.key.slice(PAUSE_PREFIX.length));
   session = null;
   await prisma.setting.deleteMany({ where: { key: { in: [URL_KEY, PASSWORD_KEY, `status.${STATUS}`] } } });
 };
@@ -163,4 +179,88 @@ export const piholeActivity = async (mac: string) => {
   if (!client) return { found: false as const };
   const { queries } = await api<{ queries: ApiQuery[] }>(config, `/queries?client_ip=${encodeURIComponent(client.ip)}&length=${SAMPLE}`);
   return { found: true as const, total: client.queries, lastQuery: client.lastQuery, ...summarizeQueries(queries) };
+};
+
+// Pausing a device: Pi-hole answers all its lookups with "blocked" for a few minutes, so whatever loses the internet
+// is that device. A Pi-hole group holds one regex that matches every domain; the device's IP joins only that group,
+// and goes back to how it was (or is removed again) afterwards
+const PAUSE_GROUP = "LANscape pause";
+const BLOCK_ALL = ".*";
+const PAUSE_PREFIX = "pihole.pause.";
+export const PAUSE_MINUTES = [1, 2, 5] as const;
+
+type Pause = { ip: string; until: string; previous: { groups: number[]; comment: string | null } | null };
+
+const pauseGroupId = async (config: Config) => {
+  const named = async () =>
+    (await api<{ groups: { id: number; name: string }[] }>(config, "/groups")).groups.find((group) => group.name === PAUSE_GROUP)?.id;
+  let id = await named();
+  if (id === undefined) {
+    await api(config, "/groups", "POST", { name: PAUSE_GROUP, comment: "Devices LANscape is pausing; managed by LANscape", enabled: true });
+    id = await named();
+  }
+  if (id === undefined) throw new Error("Couldn't create LANscape's group in Pi-hole");
+  const rules = (await api<{ domains: { domain: string; groups: number[] }[] }>(config, "/domains/deny/regex")).domains;
+  const rule = rules.find((entry) => entry.domain === BLOCK_ALL && entry.groups.includes(id));
+  if (!rule) {
+    await api(config, "/domains/deny/regex", "POST", { domain: BLOCK_ALL, comment: "Blocks everything for devices LANscape pauses", groups: [id], enabled: true });
+  }
+  return id;
+};
+
+const readPause = async (mac: string) => {
+  const row = await prisma.setting.findUnique({ where: { key: `${PAUSE_PREFIX}${mac}` } });
+  return row ? (JSON.parse(row.value) as Pause) : null;
+};
+
+export const pausedUntil = async (mac: string) => {
+  const pause = await readPause(mac);
+  return pause ? new Date(pause.until) : null;
+};
+
+export const resumeDevice = async (mac: string) => {
+  const pause = await readPause(mac);
+  const config = await readConfig();
+  if (!pause) return;
+  if (config) {
+    const path = `/clients/${encodeURIComponent(pause.ip)}`;
+    if (pause.previous) await api(config, path, "PUT", { comment: pause.previous.comment, groups: pause.previous.groups });
+    else {
+      const response = await request(config, path, "DELETE");
+      if (!response.ok && response.status !== 404) throw new Error(`Pi-hole answered ${response.status}`);
+    }
+  }
+  // Without Pi-hole settings there's nothing left to undo here; the setting goes either way
+  await prisma.setting.delete({ where: { key: `${PAUSE_PREFIX}${mac}` } });
+};
+
+export const pauseDevice = async (mac: string, minutes: (typeof PAUSE_MINUTES)[number]) => {
+  const config = await readConfig();
+  if (!config) throw new Error("Connect Pi-hole on the Integrations page first.");
+  if (await readPause(mac)) throw new Error("This device is already paused.");
+  const device = await prisma.device.findUniqueOrThrow({ where: { mac } });
+  const group = await pauseGroupId(config);
+  const path = `/clients/${encodeURIComponent(device.ip)}`;
+  const existing = (await request(config, path)).ok
+    ? (await api<{ clients: { client: string; groups: number[]; comment: string | null }[] }>(config, path)).clients[0]
+    : undefined;
+  const pause: Pause = {
+    ip: device.ip,
+    until: new Date(Date.now() + minutes * 60_000).toISOString(),
+    previous: existing ? { groups: existing.groups, comment: existing.comment } : null,
+  };
+  // Saved first, so a failure halfway still gets undone by the resume
+  await prisma.setting.create({ data: { key: `${PAUSE_PREFIX}${mac}`, value: JSON.stringify(pause) } });
+  if (existing) await api(config, path, "PUT", { comment: existing.comment, groups: [group] });
+  else await api(config, "/clients", "POST", { client: device.ip, comment: "Paused by LANscape", groups: [group] });
+  setTimeout(() => void resumeDevice(mac).catch((error: unknown) => console.error("Resuming a paused device failed:", error)), minutes * 60_000).unref();
+  return { until: new Date(pause.until) };
+};
+
+// Each minute: anything past its time is resumed, so a restart mid-pause doesn't leave a device cut off
+export const resumeDuePauses = async (now = new Date()) => {
+  const rows = await prisma.setting.findMany({ where: { key: { startsWith: PAUSE_PREFIX } } });
+  for (const row of rows) {
+    if (new Date((JSON.parse(row.value) as Pause).until) <= now) await resumeDevice(row.key.slice(PAUSE_PREFIX.length));
+  }
 };

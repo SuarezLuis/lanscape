@@ -386,6 +386,79 @@ const OpenPorts = ({ mac }: { mac: string }) => {
   );
 };
 
+// "Probably a Roku": what the device most likely is, and the clues behind the guess
+const Guess = ({ mac }: { mac: string }) => {
+  const trpc = useTRPC();
+  const guess = useQuery(trpc.devices.guess.queryOptions({ mac }));
+  if (!guess.data) return null;
+  return (
+    <Stack gap={2}>
+      <Text size="sm">
+        <Text span c="dimmed">
+          Probably:
+        </Text>{" "}
+        <Text span fw={600}>
+          {guess.data.kind}
+        </Text>
+      </Text>
+      <Text size="xs" c="dimmed">
+        Because {guess.data.reasons.join(", ")}.
+      </Text>
+    </Stack>
+  );
+};
+
+const PAUSE_OPTIONS = [
+  { value: "1", label: "1 minute" },
+  { value: "2", label: "2 minutes" },
+  { value: "5", label: "5 minutes" },
+];
+
+// With Pi-hole: block the device's lookups for a few minutes, so whatever loses the internet is this device
+const PauseInternet = ({ mac }: { mac: string }) => {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const pihole = useQuery(trpc.integrations.pihole.queryOptions());
+  const pausedUntil = useQuery({ ...trpc.devices.pausedUntil.queryOptions({ mac }), refetchInterval: (query) => (query.state.data ? 10_000 : false) });
+  const refresh = () => queryClient.invalidateQueries(trpc.devices.pausedUntil.queryFilter({ mac }));
+  const pause = useMutation(trpc.devices.pause.mutationOptions({ onSuccess: refresh }));
+  const resume = useMutation(trpc.devices.resume.mutationOptions({ onSuccess: refresh }));
+  const [minutes, setMinutes] = useState("2");
+  if (!pihole.data?.configured) return null;
+  const until = pausedUntil.data;
+  return (
+    <Stack gap={6}>
+      <Title order={5}>Pause internet</Title>
+      <Text size="xs" c="dimmed">
+        Pi-hole blocks this device's lookups for a few minutes; it stays on your Wi-Fi. Whatever can't load anything
+        (open an app on the device you suspect) is this device. It resumes by itself.
+      </Text>
+      {until ? (
+        <Group gap="xs" wrap="nowrap">
+          <Text size="sm" style={{ flex: 1 }}>
+            Paused until {until.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.
+          </Text>
+          <Button size="xs" variant="light" loading={resume.isPending} onClick={() => resume.mutate({ mac })}>
+            Resume now
+          </Button>
+        </Group>
+      ) : (
+        <Group gap="xs" wrap="nowrap" align="flex-end">
+          <Select size="xs" data={PAUSE_OPTIONS} value={minutes} onChange={(value) => setMinutes(value ?? "2")} allowDeselect={false} w={130} aria-label="Pause for" />
+          <Button size="xs" variant="light" color="orange" loading={pause.isPending} onClick={() => pause.mutate({ mac, minutes: Number(minutes) as 1 | 2 | 5 })}>
+            Pause internet
+          </Button>
+        </Group>
+      )}
+      {(pause.isError || resume.isError) && (
+        <Text size="sm" c="red">
+          {(pause.error ?? resume.error)?.message}
+        </Text>
+      )}
+    </Stack>
+  );
+};
+
 const PiholeActivity = ({ mac }: { mac: string }) => {
   const trpc = useTRPC();
   const activity = useQuery(trpc.integrations.piholeActivity.queryOptions({ mac }));
@@ -486,8 +559,10 @@ const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () 
             }
             allowDeselect={false}
           />
+          <Guess mac={device.mac} />
           <Identity mac={device.mac} />
           <OpenPorts mac={device.mac} />
+          <PauseInternet mac={device.mac} />
           <PiholeActivity mac={device.mac} />
           <Title order={5}>History</Title>
           {history.data?.length === 0 && (
