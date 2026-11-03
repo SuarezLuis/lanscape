@@ -68,7 +68,7 @@ export const selfOn = (iface: string, interfaces = networkInterfaces()) => {
   return address ? { ip: address.address, mac: address.mac.toLowerCase() } : null;
 };
 
-const deviceLabel = (device: Pick<Device, "name" | "hostname" | "vendor" | "ip">) =>
+export const deviceLabel = (device: Pick<Device, "name" | "hostname" | "vendor" | "ip">) =>
   device.name ?? device.hostname ?? device.vendor ?? device.ip;
 
 // IDs a device keeps whatever MAC it uses: Google Cast, AirPlay, HomeKit, UPnP
@@ -159,7 +159,7 @@ export const unknownBackAlert = (returned: Listed[]) =>
         message: `These unknown devices are back on your network:\n${returned.map(listLine).join("\n")}`,
       };
 
-const alert = async (kind: "problem" | "resolved" | "device", title: string, message: string) => {
+export const alert = async (kind: "problem" | "resolved" | "device" | "port", title: string, message: string) => {
   await prisma.notification.create({ data: { kind, value: 0, message } });
   await sendAll({ kind, title, message });
 };

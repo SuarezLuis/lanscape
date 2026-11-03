@@ -202,6 +202,8 @@ const alerts = db.prepare(`INSERT INTO Notification (createdAt, ruleId, kind, va
 const camera = "Front door camera";
 [
   [plexDown + 15 * MIN, null, "problem", 0, null, "Plex isn't answering: connect ECONNREFUSED 192.168.1.52:32400.", 0],
+  [now - 8 * HOUR, null, "port", 0, null,
+    "Front door camera (192.168.1.31) has a new open port: 554, usually camera streams (RTSP). If you didn't change anything on it, check what it is.", 1],
   [internetDown[1], null, "outage", 20, null,
     "The internet was down for 20 minutes and is back now. Your router answered the whole time, so the problem was past it: your internet provider or beyond.", 1],
   [now - 75 * MIN, null, "device", 0, null, `Espressif Inc. joined your network at 192.168.1.57 (${macs["192.168.1.57"]}).`, 0],

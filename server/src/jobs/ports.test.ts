@@ -49,3 +49,17 @@ test("a device's scan replaces its previous one and goes with the device", async
   await prisma.device.delete({ where: { mac } });
   expect(await prisma.devicePort.count()).toBe(0);
 });
+
+test("alerts on ports opened since the previous scan, not on the first one or an empty scan", async () => {
+  const mac = "aa:bb:cc:dd:ee:02";
+  await prisma.device.create({ data: { mac, ip: "127.0.0.1", name: "NAS", lastSeen: new Date() } });
+  await scanDevicePorts(mac, [webPort]);
+  expect(await prisma.notification.count()).toBe(0);
+  await scanDevicePorts(mac, [webPort, sshPort]);
+  const [opened] = await prisma.notification.findMany();
+  expect(opened?.message).toBe(`NAS (127.0.0.1) has a new open port: ${sshPort}: OpenSSH 9.6p1. If you didn't change anything on it, check what it is.`);
+  // Asleep mid-scan: nothing answers, the list stays and nothing is sent
+  await scanDevicePorts(mac, [1]);
+  expect((await devicePorts(mac)).ports).toHaveLength(2);
+  expect(await prisma.notification.count()).toBe(1);
+});

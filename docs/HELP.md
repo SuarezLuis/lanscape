@@ -84,7 +84,7 @@ Listening for DHCP needs UDP port 67, so it stays off if another DHCP server run
 
 Open a device and select **Scan ports** to see which of about 90 common ports it has open (web pages, SSH, file sharing, printers, media servers, databases and so on) and what answers on each. LANscape reads the web page title, the server's name or the greeting a service sends, and names it when it recognizes it, like Pi-hole, Home Assistant, Plex or OpenSSH 9.6. When that isn't what usually runs on the port, it says so: *Uptime Kuma, usually Grafana or a development web server*. When a port accepts a connection but doesn't say what it is, you see what usually runs there.
 
-The scan only connects; it doesn't log in or change anything, and it takes a few seconds per device. The **Ports** column in the device list shows the first few open ports from each device's latest scan; hover to see them all. To keep it current for every device, turn on **Port scan** on the Automations page.
+The scan only connects; it doesn't log in or change anything, and it takes a few seconds per device. The **Ports** column in the device list shows the first few open ports from each device's latest scan; hover to see them all. To keep it current for every device, turn on **Port scan** on the Automations page. LANscape can alert you when a device opens a new port (see Notifications).
 
 ### Identify a device
 
@@ -126,7 +126,7 @@ The line at the top names the first link that failed: inside your home network, 
 - **Device scan:** every 5 minutes by default. Keeps the device list current and spots new devices.
 - **Port scan:** off by default. Every 6 hours, 12 hours or daily, from a starting time: checks the common ports of every online device, one at a time, and updates the Network page's Ports column.
 
-Each card shows its last scheduled run and what happened, including errors.
+Each card shows its last run and what happened, including errors. **Run now** runs a job straight away without changing its schedule; the result appears on the card when it's done.
 
 Ping data older than 90 days is kept as hourly averages, so the database stays small.
 
@@ -149,6 +149,8 @@ Each rule sends **one** alert when a problem starts and **one** when it clears. 
 
 **Unknown device is back** (off by default) alerts when a device you haven't marked as known comes back after an hour or more away, like a visitor's phone or something that only joins now and then. Mark your own devices as known on the Network page first, or you'll hear about them too.
 
+**A device opens a new port** (on by default) alerts after a port scan when a device has a port open that it didn't have on its previous scan, like a camera suddenly answering on Telnet. The alert names the port, what usually runs there and what answered. A device's first scan only records what's open, and a scan where nothing answers (the device was asleep or left) changes nothing. **A device closes a port** (off by default) alerts when a port that was open isn't anymore.
+
 ### Reports
 
 **Weekly summary** (off by default) sends a short report on the day and hour you pick, in your time zone, to every alert channel: this week against last for the health score, average speeds, ping and packet loss, outages, new devices and alerts. **Send a summary now** sends one straight away. Summaries also appear in Recent alerts.
@@ -167,7 +169,7 @@ Alerts always appear under **Recent alerts**. They also go to every channel you 
   4. Click **Find chat ID**, then **Save** and **Send test**.
 - **Discord:** in a channel's settings, go to Integrations, Webhooks, New Webhook, and copy the URL.
 - **Slack:** add an Incoming Webhook to a Slack app and paste its URL.
-- **Webhook:** LANscape POSTs JSON with `app`, `time`, `kind` (`problem`, `resolved`, `device`, `outage`, `report` or `test`), `title`, `message`, `metric`, `value` and `baseline`. Works with Home Assistant, n8n and similar tools.
+- **Webhook:** LANscape POSTs JSON with `app`, `time`, `kind` (`problem`, `resolved`, `device`, `port`, `outage`, `report` or `test`), `title`, `message`, `metric`, `value` and `baseline`. Works with Home Assistant, n8n and similar tools.
 
 A channel whose last delivery failed shows **Failing**, with the error.
 

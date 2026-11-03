@@ -34,10 +34,10 @@ import { findGateway } from "./jobs/ping";
 import { describePihole, piholeActivity, piholeSettings, removePihole, savePihole } from "./jobs/pihole";
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
 import { readStatus } from "./jobs/status";
-import { devicePorts, scanDevicePorts } from "./jobs/ports";
+import { devicePorts, PORT_CLOSED_ALERTS, PORT_OPENED_ALERTS, readPortAlerts, scanDevicePorts } from "./jobs/ports";
 import { displayModel, readTraits } from "./jobs/traits";
 import { findTelegramChats } from "./jobs/telegram";
-import { loadAutomations, nextRun } from "./jobs/scheduler";
+import { JOBS, jobRunning, loadAutomations, nextRun, runJobNow } from "./jobs/scheduler";
 import {
   cancelSpeedtest,
   currentProgress,
@@ -228,11 +228,17 @@ export const appRouter = t.router({
     unread: procedure.query(() => prisma.notification.count({ where: { read: false } })),
     markAllRead: procedure.mutation(() => prisma.notification.updateMany({ where: { read: false }, data: { read: true } })),
     channels: procedure.query(() => describeChannels()),
-    deviceAlerts: procedure.query(async () => ({ ...(await readDeviceAlerts()), outage: await outageAlertsOn() })),
+    deviceAlerts: procedure.query(async () => ({ ...(await readDeviceAlerts()), ...(await readPortAlerts()), outage: await outageAlertsOn() })),
     setDeviceAlert: procedure
-      .input(z.object({ alert: z.enum(["newDevice", "unknownBack", "outage"]), on: z.boolean() }))
+      .input(z.object({ alert: z.enum(["newDevice", "unknownBack", "outage", "portOpened", "portClosed"]), on: z.boolean() }))
       .mutation(({ input }) => {
-        const key = { newDevice: NEW_DEVICE_ALERTS, unknownBack: UNKNOWN_BACK_ALERTS, outage: OUTAGE_ALERTS }[input.alert];
+        const key = {
+          newDevice: NEW_DEVICE_ALERTS,
+          unknownBack: UNKNOWN_BACK_ALERTS,
+          outage: OUTAGE_ALERTS,
+          portOpened: PORT_OPENED_ALERTS,
+          portClosed: PORT_CLOSED_ALERTS,
+        }[input.alert];
         const value = input.on ? "on" : "off";
         return prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
       }),
@@ -312,6 +318,7 @@ export const appRouter = t.router({
         automations.map(async (automation) => ({
           ...automation,
           nextRun: nextRun(automation),
+          running: jobRunning(automation.job as (typeof JOBS)[number]),
           status: await readStatus(`job.${automation.job}`),
         })),
       );
@@ -320,6 +327,13 @@ export const appRouter = t.router({
     update: procedure
       .input(automationInput)
       .mutation(({ input }) => prisma.automation.upsert({ where: { job: input.job }, create: input, update: input })),
+    run: procedure.input(z.object({ job: z.enum(JOBS) })).mutation(async ({ input }) => {
+      try {
+        await runJobNow(input.job);
+      } catch (error) {
+        throw new TRPCError({ code: "CONFLICT", message: error instanceof Error ? error.message : String(error) });
+      }
+    }),
   }),
   reports: t.router({
     settings: procedure.query(() => readReportSettings()),

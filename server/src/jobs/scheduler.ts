@@ -85,6 +85,33 @@ const run = async (automation: Automation): Promise<string | undefined> => {
   return samples.map((sample) => `${sample.target === "router" ? "Router" : "Internet"} ${ms(sample.avgMs)}`).join(", ");
 };
 
+// One run of each job at a time, scheduled or by hand
+const running = new Set<Job>();
+export const jobRunning = (job: Job) => running.has(job);
+
+// Runs it and records the outcome as the job's last run, as a scheduled run would
+const runAndRecord = async (automation: Automation) => {
+  const job = automation.job as Job;
+  if (running.has(job)) return;
+  running.add(job);
+  const name = `job.${job}`;
+  try {
+    const summary = await run(automation);
+    if (summary !== undefined) await recordStatus(name, { ok: true, summary });
+  } catch (error) {
+    await recordFailure(name, error);
+  } finally {
+    running.delete(job);
+  }
+};
+
+// Run now: starts the job in the background, whatever its schedule; the page polls for the result
+export const runJobNow = async (job: Job) => {
+  if (running.has(job)) throw new Error("It's already running.");
+  const automation = (await loadAutomations()).find((candidate) => candidate.job === job)!;
+  void runAndRecord(automation);
+};
+
 const logFailure = (job: string) => (error: unknown) =>
   console.error(`Scheduled ${job} failed:`, error instanceof Error ? error.message : error);
 
@@ -97,14 +124,7 @@ export const startScheduler = () => {
     const now = new Date();
     loadAutomations()
       .then((automations) => {
-        for (const automation of automations.filter((a) => isDue(a, now))) {
-          const name = `job.${automation.job}`;
-          run(automation)
-            .then(async (summary) => {
-              if (summary !== undefined) await recordStatus(name, { ok: true, summary });
-            })
-            .catch((error: unknown) => recordFailure(name, error));
-        }
+        for (const automation of automations.filter((a) => isDue(a, now))) void runAndRecord(automation);
       })
       .catch(logFailure("tick"));
     runDueServiceChecks(now).catch(logFailure("service checks"));

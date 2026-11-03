@@ -2,7 +2,7 @@ import http from "node:http";
 import https from "node:https";
 import { connect } from "node:net";
 import { prisma } from "../db";
-import { LAST_SCAN } from "./devices";
+import { alert, deviceLabel, LAST_SCAN } from "./devices";
 
 // Common TCP ports on a home network and what usually runs on each
 export const PORTS: Record<number, string> = {
@@ -254,6 +254,46 @@ export const scanHost = async (host: string, ports = Object.keys(PORTS).map(Numb
   return inBatches(answered, 8, async (port) => ({ port, ...(await identify(host, port)) }));
 };
 
+export const PORT_OPENED_ALERTS = "notify.portOpened";
+export const PORT_CLOSED_ALERTS = "notify.portClosed";
+
+// New open ports alert by default (scans themselves are opt-in); closed ones only when asked
+export const readPortAlerts = async () => {
+  const rows = await prisma.setting.findMany({ where: { key: { in: [PORT_OPENED_ALERTS, PORT_CLOSED_ALERTS] } } });
+  const value = (key: string) => rows.find((row) => row.key === key)?.value;
+  return { portOpened: value(PORT_OPENED_ALERTS) !== "off", portClosed: value(PORT_CLOSED_ALERTS) === "on" };
+};
+
+type Found = { port: number; service: string | null };
+
+const portLine = ({ port, service }: Found) => {
+  const usual = PORTS[port];
+  if (!service) return `${port}${usual ? `, usually ${usual}` : ""}`;
+  return `${port}: ${service}${usual && !/^a web server/.test(usual) && !usual.toLowerCase().includes(service.toLowerCase()) ? `, usually ${usual}` : ""}`;
+};
+
+// What changed since the device's previous scan; nothing on its first one
+export const portChanges = (previous: Found[] | null, found: Found[]) => {
+  if (previous === null) return { opened: [], closed: [] };
+  // ponytail: a device that answered nothing was likely asleep or gone mid-scan, not closing everything; a real
+  // all-closed device stays quiet until a later scan finds something
+  if (found.length === 0) return { opened: [], closed: [] };
+  const had = new Set(previous.map((entry) => entry.port));
+  const has = new Set(found.map((entry) => entry.port));
+  return { opened: found.filter((entry) => !had.has(entry.port)), closed: previous.filter((entry) => !has.has(entry.port)) };
+};
+
+export const portAlert = (label: string, ip: string, change: "opened" | "closed", ports: Found[]) => {
+  const plural = ports.length > 1;
+  const title = `${label} ${change} ${plural ? `${ports.length} ports` : `port ${ports[0]!.port}`}`;
+  const lines = ports.map(portLine);
+  const message =
+    change === "opened"
+      ? `${label} (${ip}) has ${plural ? "new open ports" : "a new open port"}: ${lines.join("; ")}. If you didn't change anything on it, check what it is.`
+      : `${label} (${ip}) closed ${plural ? "ports" : "port"} ${lines.join("; ")}.`;
+  return { title, message };
+};
+
 const scanning = new Set<string>();
 
 // Scans one device's common ports at its current address and keeps what was found
@@ -263,6 +303,20 @@ export const scanDevicePorts = async (mac: string, ports?: number[]) => {
   scanning.add(mac);
   try {
     const found = await scanHost(device.ip, ports);
+    const previous = device.portsScannedAt ? await prisma.devicePort.findMany({ where: { mac } }) : null;
+    // An empty scan of a device that had ports keeps the old list (see portChanges)
+    if (found.length === 0 && previous?.length) return found;
+    const { opened, closed } = portChanges(previous, found);
+    const alerts = await readPortAlerts();
+    const label = deviceLabel(device);
+    if (alerts.portOpened && opened.length) {
+      const { title, message } = portAlert(label, device.ip, "opened", opened);
+      await alert("port", title, message);
+    }
+    if (alerts.portClosed && closed.length) {
+      const { title, message } = portAlert(label, device.ip, "closed", closed);
+      await alert("port", title, message);
+    }
     await prisma.$transaction([
       prisma.devicePort.deleteMany({ where: { mac } }),
       prisma.devicePort.createMany({ data: found.map((entry) => ({ mac, ...entry })) }),

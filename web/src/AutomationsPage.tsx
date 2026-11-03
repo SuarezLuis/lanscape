@@ -10,6 +10,7 @@ type SpeedtestInput = Extract<AutomationInput, { job: "speedtest" }>;
 type PingInput = Extract<AutomationInput, { job: "ping" }>;
 type DevicesInput = Extract<AutomationInput, { job: "devices" }>;
 type PortsInput = Extract<AutomationInput, { job: "ports" }>;
+type Job = AutomationInput["job"];
 
 const SPEEDTEST_EVERY = [
   { value: "off", label: "Off" },
@@ -60,7 +61,7 @@ const ago = (iso: string) => {
 const LastRun = ({ status }: { status: Status }) =>
   status ? (
     <Text size="sm" c={status.ok ? "dimmed" : "red"}>
-      Last scheduled run {ago(status.at)}: {status.ok ? status.summary : `failed. ${status.error}`}
+      Last run {ago(status.at)}: {status.ok ? status.summary : `failed. ${status.error}`}
     </Text>
   ) : (
     <Text size="sm" c="dimmed">
@@ -71,7 +72,28 @@ const LastRun = ({ status }: { status: Status }) =>
 export const AutomationsPage = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const list = useQuery({ ...trpc.automations.list.queryOptions(), refetchInterval: 60_000 });
+  // Every 2 seconds while a job runs, so Run now's result shows up as soon as it's in
+  const list = useQuery({
+    ...trpc.automations.list.queryOptions(),
+    refetchInterval: (query) => (query.state.data?.automations.some((automation) => automation.running) ? 2000 : 60_000),
+  });
+  const runNow = useMutation(
+    trpc.automations.run.mutationOptions({ onSettled: () => queryClient.invalidateQueries(trpc.automations.list.queryFilter()) }),
+  );
+  const heading = (title: string, job: Job, running: boolean) => (
+    <Group justify="space-between" wrap="nowrap">
+      <Title order={3}>{title}</Title>
+      <Button size="xs" variant="light" loading={running || (runNow.isPending && runNow.variables?.job === job)} onClick={() => runNow.mutate({ job })}>
+        Run now
+      </Button>
+    </Group>
+  );
+  const runError = (job: Job) =>
+    runNow.isError && runNow.variables?.job === job ? (
+      <Text size="sm" c="red">
+        {runNow.error.message}
+      </Text>
+    ) : null;
   const update = useMutation(
     trpc.automations.update.mutationOptions({
       onSuccess: () => queryClient.invalidateQueries(trpc.automations.list.queryFilter()),
@@ -119,7 +141,7 @@ export const AutomationsPage = () => {
     <Stack gap="lg">
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
-          <Title order={3}>Full speed test</Title>
+          {heading("Full speed test", "speedtest", speedtest.running)}
           <Text size="sm" c="dimmed">
             Measures download and upload. Each test takes about 25 seconds, slows your network while it runs, and
             transfers about 2 GB at your current speeds.
@@ -163,12 +185,13 @@ export const AutomationsPage = () => {
             error={servers.isError ? "Couldn't list servers. Automatic still works." : null}
           />
           <LastRun status={speedtest.status} />
+          {runError("speedtest")}
         </Stack>
       </Card>
 
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
-          <Title order={3}>Ping check</Title>
+          {heading("Ping check", "ping", ping.running)}
           <Text size="sm" c="dimmed">
             Pings your router and an internet host to track latency and packet loss. Uses almost no data, and skips
             any minute a full speed test is running.
@@ -201,12 +224,13 @@ export const AutomationsPage = () => {
             Router: {list.data?.router ?? "not found"}. {nextRunText(ping.nextRun)}
           </Text>
           <LastRun status={ping.status} />
+          {runError("ping")}
         </Stack>
       </Card>
 
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
-          <Title order={3}>Device scan</Title>
+          {heading("Device scan", "devices", devices.running)}
           <Text size="sm" c="dimmed">
             Sweeps your network with ARP to keep the device list current and spot new devices. Takes a few seconds and a
             few KB.
@@ -224,12 +248,13 @@ export const AutomationsPage = () => {
             {nextRunText(devices.nextRun)}
           </Text>
           <LastRun status={devices.status} />
+          {runError("devices")}
         </Stack>
       </Card>
 
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
-          <Title order={3}>Port scan</Title>
+          {heading("Port scan", "ports", ports.running)}
           <Text size="sm" c="dimmed">
             Checks about 90 common ports on every online device and notes what answers, so the Network page's Ports column
             stays current. It only connects, one device at a time; nothing on the devices changes. Off by default.
@@ -255,6 +280,7 @@ export const AutomationsPage = () => {
             {nextRunText(ports.nextRun)} {ports.everyMinutes ? `Times follow ${ports.timeZone}.` : ""}
           </Text>
           <LastRun status={ports.status} />
+          {runError("ports")}
         </Stack>
       </Card>
     </Stack>

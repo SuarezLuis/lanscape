@@ -235,7 +235,7 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
   }),
   get_alert_history: tool({
     description:
-      "Alerts LANscape raised, newest first: slow speeds, high ping or packet loss (kind \"problem\", then \"resolved\"), and device alerts like a new device joining or a watched device going offline (kind \"device\").",
+      "Alerts LANscape raised, newest first: slow speeds, high ping or packet loss (kind \"problem\", then \"resolved\"), device alerts like a new device joining or a watched device going offline (kind \"device\"), and a device opening or closing a port after a port scan (kind \"port\").",
     input: z.object({ range, limit: limit(200, 50) }),
     run: async ({ range, limit }) =>
       (await prisma.notification.findMany({ where: { createdAt: { gte: since(range)! } }, orderBy: { createdAt: "desc" }, take: limit })).map((alert) => ({
