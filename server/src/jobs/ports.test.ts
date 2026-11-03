@@ -27,6 +27,7 @@ test("recognizes services from titles, server headers and banners", () => {
   expect(recognize(["Pi-hole - umbrel", "lighttpd"], null).service).toBe("Pi-hole");
   expect(recognize(["SSH-2.0-OpenSSH_9.6p1 Ubuntu"], null).service).toBe("OpenSSH 9.6p1");
   expect(recognize([null, "nginx"], "a web server (HTTP), nginx")).toEqual({ service: "a web server (HTTP), nginx", detail: "nginx" });
+  expect(recognize(["Unauthorized", null, "x-plex-protocol content-type"], null).service).toBe("Plex");
 });
 
 test("finds open ports and what answers on them, following a redirect on the same device", async () => {

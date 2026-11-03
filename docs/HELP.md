@@ -80,6 +80,12 @@ A new private address is treated as a known device only when exactly one device 
 
 Listening for DHCP needs UDP port 67, so it stays off if another DHCP server runs on the same machine (such as Pi-hole's, if you turned it on).
 
+### Open ports
+
+Open a device and select **Scan ports** to see which of about 90 common ports it has open (web pages, SSH, file sharing, printers, media servers, databases and so on) and what answers on each. LANscape reads the web page title, the server's name or the greeting a service sends, and names it when it recognizes it, like Pi-hole, Home Assistant, Plex or OpenSSH 9.6. When that isn't what usually runs on the port, it says so: *Uptime Kuma, usually Grafana or a development web server*. When a port accepts a connection but doesn't say what it is, you see what usually runs there.
+
+The scan only connects; it doesn't log in or change anything, and it takes a few seconds per device. The **Ports** column in the device list shows the first few open ports from each device's latest scan; hover to see them all. To keep it current for every device, turn on **Port scan** on the Automations page.
+
 ### Identify a device
 
 Not sure what `Espressif Inc. · 192.168.0.43` is? Click **Identify a device**:
@@ -118,6 +124,7 @@ The line at the top names the first link that failed: inside your home network, 
 - **Full speed test:** off by default. Choose every hour, 6 hours, 12 hours or daily, and a starting time. Times follow the time zone of the browser you last saved from. **Server** picks the speedtest.net server for every test; *Automatic* uses the nearest one, while a fixed server keeps results comparable over time.
 - **Ping check:** every minute by default. Pings your router and an internet host (1.1.1.1 unless you change it) to track latency and packet loss, using almost no data. It skips minutes when a full test is running.
 - **Device scan:** every 5 minutes by default. Keeps the device list current and spots new devices.
+- **Port scan:** off by default. Every 6 hours, 12 hours or daily, from a starting time: checks the common ports of every online device, one at a time, and updates the Network page's Ports column.
 
 Each card shows its last scheduled run and what happened, including errors.
 
@@ -201,7 +208,7 @@ AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Cl
 - a summary of the network right now, including the Internet Health Score
 - speed test results and latency over time, with packet loss
 - one period against another, like this week against last
-- the device list, each device's online/offline history, and every device's comings and goings
+- the device list, each device's online/offline history and open ports, and every device's comings and goings
 - internet outages, and whether each was in your home network or past your router
 - the services you watch, and whether each is up
 - the alerts LANscape raised
@@ -239,6 +246,8 @@ LANscape keeps everything on your Umbrel. It only reaches the internet for:
 - this help page, which your browser loads from GitHub
 
 If you connect an AI agent over MCP, whatever it reads goes to that agent, and to its AI provider if it uses a cloud model. The built-in assistant sends your questions and the data it reads to Anthropic or OpenAI if you choose them, and nowhere if you use a model on your own network.
+
+Port scans and service checks only connect to devices on your own network.
 
 Speed test results include your public IP address; LANscape never stores it.
 

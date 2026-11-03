@@ -353,7 +353,9 @@ const OpenPorts = ({ mac }: { mac: string }) => {
         // "Usually PostgreSQL, but answering as Pi-hole" when what answered isn't what usually runs there
         const usual = entry.usual ? `Usually ${entry.usual}` : null;
         const plain = (text: string) => text.toLowerCase().replace(/^an? /, "");
-        const same = entry.service && entry.usual && (plain(entry.usual).includes(plain(entry.service)) || plain(entry.service).includes(plain(entry.usual)));
+        // Any web app on a port that's usually just "a web server" is no surprise
+        const same =
+          entry.service && entry.usual && (/web server/.test(entry.usual) || plain(entry.usual).includes(plain(entry.service)) || plain(entry.service).includes(plain(entry.usual)));
         return (
           <Group key={entry.port} gap="sm" wrap="nowrap" align="flex-start">
             <Text ff="monospace" size="sm" w={52} ta="right" style={{ flexShrink: 0 }}>
@@ -640,7 +642,7 @@ export const NetworkPage = () => {
                               .filter(Boolean)
                               .join(" · ")}
                           >
-                            <Badge size="xs" color="orange" variant="light">
+                            <Badge size="xs" color="orange" variant="light" style={{ flexShrink: 0, overflow: "visible" }}>
                               Watched
                             </Badge>
                           </Tooltip>

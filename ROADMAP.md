@@ -5,12 +5,15 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 ## Waiting
 - [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Updated to 1.10.1 before any review; later versions go in update PRs once it's approved.
 
-## v1.11.0 (next)
+## v1.12.0 (next)
 - [ ] **AI write actions (assistant and MCP):** let the assistant and MCP agents change LANscape's own data, starting with naming devices, then marking devices known, setting per-device online/offline alerts, adding service checks and turning alert rules on or off. Safeguards: the MCP server gets a separate write-scope token (the current one stays read-only); the assistant asks before each change and shows exactly what it will do; every change is logged with who made it and can be undone; and nothing touches the network itself (no router, DNS or firewall changes).
 
-- [x] New store gallery and README screenshots (Overview, outages, Model column, Assistant, services) from refreshed demo data; README and Help brought up to date.
-
 ## Shipped
+
+### v1.11.0
+- [x] **Port scans:** each device's open ports (about 90 common ones) on demand or on a schedule, with what answers on each next to what usually runs there; a Ports column in the device list; open ports in the MCP device history.
+- [x] **Website:** lanscape.org, a one-page site on GitHub Pages from `docs/`.
+- [x] New store gallery and README screenshots (Overview, outages, Model column, Assistant, services) from refreshed demo data; README and Help brought up to date.
 
 ### v1.10.1
 - [x] A **Model** column in the device list: the announced model, or the OS from a device's DHCP vendor class (Android 14, Windows); status badges no longer get cut off.

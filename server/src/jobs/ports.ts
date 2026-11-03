@@ -160,7 +160,7 @@ export const recognize = (texts: (string | null)[], fallback: string | null): Se
 
 const pageTitle = (html: string) => clean(/<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1]?.replace(/&amp;/g, "&"));
 
-type Page = { status: number; server: string | null; title: string | null; location: string | null; body: string };
+type Page = { status: number; server: string | null; title: string | null; headers: string; location: string | null; body: string };
 
 const fetchPage = (url: string) =>
   new Promise<Page | null>((resolve) => {
@@ -173,7 +173,7 @@ const fetchPage = (url: string) =>
         if (body.length > 65_536) response.destroy();
       });
       const done = () =>
-        resolve({ status: response.statusCode ?? 0, server: clean(String(response.headers.server ?? "")), title: pageTitle(body), location: response.headers.location ?? null, body });
+        resolve({ status: response.statusCode ?? 0, server: clean(String(response.headers.server ?? "")), title: pageTitle(body), headers: Object.keys(response.headers).join(" "), location: response.headers.location ?? null, body });
       response.on("end", done);
       response.on("close", done);
       response.on("error", done);
@@ -222,7 +222,9 @@ export const identify = async (host: string, port: number): Promise<Seen> => {
     // nginx answers plain HTTP on a TLS port with an error page saying so
     if (!page || /plain HTTP request was sent to HTTPS/i.test(page.body)) continue;
     const kind = scheme === "https" ? "a web server (HTTPS)" : "a web server (HTTP)";
-    return recognize([page.title, page.server], page.server ? `${kind}, ${page.server}` : kind);
+    // Header names give some away even behind a login (Plex answers 401 with X-Plex-* headers)
+    const seen = recognize([page.title, page.server, page.headers], page.server ? `${kind}, ${page.server}` : kind);
+    return seen.detail === page.headers ? { ...seen, detail: null } : seen;
   }
   return { service: null, detail: clean(greeting) };
 };
