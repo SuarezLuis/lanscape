@@ -1,5 +1,5 @@
 // Composes App Store gallery images (2160x1350, Umbrel's current size) from the screenshots capture.mjs takes.
-//   node scripts/demo/gallery.mjs   ->  docs/assets/gallery/1.jpg ... 5.jpg
+//   node scripts/demo/gallery.mjs   ->  docs/assets/gallery/1.jpg ... 7.jpg
 // Only the LANscape logo and the app itself; alert channels are named in text, never shown with their branding.
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import puppeteer from "puppeteer-core";
@@ -62,11 +62,13 @@ const alerts = page(`${brand}<style>
 </div>`);
 
 const SLIDES = [
-  framed("Know your internet, <em>hour by hour</em>", "speedtests", "light"),
+  framed("Your whole network <em>at a glance</em>", "overview", "light"),
+  framed("Know your internet, <em>hour by hour</em>", "speedtests", "dark"),
+  framed("When it went down, and <em>whose fault</em> it was", "outages", "light"),
   framed("See <em>every device</em> on your network", "network", "dark"),
-  framed("Hear about it when <em>something changes</em>", "alerts", "light"),
+  framed("<em>Ask</em> about your network", "assistant", "dark"),
+  framed("Keep an eye on <em>your home services</em>", "services", "light"),
   alerts,
-  framed("Set it and <em>forget it</em>", "automations", "dark"),
 ];
 
 const out = new URL("gallery/", ASSETS);
