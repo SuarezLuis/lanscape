@@ -355,7 +355,7 @@ const OpenPorts = ({ mac }: { mac: string }) => {
         const plain = (text: string) => text.toLowerCase().replace(/^an? /, "");
         // Any web app on a port that's usually just "a web server" is no surprise
         const same =
-          entry.service && entry.usual && (/web server/.test(entry.usual) || plain(entry.usual).includes(plain(entry.service)) || plain(entry.service).includes(plain(entry.usual)));
+          entry.service && entry.usual && (/^a web server/.test(entry.usual) || plain(entry.usual).includes(plain(entry.service)) || plain(entry.service).includes(plain(entry.usual)));
         return (
           <Group key={entry.port} gap="sm" wrap="nowrap" align="flex-start">
             <Text ff="monospace" size="sm" w={52} ta="right" style={{ flexShrink: 0 }}>
