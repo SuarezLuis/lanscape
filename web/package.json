@@ -1,5 +1,6 @@
 {
   "name": "@lanscape/web",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {

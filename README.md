@@ -108,4 +108,4 @@ Every push to `master` publishes `ghcr.io/suarezluis/lanscape:edge`. Tag `vX.Y.Z
 
 ## License
 
-Icons from [lucide-animated](https://lucide-animated.com) (MIT).
+[MIT](LICENSE). Icons from [lucide-animated](https://lucide-animated.com) (MIT).
