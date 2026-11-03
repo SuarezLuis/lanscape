@@ -1,6 +1,6 @@
 # LANscape help
 
-LANscape watches your home network from your Umbrel: internet speed, latency, the devices on your network, and alerts when something changes.
+LANscape watches your home network from your Umbrel: internet speed, latency and outages, the devices on your network, the services you rely on, and alerts when something changes. You can also ask an AI assistant about it.
 
 ## Signing in
 
@@ -25,6 +25,12 @@ Before each test LANscape also pings your router and your internet host, so the 
 - A full test takes about 25 seconds, slows your network while it runs, and can transfer 2 GB or more on a fast connection. If your plan has a data cap, keep scheduled tests infrequent.
 - **History** shows speed and latency over the last day, week, month, year or all time. The latency chart can show full tests, ping checks, or both.
 - Click a column header in the table to sort by it.
+
+### Weekly pattern
+
+**Weekly pattern** shows your average download, upload and ping by day of the week and hour, so you can see when the connection is usually slow, like weekday evenings. Speeds come from the last year of speed tests, ping from the last 30 days of ping checks. Hours with no speed test stay blank: scheduling tests at a different starting time fills more of them in.
+
+Enter your **plan download** and **plan upload** speeds below it, and the colors show each hour against your plan instead of against your own fastest hour. The Overview and the ISP report use your plan speeds too.
 
 ### Internet health
 
@@ -154,7 +160,7 @@ Alerts always appear under **Recent alerts**. They also go to every channel you 
   4. Click **Find chat ID**, then **Save** and **Send test**.
 - **Discord:** in a channel's settings, go to Integrations, Webhooks, New Webhook, and copy the URL.
 - **Slack:** add an Incoming Webhook to a Slack app and paste its URL.
-- **Webhook:** LANscape POSTs JSON with `app`, `time`, `kind` (`problem`, `resolved`, `device` or `test`), `title`, `message`, `metric`, `value` and `baseline`. Works with Home Assistant, n8n and similar tools.
+- **Webhook:** LANscape POSTs JSON with `app`, `time`, `kind` (`problem`, `resolved`, `device`, `outage`, `report` or `test`), `title`, `message`, `metric`, `value` and `baseline`. Works with Home Assistant, n8n and similar tools.
 
 A channel whose last delivery failed shows **Failing**, with the error.
 
@@ -193,8 +199,9 @@ LANscape tests the connection before saving it. The API key is never sent back t
 AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Claude, can read LANscape's data, so you can ask them things like "was the internet slow last night?" or "what joined the network this week?". They get read-only tools for:
 
 - a summary of the network right now, including the Internet Health Score
-- speed test results and latency over time
-- the device list and each device's online/offline history
+- speed test results and latency over time, with packet loss
+- one period against another, like this week against last
+- the device list, each device's online/offline history, and every device's comings and goings
 - internet outages, and whether each was in your home network or past your router
 - the services you watch, and whether each is up
 - the alerts LANscape raised
@@ -227,6 +234,7 @@ Restoring keeps your current password and signed-in browsers. Just before it, LA
 LANscape keeps everything on your Umbrel. It only reaches the internet for:
 
 - speed tests (speedtest.net servers) and pings to your internet host
+- Diagnostics, when you run it: a DNS lookup through 1.1.1.1, a small HTTPS page from Google, and a traceroute
 - alert channels you set up
 - this help page, which your browser loads from GitHub
 
@@ -238,7 +246,7 @@ Speed test results include your public IP address; LANscape never stores it.
 
 - **The Telegram bot doesn't reply:** make sure you messaged the bot whose token you saved; the Telegram panel's **Find chat ID** names the right bot. The bot replies within a few seconds while LANscape is running.
 - **A device keeps showing as away:** it's probably asleep. Phones and battery devices often skip scans.
-- **A speed test fails right away:** check the Umbrel has internet access. The error appears under the button and on the Automations page.
+- **A speed test fails right away:** check the Umbrel has internet access. The error appears under the button and on the Automations page. A scheduled test that fails tries once more a minute later; a timeout says which step hung. **Diagnostics** shows which link is broken.
 - **Something else:** open an issue at [github.com/SuarezLuis/lanscape](https://github.com/SuarezLuis/lanscape/issues).
 
 ## Support LANscape

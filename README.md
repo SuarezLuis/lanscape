@@ -1,8 +1,8 @@
 # LANscape
 
-![LANscape: speed and latency history](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/1.jpg)
+![LANscape: your whole network at a glance](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/1.jpg)
 
-Home network monitoring for [Umbrel](https://umbrel.com): internet speed and latency over time, every device on your network, and alerts when something changes.
+Home network monitoring for [Umbrel](https://umbrel.com) or any Linux machine with Docker: internet speed, latency and outages over time, every device on your network, the services you rely on, and alerts when something changes. Ask an AI assistant about it in plain language, with a model on your own network if you prefer.
 
 Install it from an Umbrel app store: it's in the [SZ community app store](https://github.com/SuarezLuis/umbrel-apps) (add `https://github.com/SuarezLuis/umbrel-apps` under App Store → Community App Stores). User guide: [docs/HELP.md](docs/HELP.md), also on the app's Help page.
 
@@ -11,15 +11,17 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 - **Overview home screen:** internet up or down, health score, latest speed, outages, services with trouble, new devices and the latest alerts at a glance.
 - **Speed tests** on demand or on a schedule, with a live gauge, ping, jitter, and router and internet latency measured just before each test. History charts and a sortable table, from the last 24 hours to all time.
 - **Ping checks** every minute to your router and an internet host (1.1.1.1 by default), tracking latency and packet loss with almost no data. Raw samples older than 90 days are kept as hourly averages.
+- **Weekly pattern** of download, upload and ping by weekday and hour, against your plan speeds.
 - **Internet Health Score** from 0 to 100, from uptime, packet loss, ping and jitter, with each part shown.
 - **Outage timeline:** when the internet was down, for how long, and whether the problem was in your home network or past your router, with an alert when it's back.
 - **Service checks:** watch web apps (HTTP), open ports (TCP) and DNS servers on your LAN, with alerts when they go down and come back.
 - **Diagnostics:** a one-click check of router, internet, DNS, HTTPS and the route, with a plain-language verdict and a report to send your ISP.
 - **Reports:** an optional weekly summary through your alert channels, and a 30-day report to send your ISP.
-- **Device list** from ARP scans every 5 minutes: IP, MAC, maker (from the IEEE OUI registry), names announced over mDNS, and your own names. Includes the Umbrel itself.
+- **Device list** from ARP scans every 5 minutes: IP, MAC, maker (from the IEEE OUI registry), model, names announced over mDNS, UPnP and DHCP, and your own names. Includes the Umbrel itself.
+- **Devices keep their identity across private MAC addresses**, matched by the stable ids they announce (Google Cast, AirPlay, HomeKit, UPnP), what they say when they join (DHCP), or their name.
 - **Identify a device** by switching it off and on between scans.
-- **Per-device history and offline alerts:** mark devices as known, see when each came and went, and get alerted when a chosen device has been offline for a while.
-- **Notification rules** on any measurement, against a fixed value or a percentage from the 7-day median, with a "how long" window. Each rule alerts once when a problem starts and once when it clears. Also alerts when a new device joins.
+- **Per-device history and alerts:** mark devices as known, see when each came and went, and get alerted when a chosen device has been offline for a while or comes back online, like a phone arriving home. Delete a device to hear about it as new next time.
+- **Notification rules** on any measurement, against a fixed value or a percentage from the 7-day median, with a "how long" window. Each rule alerts once when a problem starts and once when it clears. Also alerts when a new device joins, and optionally when an unknown one comes back.
 - **Alert channels:** ntfy, Telegram (the bot answers messages with your chat ID), Discord, Slack and a generic JSON webhook.
 - **Automations page** to schedule speed tests, ping checks and device scans, showing each job's last run and errors.
 - **Choose the speed test server**, or let it pick the nearest.
@@ -35,10 +37,11 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 
 | | |
 |---|---|
-| ![Every device on your network](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/2.jpg) | ![Alerts and rules](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/3.jpg) |
-| ![Alerts on your phone](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/4.jpg) | ![Automations](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/5.jpg) |
+| ![Speed and latency history](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/2.jpg) | ![Outages and where they happened](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/3.jpg) |
+| ![Every device on your network](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/4.jpg) | ![Ask the assistant about your network](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/5.jpg) |
+| ![Service checks](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/6.jpg) | ![Alerts on your phone](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/7.jpg) |
 
-Made from invented demo data with `scripts/demo/` (seed, capture, gallery).
+Made from invented demo data with `scripts/demo/` (seed, model, capture, gallery).
 
 ## Support
 
@@ -52,7 +55,7 @@ Bug reports and ideas are welcome in [issues](https://github.com/SuarezLuis/lans
 
 Node 26, npm workspaces (`server/`, `web/`), Fastify + tRPC v11, Prisma 7 + SQLite, React 19 + Vite + Mantine.
 
-Background jobs live in `server/src/jobs/`. They shell out to `speedtest-go`, `ping` and `arp-scan`, all included in the Docker image.
+Background jobs live in `server/src/jobs/`. They shell out to `speedtest-go`, `ping`, `arp-scan` and `traceroute`, all included in the Docker image, and listen for mDNS, SSDP and DHCP on the LAN.
 
 ## Develop
 
@@ -93,13 +96,14 @@ Then open `http://<that machine>:4545`. Set `PORT` to use another port.
 
 - **Linux only:** host networking, which device discovery needs, isn't available to containers on Docker Desktop for Mac or Windows. Speed tests and ping checks work there; device scans don't.
 - **Permissions:** `ping` and `arp-scan` need the `NET_RAW` capability, which Docker gives containers by default. If you've dropped it (or use rootless Podman), add `cap_add: [NET_RAW]`.
+- **DHCP:** LANscape listens (never answers) on UDP port 67 to recognize devices; if another DHCP server runs on the same machine, it skips that and the rest works.
 - **Data:** everything is in `./data/lanscape.db`. Back it up from Settings, or copy the folder while the container is stopped.
-- **Updating:** `docker compose pull && docker compose up -d`. Database migrations run on start. To stay on a version, use a tag like `ghcr.io/suarezluis/lanscape:1.8.0` instead of `latest`.
+- **Updating:** `docker compose pull && docker compose up -d`. Database migrations run on start. To stay on a version, use a tag like `ghcr.io/suarezluis/lanscape:1.10.1` instead of `latest`.
 - **Forgot the password:** create an empty file named `reset-password` in `./data` (`sudo touch data/reset-password`, since Docker creates the folder as root) and restart. With `APP_PASSWORD` set it goes back to that; without it, the next visit sets a new one.
 
 ## Release
 
-Every push to `master` publishes `ghcr.io/suarezluis/lanscape:edge`. Tag `vX.Y.Z` to publish `X.Y.Z`, then bump the image and `version` in the app store repo.
+Every push to `master` publishes `ghcr.io/suarezluis/lanscape:edge`. Tag `vX.Y.Z` to publish `X.Y.Z` and `latest`, then bump the image and `version` in the app store repo.
 
 ## License
 

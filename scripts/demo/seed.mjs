@@ -1,4 +1,4 @@
-// Fills a LANscape database with invented data for screenshots: devices, a year of history, rules and alerts.
+// Fills a LANscape database with invented data for screenshots: devices, a year of history, outages, services, rules and alerts.
 // Nothing here comes from a real network. Run inside the image against a throwaway database:
 //   docker exec -w /app <container> node /tmp/seed.mjs /tmp/demo.db
 // Automations are timed so nothing scans or tests while screenshots are taken.
@@ -38,7 +38,8 @@ const load = (ms) => {
 
 db.exec(`
   DELETE FROM SpeedTest; DELETE FROM PingSample; DELETE FROM DeviceEvent; DELETE FROM Device;
-  DELETE FROM Notification; DELETE FROM Automation;
+  DELETE FROM Notification; DELETE FROM Automation; DELETE FROM Outage; DELETE FROM ServiceResult; DELETE FROM ServiceCheck;
+  DELETE FROM MacTrait;
   DELETE FROM Setting WHERE key NOT LIKE 'auth.%';
 `);
 
@@ -63,7 +64,11 @@ db.transaction(() => {
   tests.run(iso(now - 2 * HOUR), 648.2, 871.5, 10.8, 1.1, "41870", "Riverside", "Lakeview Fiber", 18.4, "manual", 0.52, 10.4);
 })();
 
-// Ping checks: raw every 5 minutes for two weeks, hourly rollups before that
+// Ping checks: raw every 5 minutes for two weeks, hourly rollups before that.
+// Two outages in those weeks: one past the router (the router kept answering) and a shorter one at home
+const internetDown = [now - 3 * DAY - 7 * HOUR, now - 3 * DAY - 7 * HOUR + 20 * MIN];
+const homeDown = [now - 9 * DAY - 15 * HOUR, now - 9 * DAY - 15 * HOUR + 12 * MIN];
+const within = (at, [from, to]) => at >= from && at < to;
 const pings = db.prepare(`INSERT INTO PingSample (createdAt, target, host, sent, received, avgMs, jitterMs, trigger) VALUES (?,?,?,?,?,?,?,?)`);
 db.transaction(() => {
   for (let at = now - 365 * DAY; at < now - 14 * DAY; at += HOUR) {
@@ -72,10 +77,17 @@ db.transaction(() => {
   }
   for (let at = now - 14 * DAY; at < now; at += 5 * MIN) {
     const lost = random() < 0.01 ? 1 : 0;
-    pings.run(iso(at), "router", "192.168.1.1", 5, 5, between(0.4, 0.8), between(0.02, 0.15), "automation");
-    pings.run(iso(at), "internet", "1.1.1.1", 5, 5 - lost, between(9, 12) / load(at), between(0.2, 1.4), "automation");
+    const home = within(at, homeDown);
+    const down = home || within(at, internetDown);
+    pings.run(iso(at), "router", "192.168.1.1", 5, home ? 0 : 5, home ? null : between(0.4, 0.8), home ? null : between(0.02, 0.15), "automation");
+    pings.run(iso(at), "internet", "1.1.1.1", 5, down ? 0 : 5 - lost, down ? null : between(9, 12) / load(at), down ? null : between(0.2, 1.4), "automation");
   }
 })();
+
+// Older outages were saved when their checks were rolled up
+const outages = db.prepare(`INSERT INTO Outage (start, end, failedChecks, cause) VALUES (?,?,?,?)`);
+outages.run(iso(now - 47 * DAY - 4 * HOUR), iso(now - 47 * DAY - 4 * HOUR + 38 * MIN), 38, "internet");
+outages.run(iso(now - 130 * DAY - 9 * HOUR), iso(now - 130 * DAY - 7 * HOUR), 120, "internet");
 
 // Invented devices; MAC prefixes match each maker, the rest is random
 const DEVICES = [
@@ -128,6 +140,42 @@ db.transaction(() => {
   }
 })();
 
+// What some devices said about themselves: models over mDNS and UPnP, the OS from DHCP
+const traits = db.prepare(`INSERT INTO MacTrait (mac, kind, value, seenAt) VALUES (?,?,?,?)`);
+[
+  ["Router", "model", "Archer AXE75"],
+  ["Living Room TV", "model", "Google TV Streamer"],
+  ["Kitchen speaker", "model", "Google Nest Mini"],
+  ["Office printer", "model", "HP OfficeJet Pro 9015e"],
+  ["Studio Mac mini", "model", "Mac14,3"],
+  ["Living Room Sonos", "model", "Sonos Era 100"],
+  ["Xbox", "model", "Xbox Series X"],
+  ["Sam's Pixel", "dhcp-vendor", "android-dhcp-15"],
+  ["Work laptop", "dhcp-vendor", "MSFT 5.0"],
+].forEach(([device, kind, value]) => traits.run(macs[device], kind, value, iso(scanAt)));
+
+// Service checks every 15 minutes for a day; Plex stopped answering 40 minutes ago
+const services = db.prepare(`INSERT INTO ServiceCheck (name, kind, target, query, everyMinutes, createdAt, failures, failingSince, alerted)
+  VALUES (?,?,?,?,15,?,?,?,?)`);
+const results = db.prepare(`INSERT INTO ServiceResult (checkId, at, ok, ms, detail) VALUES (?,?,?,?,?)`);
+const plexDown = now - 40 * MIN;
+db.transaction(() => {
+  for (const [name, kind, target, query, ms, detail] of [
+    ["Home Assistant", "http", "http://192.168.1.10:8123", null, [18, 45], "HTTP 200"],
+    ["Pi-hole DNS", "dns", "192.168.1.10", "example.com", [2, 9], "example.com → 203.0.113.24"],
+    ["NAS file share", "tcp", "192.168.1.70:445", null, [1, 4], "Port 445 open"],
+    ["Plex", "http", "http://192.168.1.52:32400/web", null, [60, 140], "HTTP 200"],
+  ]) {
+    const plex = name === "Plex";
+    const failures = plex ? Math.ceil((now - plexDown) / (15 * MIN)) : 0;
+    const { lastInsertRowid: id } = services.run(name, kind, target, query, iso(now - 60 * DAY), failures, plex ? iso(plexDown) : null, plex ? 1 : 0);
+    for (let at = now - DAY; at < now; at += 15 * MIN) {
+      if (plex && at >= plexDown) results.run(id, iso(at), 0, null, "connect ECONNREFUSED 192.168.1.52:32400");
+      else results.run(id, iso(at), 1, between(...ms), detail);
+    }
+  }
+})();
+
 // Rules: the starter ones plus one more, mostly on
 db.exec(`UPDATE NotificationRule SET enabled = 1 WHERE metric IN ('download', 'internetLoss');`);
 db.prepare(`INSERT INTO NotificationRule (metric, direction, mode, value, sustainMinutes, enabled) VALUES (?,?,?,?,?,1)`).run("internetPing", "above", "percent", 50, 10);
@@ -136,6 +184,9 @@ const ruleId = (metric) => db.prepare(`SELECT id FROM NotificationRule WHERE met
 const alerts = db.prepare(`INSERT INTO Notification (createdAt, ruleId, kind, value, baseline, message, read) VALUES (?,?,?,?,?,?,?)`);
 const camera = "Front door camera";
 [
+  [plexDown + 15 * MIN, null, "problem", 0, null, "Plex isn't answering: connect ECONNREFUSED 192.168.1.52:32400.", 0],
+  [internetDown[1], null, "outage", 20, null,
+    "The internet was down for 20 minutes and is back now. Your router answered the whole time, so the problem was past it: your internet provider or beyond.", 1],
   [now - 75 * MIN, null, "device", 0, null, `Espressif Inc. joined your network at 192.168.1.57 (${macs["192.168.1.57"]}).`, 0],
   [now - 3 * HOUR, null, "device", 0, null, `iPad joined your network at 192.168.1.64 (${macs.iPad}).`, 0],
   [slowAt + 6 * HOUR, ruleId("download"), "resolved", 641, null, "Download is back to 641 Mbps.", 1],
@@ -174,4 +225,5 @@ console.log("Demo data ready:", {
   pings: db.prepare("SELECT COUNT(*) n FROM PingSample").get().n,
   devices: db.prepare("SELECT COUNT(*) n FROM Device").get().n,
   alerts: db.prepare("SELECT COUNT(*) n FROM Notification").get().n,
+  services: db.prepare("SELECT COUNT(*) n FROM ServiceCheck").get().n,
 });
