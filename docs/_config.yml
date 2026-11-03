@@ -1,0 +1,7 @@
+# GitHub Pages builds docs/ with Jekyll; only help.md uses a layout, everything else is served as is
+title: LANscape
+url: https://lanscape.org
+markdown: kramdown
+kramdown:
+  input: GFM
+  auto_ids: true

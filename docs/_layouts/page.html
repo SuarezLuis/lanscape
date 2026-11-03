@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page.title }}</title>
+<meta name="description" content="{{ page.description }}">
+<link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+<link rel="canonical" href="https://lanscape.org{{ page.url }}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="LANscape">
+<meta property="og:title" content="{{ page.title }}">
+<meta property="og:description" content="{{ page.description }}">
+<meta property="og:image" content="https://lanscape.org/assets/gallery/1.jpg">
+<meta property="og:url" content="https://lanscape.org{{ page.url }}">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/"><img src="/assets/icon.svg" alt="">LANscape</a>
+    <nav>
+      <a href="/#features">Features</a>
+      <a href="/#install">Install</a>
+      <a href="/help/">Help</a>
+      <a class="gh" href="https://github.com/SuarezLuis/lanscape">GitHub</a>
+      <a class="coffee" href="https://www.buymeacoffee.com/suarezluis">☕ Buy me a coffee</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+{{ content }}
+  </main>
+
+  <footer>
+    <span>LANscape is free and open source, by <a href="https://github.com/SuarezLuis">Luis Suarez</a>. This site counts visits with <a href="https://www.goatcounter.com">GoatCounter</a>, without cookies; the app itself sends nothing.</span>
+    <span>
+      <a href="/help/">Help</a> ·
+      <a href="https://github.com/SuarezLuis/lanscape/issues">Issues</a> ·
+      <a href="https://www.buymeacoffee.com/suarezluis">Buy me a coffee</a>
+    </span>
+  </footer>
+</div>
+<script data-goatcounter="https://lanscape.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+</body>
+</html>
