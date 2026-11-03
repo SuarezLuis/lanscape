@@ -3,67 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LANscape: home network monitoring for Umbrel and Docker</title>
+<title>LANscape: free, self-hosted home network monitor for Umbrel and Docker</title>
 <meta name="description" content="Free, open-source home network monitoring: speed tests, outages and whose fault they were, every device on your network, service checks, alerts, and an optional AI assistant. Runs on Umbrel or Docker.">
-<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
-<meta property="og:title" content="LANscape">
+<link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+<link rel="canonical" href="https://lanscape.org/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="LANscape">
+<meta property="og:title" content="LANscape: free home network monitor for Umbrel and Docker">
 <meta property="og:description" content="Home network monitoring for Umbrel and Docker: speed, outages, devices, services and alerts.">
 <meta property="og:image" content="https://lanscape.org/assets/gallery/1.jpg">
 <meta property="og:url" content="https://lanscape.org/">
 <meta name="twitter:card" content="summary_large_image">
-<style>
-  :root { --bg: #0a1a26; --panel: #102838; --line: #1f3d52; --ink: #f1f5f9; --muted: #a3b4c3; --accent: #fbbf24; --link: #7dd3fc; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif; color: var(--ink);
-    background: radial-gradient(1200px 700px at 50% -10%, #1b4560 0%, #123247 40%, var(--bg) 85%) no-repeat, var(--bg); line-height: 1.55; }
-  a { color: var(--link); }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
-  header { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; color: var(--ink); text-decoration: none; }
-  .brand img { width: 36px; height: 36px; border-radius: 9px; }
-  nav a { color: var(--muted); text-decoration: none; margin-left: 18px; font-size: 15px; }
-  nav a:hover { color: var(--ink); }
-  .hero { text-align: center; padding: 48px 0 32px; }
-  h1 { font-size: clamp(34px, 6vw, 60px); line-height: 1.08; letter-spacing: -1px; margin: 0 0 16px; }
-  h1 em { font-style: normal; color: var(--accent); }
-  .lede { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 680px; margin: 0 auto 28px; }
-  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-  .button { display: inline-block; padding: 12px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; }
-  .primary { background: var(--accent); color: #1a1300; }
-  .secondary { border: 1px solid var(--line); color: var(--ink); background: rgba(255,255,255,.04); }
-  .shot { margin: 40px auto 0; border-radius: 14px; overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,.5); border: 1px solid var(--line); }
-  .shot img { display: block; width: 100%; height: auto; }
-  section { padding: 56px 0; }
-  h2 { font-size: clamp(26px, 3.6vw, 34px); margin: 0 0 8px; letter-spacing: -.5px; }
-  .sub { color: var(--muted); margin: 0 0 28px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
-  .card h3 { margin: 0 0 6px; font-size: 17px; }
-  .card p { margin: 0; color: var(--muted); font-size: 15px; }
-  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-  .gallery img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); display: block; }
-  .install { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-  ol { padding-left: 20px; margin: 8px 0 0; color: var(--muted); }
-  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px; background: rgba(255,255,255,.07); padding: 1px 5px; border-radius: 5px; color: var(--ink); }
-  pre { background: #07131c; border: 1px solid var(--line); border-radius: 10px; padding: 14px; overflow-x: auto; margin: 10px 0 0; }
-  pre code { background: none; padding: 0; }
-  footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; align-items: center; }
-  footer a { color: var(--muted); }
-  nav a.coffee { color: #1a1300; background: var(--accent); padding: 6px 12px; border-radius: 8px; font-weight: 600; }
-  nav a.coffee:hover { color: #1a1300; filter: brightness(1.08); }
-  .support { text-align: center; }
-  .support img { height: 56px; width: auto; }
-  @media (max-width: 560px) { nav a:not(.gh):not(.coffee) { display: none; } nav a { margin-left: 12px; } }
-</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "LANscape",
+  "url": "https://lanscape.org/",
+  "description": "Free, open-source, self-hosted home network monitor: speed tests, outages and whose fault they were, every device on your network with open ports, service checks, alerts and an optional AI assistant. Runs on Umbrel or Docker.",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Linux, Umbrel, Docker",
+  "image": "https://lanscape.org/assets/gallery/1.jpg",
+  "screenshot": "https://lanscape.org/assets/gallery/1.jpg",
+  "codeRepository": "https://github.com/SuarezLuis/lanscape",
+  "author": { "@type": "Person", "name": "Luis Suarez", "url": "https://github.com/SuarezLuis" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+<link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
 <div class="wrap">
   <header>
-    <a class="brand" href="/"><img src="assets/icon.svg" alt="">LANscape</a>
+    <a class="brand" href="/"><img src="/assets/icon.svg" alt="">LANscape</a>
     <nav>
       <a href="#features">Features</a>
       <a href="#install">Install</a>
-      <a href="https://github.com/SuarezLuis/lanscape/blob/master/docs/HELP.md">Help</a>
+      <a href="/help/">Help</a>
       <a class="gh" href="https://github.com/SuarezLuis/lanscape">GitHub</a>
       <a class="coffee" href="https://www.buymeacoffee.com/suarezluis">☕ Buy me a coffee</a>
     </nav>
@@ -76,7 +52,7 @@
       <a class="button primary" href="#install">Install LANscape</a>
       <a class="button secondary" href="https://github.com/SuarezLuis/lanscape">View on GitHub</a>
     </div>
-    <div class="shot"><img src="assets/screenshots/overview-dark.png" width="2160" height="1350" alt="The LANscape Overview: internet status, health score, latest speed, outages, services, devices and alerts"></div>
+    <div class="shot"><img src="/assets/screenshots/overview-dark.png" width="2160" height="1350" alt="The LANscape Overview: internet status, health score, latest speed, outages, services, devices and alerts"></div>
   </div>
 
   <section id="features">
@@ -99,12 +75,12 @@
     <h2>See it</h2>
     <p class="sub">Screenshots from invented demo data.</p>
     <div class="gallery">
-      <img src="assets/gallery/2.jpg" width="2160" height="1350" loading="lazy" alt="Speed and latency history">
-      <img src="assets/gallery/3.jpg" width="2160" height="1350" loading="lazy" alt="Outages and where each one happened">
-      <img src="assets/gallery/4.jpg" width="2160" height="1350" loading="lazy" alt="The device list with makers and models">
-      <img src="assets/gallery/5.jpg" width="2160" height="1350" loading="lazy" alt="Asking the assistant about the network">
-      <img src="assets/gallery/6.jpg" width="2160" height="1350" loading="lazy" alt="Service checks">
-      <img src="assets/gallery/7.jpg" width="2160" height="1350" loading="lazy" alt="Alerts on your phone">
+      <img src="/assets/gallery/2.jpg" width="2160" height="1350" loading="lazy" alt="Speed and latency history">
+      <img src="/assets/gallery/3.jpg" width="2160" height="1350" loading="lazy" alt="Outages and where each one happened">
+      <img src="/assets/gallery/4.jpg" width="2160" height="1350" loading="lazy" alt="The device list with makers and models">
+      <img src="/assets/gallery/5.jpg" width="2160" height="1350" loading="lazy" alt="Asking the assistant about the network">
+      <img src="/assets/gallery/6.jpg" width="2160" height="1350" loading="lazy" alt="Service checks">
+      <img src="/assets/gallery/7.jpg" width="2160" height="1350" loading="lazy" alt="Alerts on your phone">
     </div>
   </section>
 
@@ -141,13 +117,13 @@
   <section id="support" class="support">
     <h2>Like it? Buy me a coffee</h2>
     <p class="sub">LANscape is free and has no ads, telemetry or paid tier. If it's useful to you, a coffee keeps it going.</p>
-    <a href="https://www.buymeacoffee.com/suarezluis"><img src="assets/buy-me-a-coffee.svg" alt="Buy me a coffee" height="56"></a>
+    <a href="https://www.buymeacoffee.com/suarezluis"><img src="/assets/buy-me-a-coffee.svg" alt="Buy me a coffee" height="56"></a>
   </section>
 
   <footer>
     <span>LANscape is free and open source, by <a href="https://github.com/SuarezLuis">Luis Suarez</a>. This site counts visits with <a href="https://www.goatcounter.com">GoatCounter</a>, without cookies; the app itself sends nothing.</span>
     <span>
-      <a href="https://github.com/SuarezLuis/lanscape/blob/master/docs/HELP.md">Help</a> ·
+      <a href="/help/">Help</a> ·
       <a href="https://github.com/SuarezLuis/lanscape/issues">Issues</a> ·
       <a href="https://www.buymeacoffee.com/suarezluis">Buy me a coffee</a>
     </span>
