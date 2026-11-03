@@ -8,7 +8,12 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 ## v1.13.0 (next)
 - [ ] **AI write actions (assistant and MCP):** let the assistant and MCP agents change LANscape's own data, starting with naming devices, then marking devices known, setting per-device online/offline alerts, adding service checks and turning alert rules on or off. Safeguards: the MCP server gets a separate write-scope token (the current one stays read-only); the assistant asks before each change and shows exactly what it will do; every change is logged with who made it and can be undone; and nothing touches the network itself (no router, DNS or firewall changes).
 
-## Shipped
+## v2.0.0
+- [ ] **A much smaller image (~660 MB to ~130–160 MB), same code:** today about 210 MB is the Prisma CLI and engines, there only to run `migrate deploy` at startup; ~150 MB is node_modules the esbuild bundle doesn't need; and the base is Debian slim.
+  - Replace `prisma migrate deploy` with a small runner that applies the migration SQL files and records them in `_prisma_migrations` like Prisma does (the test setup already does this), so existing databases upgrade unchanged.
+  - Ship only the runtime pieces next to the bundle: better-sqlite3, the Prisma client runtime and the OUI data.
+  - Move to `node:26-alpine`, checking better-sqlite3 on musl, arp-scan, traceroute and ping, on amd64 and arm64.
+  - Major version because the container's startup and base change; data and settings carry over. A Go rewrite (~50–80 MB) was considered and not worth weeks of work and losing the shared tRPC types for the last ~80 MB.
 
 ### v1.12.0
 - [x] **New open port alerts:** after a scheduled or manual port scan, alert when a device has a port open that it didn't have before (like a camera suddenly answering on Telnet), and optionally when one closes. Nothing on the first scan of a device; an on/off switch with the other device alerts on the Notifications page; the alert names the port, what usually runs there and what answered.
