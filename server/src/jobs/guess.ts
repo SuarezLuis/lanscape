@@ -18,8 +18,6 @@ const PORT_KINDS: [number[], string][] = [
   [[1400], "Sonos speaker"],
   [[9100, 631, 515], "Printer"],
   [[554, 8554], "Camera"],
-  [[32400], "Plex media server"],
-  [[8123], "Home Assistant"],
   [[3389], "Windows PC"],
   [[548], "Mac or NAS"],
   [[5000, 5001], "NAS"],
@@ -33,6 +31,7 @@ const HOSTNAME_KINDS: [RegExp, string][] = [
   [/^(desktop|laptop)-/i, "Windows PC"],
   [/macbook|imac|mac-?mini|mac-?studio/i, "Mac"],
   [/roku/i, "Roku"],
+  [/umbrel|nas|server/i, "Home server"],
   [/echo|alexa|kindle|fire-?tv/i, "Amazon device (Echo, Fire TV or Kindle)"],
   [/xbox/i, "Xbox"],
   [/playstation|ps[45]/i, "PlayStation"],
@@ -83,6 +82,15 @@ const DOMAIN_KINDS: [RegExp, string][] = [
   [/wyze(cam)?\.com$/, "Camera"],
 ];
 
+// Apps that mean the device is a home server (Umbrel, a NAS, a mini PC), named in the reason
+const SERVER_APPS: [number, string][] = [
+  [8123, "Home Assistant"],
+  [32400, "Plex"],
+  [4545, "LANscape"],
+  [8096, "Jellyfin"],
+  [9000, "Portainer"],
+];
+
 export const guessDevice = ({ vendor, hostname, traits, ports, domains }: Clues) => {
   // A device that names its own model needs no guess
   if (traits?.model) return null;
@@ -91,6 +99,8 @@ export const guessDevice = ({ vendor, hostname, traits, ports, domains }: Clues)
     const open = list.filter((port) => ports.includes(port));
     if (open.length) votes.push({ kind, weight: 3, reason: `port ${open.join(", ")} is open` });
   }
+  const apps = SERVER_APPS.filter(([port]) => ports.includes(port));
+  if (apps.length) votes.push({ kind: "Home server", weight: 3, reason: `it runs ${apps.map(([port, app]) => `${app} (port ${port})`).join(", ")}` });
   for (const [pattern, kind] of DOMAIN_KINDS) {
     const asked = domains.find((domain) => pattern.test(domain));
     if (asked) votes.push({ kind, weight: 3, reason: `it looks up ${asked}` });

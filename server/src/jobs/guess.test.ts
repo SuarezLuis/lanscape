@@ -10,6 +10,10 @@ test("guesses from the strongest clues and says why", () => {
     reasons: ["it looks up scribe.logs.roku.com", "its maker is Roku, Inc."],
   });
   expect(guessDevice({ ...clues, vendor: "Private address", traits: { "dhcp-vendor": "android-dhcp-15" } })?.kind).toBe("Android phone or tablet");
+  expect(guessDevice({ ...clues, vendor: "Raspberry Pi Trading Ltd", hostname: "umbrel", ports: [22, 80, 8123, 32400] })).toEqual({
+    kind: "Home server",
+    reasons: ["it runs Home Assistant (port 8123), Plex (port 32400)", "its name is umbrel"],
+  });
 });
 
 test("no guess for a device that names its model, or when nothing hints at a kind", () => {

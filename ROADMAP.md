@@ -3,9 +3,9 @@
 What's planned, and what shipped in which release. Tick items off in the PR that ships them; once a version is released it moves under Shipped, and anything still open moves to the next version. Core network monitoring must keep working without AI or external services.
 
 ## Waiting
-- [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Updated to 1.10.1 before any review; later versions go in update PRs once it's approved.
+- [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Kept on the latest release while it's in review (1.13.0); after approval, new versions go in update PRs.
 
-## v1.13.0 (next)
+## v1.14.0 (next)
 - [ ] **AI write actions (assistant and MCP):** let the assistant and MCP agents change LANscape's own data, starting with naming devices, then marking devices known, setting per-device online/offline alerts, adding service checks and turning alert rules on or off. Safeguards: the MCP server gets a separate write-scope token (the current one stays read-only); the assistant asks before each change and shows exactly what it will do; every change is logged with who made it and can be undone; and nothing touches the network itself (no router, DNS or firewall changes).
 
 ## v2.0.0
@@ -14,6 +14,12 @@ What's planned, and what shipped in which release. Tick items off in the PR that
   - Ship only the runtime pieces next to the bundle: better-sqlite3, the Prisma client runtime and the OUI data.
   - Move to `node:26-alpine`, checking better-sqlite3 on musl, arp-scan, traceroute and ping, on amd64 and arm64.
   - Major version because the container's startup and base change; data and settings carry over. A Go rewrite (~50–80 MB) was considered and not worth weeks of work and losing the shared tRPC types for the last ~80 MB.
+
+## Shipped
+
+### v1.13.0
+- [x] **Pause a device's internet (Pi-hole):** 1, 2 or 5 minutes from the device panel, through a Pi-hole group that blocks every lookup; the device goes back as it was afterwards, also after a restart. Identifies a device without unplugging anything.
+- [x] **What a device probably is:** a best guess (camera, Roku, Android phone…) from open ports, its announced name, DHCP details, maker and, with Pi-hole, the domains it looks up, with the reasons shown; also in the MCP device history.
 
 ### v1.12.0
 - [x] **New open port alerts:** after a scheduled or manual port scan, alert when a device has a port open that it didn't have before (like a camera suddenly answering on Telnet), and optionally when one closes. Nothing on the first scan of a device; an on/off switch with the other device alerts on the Notifications page; the alert names the port, what usually runs there and what answered.
