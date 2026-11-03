@@ -36,7 +36,7 @@
   section { padding: 56px 0; }
   h2 { font-size: clamp(26px, 3.6vw, 34px); margin: 0 0 8px; letter-spacing: -.5px; }
   .sub { color: var(--muted); margin: 0 0 28px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
   .card h3 { margin: 0 0 6px; font-size: 17px; }
   .card p { margin: 0; color: var(--muted); font-size: 15px; }
@@ -49,7 +49,11 @@
   pre code { background: none; padding: 0; }
   footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; align-items: center; }
   footer a { color: var(--muted); }
-  @media (max-width: 560px) { nav a:not(.gh) { display: none; } }
+  nav a.coffee { color: #1a1300; background: var(--accent); padding: 6px 12px; border-radius: 8px; font-weight: 600; }
+  nav a.coffee:hover { color: #1a1300; filter: brightness(1.08); }
+  .support { text-align: center; }
+  .support img { height: 56px; width: auto; }
+  @media (max-width: 560px) { nav a:not(.gh):not(.coffee) { display: none; } nav a { margin-left: 12px; } }
 </style>
 </head>
 <body>
@@ -61,6 +65,7 @@
       <a href="#install">Install</a>
       <a href="https://github.com/SuarezLuis/lanscape/blob/master/docs/HELP.md">Help</a>
       <a class="gh" href="https://github.com/SuarezLuis/lanscape">GitHub</a>
+      <a class="coffee" href="https://www.buymeacoffee.com/suarezluis">☕ Buy me a coffee</a>
     </nav>
   </header>
 
@@ -82,6 +87,7 @@
       <div class="card"><h3>Speed tests</h3><p>On demand or on a schedule, with history from a day to all time and a weekly pattern against your plan speeds.</p></div>
       <div class="card"><h3>Outages, explained</h3><p>Ping checks every minute spot outages and tell whether the problem was your internet provider or your home network.</p></div>
       <div class="card"><h3>Every device</h3><p>Maker, model and name for everything on your LAN, with history that follows phones across private MAC addresses.</p></div>
+      <div class="card"><h3>Open ports</h3><p>See which ports each device has open and what actually answers on them, like a Pi-hole on a port usually used for something else.</p></div>
       <div class="card"><h3>Service checks</h3><p>Watch Home Assistant, a NAS, Plex or Pi-hole over HTTP, TCP or DNS, and hear when they go down and come back.</p></div>
       <div class="card"><h3>Alerts</h3><p>Rules on speed, ping and packet loss, new and offline devices, through ntfy, Telegram, Discord, Slack or a webhook.</p></div>
       <div class="card"><h3>Diagnostics</h3><p>A one-click check from router to internet, with a plain-language verdict and a report for your ISP.</p></div>
@@ -130,6 +136,12 @@
         <p style="margin-top:10px"><a href="https://github.com/SuarezLuis/lanscape#run-with-docker-no-umbrel">Notes for Docker</a></p>
       </div>
     </div>
+  </section>
+
+  <section id="support" class="support">
+    <h2>Like it? Buy me a coffee</h2>
+    <p class="sub">LANscape is free and has no ads, telemetry or paid tier. If it's useful to you, a coffee keeps it going.</p>
+    <a href="https://www.buymeacoffee.com/suarezluis"><img src="assets/buy-me-a-coffee.svg" alt="Buy me a coffee" height="56"></a>
   </section>
 
   <footer>

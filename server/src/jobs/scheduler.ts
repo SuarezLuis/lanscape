@@ -3,6 +3,7 @@ import type { Automation } from "../generated/prisma/client";
 import { runDeviceScan } from "./devices";
 import { recordFailure, recordStatus } from "./status";
 import { DEFAULT_INTERNET_HOST, runPingCheck } from "./ping";
+import { scanOnlineDevicePorts } from "./ports";
 import { runDueServiceChecks } from "./services";
 import { sendReportIfDue } from "../reports";
 import { runSpeedtest, speedtestRunning } from "./speedtest";
@@ -10,7 +11,7 @@ import { runSpeedtest, speedtestRunning } from "./speedtest";
 const MINUTE_MS = 60_000;
 const DAY_MINUTES = 24 * 60;
 
-export const JOBS = ["speedtest", "ping", "devices"] as const;
+export const JOBS = ["speedtest", "ping", "devices", "ports"] as const;
 export type Job = (typeof JOBS)[number];
 
 // Full tests move ~2 GB each, so they start off; ping checks are nearly free
@@ -19,6 +20,8 @@ export const DEFAULTS: Record<Job, Automation> = {
   ping: { job: "ping", everyMinutes: 1, offsetMinutes: 0, timeZone: "UTC", target: DEFAULT_INTERNET_HOST },
   // An ARP sweep takes a couple of seconds and a few KB
   devices: { job: "devices", everyMinutes: 5, offsetMinutes: 0, timeZone: "UTC", target: null },
+  // Knocks on ~90 ports of every device, so it's opt-in
+  ports: { job: "ports", everyMinutes: null, offsetMinutes: 3 * 60, timeZone: "UTC", target: null },
 };
 
 export const loadAutomations = async () => {
@@ -72,6 +75,10 @@ const run = async (automation: Automation): Promise<string | undefined> => {
     return `${test.downloadMbps.toFixed(0)} down / ${test.uploadMbps.toFixed(0)} up Mbps${firstError ? ` (second try; first: ${firstError})` : ""}`;
   }
   if (automation.job === "devices") return `${(await runDeviceScan()).found} devices answered`;
+  if (automation.job === "ports") {
+    const { devices, open } = await scanOnlineDevicePorts();
+    return `${devices} devices scanned, ${open} open ports`;
+  }
   // A full test saturates the link, so pings taken during it would only measure the test
   if (speedtestRunning()) return undefined;
   const samples = await runPingCheck("automation");

@@ -69,12 +69,18 @@ const SHOTS = [
       // The IP cell, since clicking the name renames the device
       const cells = await page.$$("td");
       for (const cell of cells) {
-        if ((await cell.evaluate((node) => node.textContent?.trim())) === "192.168.1.31") {
+        if ((await cell.evaluate((node) => node.textContent?.trim())) === "192.168.1.10") {
           await cell.click();
           break;
         }
       }
-      await pause(800);
+      await pause(1200);
+      // The Umbrel's open ports, at the top of the panel
+      await page.evaluate(() => {
+        const heading = [...document.querySelectorAll(".mantine-Drawer-body h5")].find((node) => node.textContent === "Open ports");
+        heading?.scrollIntoView();
+      });
+      await pause(400);
     },
   },
   { name: "services", path: "/services" },
