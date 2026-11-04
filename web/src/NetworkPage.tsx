@@ -5,6 +5,7 @@ import {
   Drawer,
   Group,
   Modal,
+  Progress,
   Select,
   Stack,
   Stepper,
@@ -19,7 +20,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@lanscape/server/router";
 import type { inferRouterOutputs } from "@trpc/server";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useIconHover } from "./icons/animate";
 import { RouterIcon } from "./icons/router";
 import { useTRPC } from "./trpc";
@@ -330,22 +331,54 @@ const OpenPorts = ({ mac }: { mac: string }) => {
       onSuccess: () => Promise.all([queryClient.invalidateQueries(trpc.devices.ports.queryFilter({ mac })), queryClient.invalidateQueries(trpc.devices.list.queryFilter())]),
     }),
   );
+  // A scan of all ports runs in the background; poll its progress while it does, and show what it found once done
+  const full = useQuery({ ...trpc.devices.allPortsScan.queryOptions({ mac }), refetchInterval: (query) => (query.state.data ? 1000 : false) });
+  const fullRunning = full.data != null;
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !fullRunning) {
+      void queryClient.invalidateQueries(trpc.devices.ports.queryFilter({ mac }));
+      void queryClient.invalidateQueries(trpc.devices.list.queryFilter());
+    }
+    wasRunning.current = fullRunning;
+  }, [fullRunning, mac, queryClient, trpc]);
+  const startFull = useMutation(trpc.devices.scanAllPorts.mutationOptions({ onSuccess: () => queryClient.invalidateQueries(trpc.devices.allPortsScan.queryFilter({ mac })) }));
+  const stopFull = useMutation(trpc.devices.stopAllPortsScan.mutationOptions({ onSuccess: () => queryClient.invalidateQueries(trpc.devices.allPortsScan.queryFilter({ mac })) }));
   const data = ports.data;
   return (
     <Stack gap={6}>
       <Group justify="space-between" wrap="nowrap">
         <Title order={5}>Open ports</Title>
-        <Button size="xs" variant="light" loading={scan.isPending} onClick={() => scan.mutate({ mac })}>
-          {data?.scannedAt ? "Scan again" : "Scan ports"}
-        </Button>
+        <Group gap={6} wrap="nowrap">
+          <Button size="xs" variant="light" loading={scan.isPending} disabled={fullRunning} onClick={() => scan.mutate({ mac })}>
+            {data?.scannedAt ? "Scan again" : "Scan ports"}
+          </Button>
+          <Button size="xs" variant="default" loading={startFull.isPending} disabled={fullRunning || scan.isPending} onClick={() => startFull.mutate({ mac })}>
+            Scan all ports
+          </Button>
+        </Group>
       </Group>
       <Text size="xs" c="dimmed">
-        Checks about 90 common ports and what answers on them. It only connects; nothing on the device changes.
+        Checks about 90 common ports and what answers on them; Scan all ports checks all 65,535, which takes a few
+        minutes. It only connects; nothing on the device changes.
         {data?.scannedAt ? ` Last scanned ${when(data.scannedAt)}.` : ""}
       </Text>
-      {scan.isError && (
+      {full.data && (
+        <Stack gap={4}>
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="sm">
+              Checked {full.data.checked.toLocaleString()} of {full.data.total.toLocaleString()} ports, {full.data.open} open so far
+            </Text>
+            <Button size="compact-xs" variant="subtle" color="red" loading={stopFull.isPending} onClick={() => stopFull.mutate({ mac })}>
+              Stop
+            </Button>
+          </Group>
+          <Progress value={(full.data.checked / full.data.total) * 100} size="sm" animated />
+        </Stack>
+      )}
+      {(scan.error ?? startFull.error) && (
         <Text size="sm" c="red">
-          {scan.error.message}
+          {(scan.error ?? startFull.error)?.message}
         </Text>
       )}
       {data?.scannedAt && data.ports.length === 0 && <Text size="sm">No common ports are open.</Text>}

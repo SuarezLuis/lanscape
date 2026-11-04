@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 import Database from "better-sqlite3";
 import { PASSWORD } from "./auth";
-import { MCP_TOKEN } from "./mcp";
+import { MCP_CHANGE_TOKEN, MCP_TOKEN } from "./mcp";
 import { databasePath } from "./db";
 
 /**
@@ -109,9 +109,9 @@ const withTempDir = <T>(fn: (dir: string) => T) => {
 };
 
 // Credentials that belong to this install, not its data: a restore keeps the current ones
-const KEPT_SETTINGS = [PASSWORD, MCP_TOKEN];
+const KEPT_SETTINGS = [PASSWORD, MCP_TOKEN, MCP_CHANGE_TOKEN];
 
-// VACUUM INTO takes a consistent copy while jobs keep writing. Sessions and the MCP token stay out: a backup shouldn't let anyone in
+// VACUUM INTO takes a consistent copy while jobs keep writing. Sessions and the MCP tokens stay out: a backup shouldn't let anyone in
 export const createBackup = (passphrase?: string) =>
   withTempDir((dir) => {
     const copy = join(dir, "lanscape.db");
@@ -123,7 +123,7 @@ export const createBackup = (passphrase?: string) =>
       live.close();
     }
     const snapshot = new Database(copy);
-    snapshot.prepare("DELETE FROM Setting WHERE key = ?").run(MCP_TOKEN);
+    snapshot.prepare("DELETE FROM Setting WHERE key IN (?, ?)").run(MCP_TOKEN, MCP_CHANGE_TOKEN);
     snapshot.exec("DELETE FROM Session; VACUUM");
     snapshot.close();
     const header = { format: FORMAT, version: FORMAT_VERSION, app: process.env.APP_VERSION ?? "dev", createdAt: new Date().toISOString(), encrypted: false } as const;

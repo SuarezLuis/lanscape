@@ -10,48 +10,65 @@ import { listServices } from "./jobs/services";
 import { guessDevice } from "./jobs/guess";
 import { devicePorts } from "./jobs/ports";
 import { readTraits } from "./jobs/traits";
-import { METRICS, type Metric } from "./jobs/notify";
+import { ruleText } from "./jobs/notify";
+import { applyChange, CHANGE_TOOLS, isChangeTool } from "./changes";
 
 /**
- * A read-only MCP server (Streamable HTTP, stateless, JSON responses) for AI agents like OpenClaw or Claude.
- * Off until a token is created on the Integrations page; every tool call is logged.
+ * An MCP server (Streamable HTTP, stateless, JSON responses) for AI agents like OpenClaw or Claude.
+ * Off until a token is created on the Integrations page; every tool call is logged. A read token only reads; a
+ * separate change token also gets the change tools in changes.ts, and each change it makes is logged and undoable.
  * ponytail: hand-written JSON-RPC for tools only, instead of the MCP SDK (which pulls in express and hono);
  * switch to the SDK if LANscape needs resources, prompts or server-sent events.
  */
 
 export const MCP_TOKEN = "mcp.token";
+export const MCP_CHANGE_TOKEN = "mcp.changeToken";
+type Scope = "read" | "change";
+const tokenKey = (scope: Scope) => (scope === "change" ? MCP_CHANGE_TOKEN : MCP_TOKEN);
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 const LOG_DAYS = 30;
 
 const hash = (token: string) => createHash("sha256").update(token).digest();
 
 // The token is shown once; only its hash is kept, like session cookies
-export const createMcpToken = async () => {
+export const createMcpToken = async (scope: Scope = "read") => {
   const token = `lanscape_${randomBytes(32).toString("base64url")}`;
+  const key = tokenKey(scope);
   const value = JSON.stringify({ hash: hash(token).toString("hex"), createdAt: new Date().toISOString() });
-  await prisma.setting.upsert({ where: { key: MCP_TOKEN }, create: { key: MCP_TOKEN, value }, update: { value } });
+  await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
   return token;
 };
 
-export const revokeMcpToken = () => prisma.setting.deleteMany({ where: { key: MCP_TOKEN } });
+export const revokeMcpToken = (scope: Scope = "read") => prisma.setting.deleteMany({ where: { key: tokenKey(scope) } });
 
-const storedToken = async () => {
-  const row = await prisma.setting.findUnique({ where: { key: MCP_TOKEN } });
+const storedToken = async (scope: Scope) => {
+  const row = await prisma.setting.findUnique({ where: { key: tokenKey(scope) } });
   return row ? (JSON.parse(row.value) as { hash: string; createdAt: string }) : null;
 };
 
-export const mcpEnabled = async () => (await storedToken()) !== null;
+export const mcpEnabled = async () => (await storedToken("read")) !== null || (await storedToken("change")) !== null;
 
-export const mcpTokenValid = async (authorization: string | undefined) => {
-  const stored = await storedToken();
+// What the bearer token allows: null when it matches neither token
+export const mcpScope = async (authorization: string | undefined): Promise<Scope | null> => {
   const token = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
-  return stored !== null && token !== undefined && timingSafeEqual(hash(token), Buffer.from(stored.hash, "hex"));
+  if (token === undefined) return null;
+  for (const scope of ["change", "read"] as const) {
+    const stored = await storedToken(scope);
+    if (stored && timingSafeEqual(hash(token), Buffer.from(stored.hash, "hex"))) return scope;
+  }
+  return null;
 };
 
 export const describeMcp = async () => {
-  const stored = await storedToken();
+  const [read, change] = await Promise.all([storedToken("read"), storedToken("change")]);
   const calls = await prisma.mcpCall.findMany({ orderBy: { at: "desc" }, take: 20 });
-  return { enabled: stored !== null, createdAt: stored ? new Date(stored.createdAt) : null, calls };
+  return {
+    enabled: read !== null,
+    createdAt: read ? new Date(read.createdAt) : null,
+    changeEnabled: change !== null,
+    changeCreatedAt: change ? new Date(change.createdAt) : null,
+    calls,
+  };
 };
 
 export const pruneMcpCalls = () => prisma.mcpCall.deleteMany({ where: { at: { lt: new Date(Date.now() - LOG_DAYS * 86_400_000) } } });
@@ -124,7 +141,7 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
           unknown: devices.filter((device) => !device.known).length,
           unknownOnline: online.filter((device) => !device.known).length,
         },
-        alertingNow: alerting.map((rule) => `${METRICS[rule.metric as Metric]?.label ?? rule.metric} ${rule.direction} ${rule.value}${rule.mode === "percent" ? "% of normal" : ` ${METRICS[rule.metric as Metric]?.unit ?? ""}`}`),
+        alertingNow: alerting.map(ruleText),
         unreadAlerts,
       };
     },
@@ -237,6 +254,18 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
       };
     },
   }),
+  list_alert_rules: tool({
+    description: "The owner's alert rules (like download below 100 Mbps): id, what each watches, whether it's on, and whether it's alerting now.",
+    input: z.object({}),
+    run: async () =>
+      (await prisma.notificationRule.findMany({ orderBy: { id: "asc" } })).map((rule) => ({
+        id: rule.id,
+        rule: ruleText(rule),
+        sustainMinutes: rule.sustainMinutes,
+        enabled: rule.enabled,
+        alertingNow: rule.alerting,
+      })),
+  }),
   get_alert_history: tool({
     description:
       "Alerts LANscape raised, newest first: slow speeds, high ping or packet loss (kind \"problem\", then \"resolved\"), device alerts like a new device joining or a watched device going offline (kind \"device\"), and a device opening or closing a port after a port scan (kind \"port\").",
@@ -250,13 +279,33 @@ export const TOOLS: Record<string, Tool<z.ZodObject>> = {
   }),
 };
 
-export const toolList = Object.entries(TOOLS).map(([name, { description, input }]) => {
+const schemaOf = (input: z.ZodObject) => {
   const { $schema: _, ...inputSchema } = z.toJSONSchema(input, { io: "input" });
-  return { name, description, inputSchema, annotations: { readOnlyHint: true, openWorldHint: false } };
-});
+  return inputSchema;
+};
+
+export const toolList = Object.entries(TOOLS).map(([name, { description, input }]) => ({
+  name,
+  description,
+  inputSchema: schemaOf(input),
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}));
+
+// Changes to LANscape's own data only, so nothing destructive and nothing outside it
+export const changeToolList = Object.entries(CHANGE_TOOLS)
+  .filter(([name]) => isChangeTool(name))
+  .map(([name, { description, input }]) => ({
+    name,
+    description,
+    inputSchema: schemaOf(input),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  }));
 
 export const INSTRUCTIONS =
-  "LANscape monitors one home network: internet speed tests, ping checks to the router and an internet host, and devices on the LAN. All tools are read-only. Times are UTC. Report what the data shows; a slow test or lost pings alone don't say whether the cause is the ISP, the router or Wi-Fi.";
+  "LANscape monitors one home network: internet speed tests, ping checks to the router and an internet host, and devices on the LAN. Times are UTC. Report what the data shows; a slow test or lost pings alone don't say whether the cause is the ISP, the router or Wi-Fi.";
+
+const instructionsFor = (scope: Scope) =>
+  `${INSTRUCTIONS} ${scope === "change" ? "The change tools edit LANscape's own data (device names, known marks, per-device alerts, service checks, alert rules); each change is logged and the owner can undo it. Change only what the owner asked for." : "All tools are read-only."}`;
 
 const rpcMessage = z.object({
   jsonrpc: z.literal("2.0"),
@@ -269,12 +318,18 @@ type RpcId = string | number | null;
 const reply = (id: RpcId, result: unknown) => ({ jsonrpc: "2.0", id, result });
 const failure = (id: RpcId, code: number, message: string) => ({ jsonrpc: "2.0", id, error: { code, message } });
 
-export const hasTool = (name: string) => Object.hasOwn(TOOLS, name);
+export const hasTool = (name: string, scope: Scope = "read") => Object.hasOwn(TOOLS, name) || (scope === "change" && isChangeTool(name));
 
-// Runs one tool and logs it; bad arguments and failures come back as errors the caller can read and retry on
-export const callTool = async (name: string, args: unknown, from: string) => {
+// Runs one tool and logs it; bad arguments and failures come back as errors the caller can read and retry on.
+// Change tools only run for a change token
+export const callTool = async (name: string, args: unknown, from: string, scope: Scope = "read") => {
   let result: { text: string; isError: boolean };
   try {
+    if (scope === "change" && isChangeTool(name)) {
+      result = { text: `Done: ${await applyChange(name, args, `MCP agent at ${from}`)}. The owner can undo it in LANscape.`, isError: false };
+      await prisma.mcpCall.create({ data: { tool: name, ok: true, ip: from } });
+      return result;
+    }
     const definition = TOOLS[name];
     if (!definition) throw new Error(`Unknown tool: ${name}`);
     const input = definition.input.safeParse(args ?? {});
@@ -288,7 +343,7 @@ export const callTool = async (name: string, args: unknown, from: string) => {
 };
 
 // One JSON-RPC message in, its response out; null for notifications, which get no response
-export const handleMcp = async (body: unknown, ip: string) => {
+export const handleMcp = async (body: unknown, ip: string, scope: Scope = "read") => {
   const parsed = rpcMessage.safeParse(body);
   if (!parsed.success) return failure(null, -32600, "Invalid request");
   const { id, method, params } = parsed.data;
@@ -301,17 +356,17 @@ export const handleMcp = async (body: unknown, ip: string) => {
         protocolVersion: typeof requested === "string" && VERSIONS.includes(requested) ? requested : VERSIONS[0],
         capabilities: { tools: {} },
         serverInfo: { name: "lanscape", title: "LANscape", version: process.env.APP_VERSION ?? "dev" },
-        instructions: INSTRUCTIONS,
+        instructions: instructionsFor(scope),
       });
     }
     case "ping":
       return reply(id, {});
     case "tools/list":
-      return reply(id, { tools: toolList });
+      return reply(id, { tools: scope === "change" ? [...toolList, ...changeToolList] : toolList });
     case "tools/call": {
       const name = typeof params?.name === "string" ? params.name : "";
-      if (!hasTool(name)) return failure(id, -32602, `Unknown tool: ${name}`);
-      const { text, isError } = await callTool(name, params?.arguments, ip);
+      if (!hasTool(name, scope)) return failure(id, -32602, `Unknown tool: ${name}`);
+      const { text, isError } = await callTool(name, params?.arguments, ip, scope);
       return reply(id, { content: [{ type: "text", text }], ...(isError ? { isError: true } : {}) });
     }
     default:
