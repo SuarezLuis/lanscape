@@ -12,6 +12,15 @@ What's planned, and what shipped in which release. Tick items off in the PR that
   - Move to `node:26-alpine`, checking better-sqlite3 on musl, arp-scan, traceroute and ping, on amd64 and arm64.
   - Major version because the container's startup and base change; data and settings carry over. A Go rewrite (~50–80 MB) was considered and not worth weeks of work and losing the shared tRPC types for the last ~80 MB.
 
+## v2.1.0
+- [ ] **Disk and memory alerts for the machine LANscape runs on:** space on the data disk and on external drives, RAM and swap, shown on the Umbrel's own device and checked against alert rules (a threshold or a percentage left). An alert when an external drive disappears, since apps writing to it then fill the internal disk instead. The data disk is readable from the container as it is; external drives need one extra read-only mount in the compose file, and the feature works without it.
+- [ ] **Service checks that look at the response:** an HTTP check can require the body to contain some text, or a JSON field to equal or not equal a value, on top of the status code. Covers a VPN container's control API (Gluetun's forwarded port is not 0, its public IP is not the home IP) and any app whose health page says more than "it answered".
+
+## v2.2.0
+- [ ] **Scheduled internet pauses through Pi-hole:** recurring pauses per device or group of devices (kids' tablets off 21:00–07:00), reusing the Pi-hole group behind the 1–5 minute pause and the scheduler's time zone handling; devices go back as they were when the pause ends, also after a restart.
+- [ ] **Wake-on-LAN:** a button in the device panel that sends a magic packet to the device's MAC.
+- [ ] **Certificate expiry in service checks:** HTTPS checks warn a set number of days (14 by default) before the certificate expires.
+
 ## Shipped
 
 ### v1.14.0
@@ -126,6 +135,7 @@ Kept here so the reasons aren't lost. Revisit if the reason stops holding.
 - **HTTPS:** Umbrel apps are served over plain http, and a self-signed certificate means browser warnings. A reverse proxy or Tailscale is the practical route.
 - **Browser push notifications:** browsers only allow push over HTTPS, so this waits on HTTPS; ntfy already covers phone notifications.
 - **Adoption/analytics:** no telemetry. For a rough count, "Total downloads" on the image's GHCR page (https://github.com/SuarezLuis/lanscape/pkgs/container/lanscape) counts installs plus updates; once the official listing is approved, ask Umbrel whether developers can see install counts.
+- **Container health on the host (restarts, unhealthy, out of memory):** needs the Docker socket, which is root on the host and goes against the minimum-permissions guardrail. Disk and memory alerts and response-checking service checks catch most of what it would.
 
 ## Design and release guardrails
 - Protect network telemetry and backup contents as sensitive data.
