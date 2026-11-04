@@ -7,6 +7,7 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 
 ## v1.14.0 (next)
 - [ ] **AI write actions (assistant and MCP):** let the assistant and MCP agents change LANscape's own data, starting with naming devices, then marking devices known, setting per-device online/offline alerts, adding service checks and turning alert rules on or off. Safeguards: the MCP server gets a separate write-scope token (the current one stays read-only); the assistant asks before each change and shows exactly what it will do; every change is logged with who made it and can be undone; and nothing touches the network itself (no router, DNS or firewall changes).
+- [ ] **Scan all ports of one device:** a button in the device panel that checks all 65,535 ports of that one device, on demand only (never on a schedule), gentler than the regular scan with progress shown and a way to stop it; finds services outside the common list, like an FR24 feeder's status page on 8754. Also add common ADS-B feeder ports to the regular list (8754 FR24 status, 8504 tar1090, 30003 and 30005 dump1090) and recognize the FR24 and tar1090 pages by name.
 
 ## v2.0.0
 - [ ] **A much smaller image (~660 MB to ~130–160 MB), same code:** today about 210 MB is the Prisma CLI and engines, there only to run `migrate deploy` at startup; ~150 MB is node_modules the esbuild bundle doesn't need; and the base is Debian slim.
