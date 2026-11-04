@@ -18,6 +18,10 @@ export const METRICS = {
 export type Metric = keyof typeof METRICS;
 export const METRIC_KEYS = Object.keys(METRICS) as [Metric, ...Metric[]];
 
+// "Download below 100 Mbps", "Internet ping above 150% of normal"
+export const ruleText = (rule: Pick<NotificationRule, "metric" | "direction" | "value" | "mode">) =>
+  `${METRICS[rule.metric as Metric]?.label ?? rule.metric} ${rule.direction} ${rule.value}${rule.mode === "percent" ? "% of normal" : ` ${METRICS[rule.metric as Metric]?.unit ?? ""}`}`;
+
 // "Normal" needs enough history to mean anything; until then percent rules stay quiet
 const MIN_BASELINE_SAMPLES = { test: 5, ping: 60 };
 

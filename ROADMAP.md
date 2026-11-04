@@ -3,13 +3,9 @@
 What's planned, and what shipped in which release. Tick items off in the PR that ships them; once a version is released it moves under Shipped, and anything still open moves to the next version. Core network monitoring must keep working without AI or external services.
 
 ## Waiting
-- [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Kept on the latest release while it's in review (1.13.0); after approval, new versions go in update PRs.
+- [ ] **Official Umbrel App Store listing:** submitted as getumbrel/umbrel-apps#6285, waiting on review. Kept on the latest release while it's in review (1.14.0); after approval, new versions go in update PRs.
 
-## v1.14.0 (next)
-- [ ] **AI write actions (assistant and MCP):** let the assistant and MCP agents change LANscape's own data, starting with naming devices, then marking devices known, setting per-device online/offline alerts, adding service checks and turning alert rules on or off. Safeguards: the MCP server gets a separate write-scope token (the current one stays read-only); the assistant asks before each change and shows exactly what it will do; every change is logged with who made it and can be undone; and nothing touches the network itself (no router, DNS or firewall changes).
-- [ ] **Scan all ports of one device:** a button in the device panel that checks all 65,535 ports of that one device, on demand only (never on a schedule), gentler than the regular scan with progress shown and a way to stop it; finds services outside the common list, like an FR24 feeder's status page on 8754. Also add common ADS-B feeder ports to the regular list (8754 FR24 status, 8504 tar1090, 30003 and 30005 dump1090) and recognize the FR24 and tar1090 pages by name.
-
-## v2.0.0
+## v2.0.0 (next)
 - [ ] **A much smaller image (~660 MB to ~130–160 MB), same code:** today about 210 MB is the Prisma CLI and engines, there only to run `migrate deploy` at startup; ~150 MB is node_modules the esbuild bundle doesn't need; and the base is Debian slim.
   - Replace `prisma migrate deploy` with a small runner that applies the migration SQL files and records them in `_prisma_migrations` like Prisma does (the test setup already does this), so existing databases upgrade unchanged.
   - Ship only the runtime pieces next to the bundle: better-sqlite3, the Prisma client runtime and the OUI data.
@@ -17,6 +13,10 @@ What's planned, and what shipped in which release. Tick items off in the PR that
   - Major version because the container's startup and base change; data and settings carry over. A Go rewrite (~50–80 MB) was considered and not worth weeks of work and losing the shared tRPC types for the last ~80 MB.
 
 ## Shipped
+
+### v1.14.0
+- [x] **AI changes (assistant and MCP):** the assistant and MCP agents can name devices, mark them known or unknown, set per-device offline and back-online alerts, add service checks and turn alert rules on or off; nothing else, and nothing on the network itself. The assistant only proposes: the owner approves each change, shown in words, in the chat. MCP agents need a separate change token (the read token stays read-only). Every change is logged with who made it, kept for 90 days, and can be undone. New `list_alert_rules` MCP tool.
+- [x] **Scan all ports of one device:** all 65,535 ports from the device panel, on demand only, in the background with progress and Stop (a Raspberry Pi took 4 minutes); no port alerts from it, and later common scans keep what it found on other ports. The common list now has ADS-B feeder ports (8504 tar1090, 8754 FR24 status, 30003 and 30005 dump1090), the FR24, tar1090 and PiAware pages are recognized by name, and a device with those ports is guessed to be a flight tracking receiver.
 
 ### v1.13.0
 - [x] **Pause a device's internet (Pi-hole):** 1, 2 or 5 minutes from the device panel, through a Pi-hole group that blocks every lookup; the device goes back as it was afterwards, also after a restart. Identifies a device without unplugging anything.

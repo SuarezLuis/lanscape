@@ -172,6 +172,81 @@ export const PROMPTS = [
   { prompt: "Every Monday morning, send me a report on last week's network.", hint: "for agents that run on a schedule" },
 ];
 
+// What the assistant and agents changed, newest first; each can be undone once
+export const AiChanges = ({ empty }: { empty?: string }) => {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const changes = useQuery(trpc.integrations.changes.queryOptions());
+  const undo = useMutation(trpc.integrations.undoChange.mutationOptions({ onSettled: () => queryClient.invalidateQueries() }));
+  if (!changes.data?.length && !empty) return null;
+  return (
+    <Stack gap={4}>
+      <Text size="sm" fw={600}>
+        Changes made by AI
+      </Text>
+      {changes.data?.length ? (
+        <Table.ScrollContainer minWidth={480}>
+          <Table fz="sm" verticalSpacing={4}>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>When</Table.Th>
+                <Table.Th>Change</Table.Th>
+                <Table.Th>By</Table.Th>
+                <Table.Th />
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {changes.data.map((change) => (
+                <Table.Tr key={change.id}>
+                  <Table.Td style={{ whiteSpace: "nowrap" }}>{when(change.at)}</Table.Td>
+                  <Table.Td td={change.undoneAt ? "line-through" : undefined}>{change.summary}</Table.Td>
+                  <Table.Td>{change.by}</Table.Td>
+                  <Table.Td>
+                    {change.undoneAt ? (
+                      <Text size="xs" c="dimmed">
+                        Undone
+                      </Text>
+                    ) : (
+                      change.undo !== "null" && (
+                        <Button size="compact-xs" variant="light" loading={undo.isPending && undo.variables?.id === change.id} onClick={() => undo.mutate({ id: change.id })}>
+                          Undo
+                        </Button>
+                      )
+                    )}
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
+      ) : (
+        <Text size="sm" c="dimmed">
+          {empty}
+        </Text>
+      )}
+      {undo.error && (
+        <Text size="sm" c="red">
+          {undo.error.message}
+        </Text>
+      )}
+    </Stack>
+  );
+};
+
+type Scope = "read" | "change";
+const ACCESS: Record<Scope, { label: string; replaceWarning: string; warning: string }> = {
+  read: {
+    label: "Read access",
+    replaceWarning: "Agents using the current read token lose access until you give them the new one.",
+    warning: "Anyone with it can read your network data, so treat it like a password.",
+  },
+  change: {
+    label: "Change access",
+    replaceWarning: "Agents using the current change token lose access until you give them the new one.",
+    warning: "Anyone with it can read your network data and change device names, alerts, service checks and alert rules, so treat it like a password.",
+  },
+};
+
 const McpPanel = () => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -188,65 +263,61 @@ const McpPanel = () => {
   );
   const endpoint = `${window.location.origin}/mcp`;
   const token = create.data;
+  const tokenScope = create.variables?.scope ?? "read";
   const claudeCommand = `claude mcp add --transport http --scope user lanscape ${endpoint} --header "Authorization: Bearer ${token ?? "<token>"}"`;
   const config = JSON.stringify(
     { mcpServers: { lanscape: { type: "http", url: endpoint, headers: { Authorization: `Bearer ${token ?? "<token>"}` } } } },
     null,
     2,
   );
-
-  const replace = () => {
-    if (!mcp.data?.enabled || window.confirm("Agents using the current token lose access until you give them the new one.")) create.mutate();
+  const state = (scope: Scope) => (scope === "read" ? { on: mcp.data?.enabled, createdAt: mcp.data?.createdAt } : { on: mcp.data?.changeEnabled, createdAt: mcp.data?.changeCreatedAt });
+  const replace = (scope: Scope) => {
+    if (!state(scope).on || window.confirm(ACCESS[scope].replaceWarning)) create.mutate({ scope });
   };
 
   return (
     <Stack gap="md" maw={720}>
       <Text size="sm">
         Lets AI agents that speak MCP (OpenClaw, Claude, and others) read your speed tests, latency, devices and alerts, so
-        you can ask them about your network. Access is read-only: an agent can't change settings, run scans or tests, or
-        see Pi-hole activity.
+        you can ask them about your network. A read token only reads. A separate change token also lets an agent rename
+        devices, mark them known, set per-device alerts, add service checks and turn alert rules on or off; each change is
+        listed below and can be undone. No token lets an agent run scans or tests, see Pi-hole activity, or change anything
+        on your network itself.
       </Text>
-      <Group gap="xs">
-        <Text size="sm" fw={600}>
-          Status
-        </Text>
-        {mcp.data?.enabled ? (
-          <Badge color="teal" variant="light">
-            On
-          </Badge>
-        ) : (
-          <Badge color="gray" variant="light">
-            Off
-          </Badge>
-        )}
-        {mcp.data?.createdAt && (
-          <Text size="sm" c="dimmed">
-            Token created {when(mcp.data.createdAt)}
+      {(["read", "change"] as const).map((scope) => (
+        <Group key={scope} gap="xs">
+          <Text size="sm" fw={600} w={120}>
+            {ACCESS[scope].label}
           </Text>
-        )}
-      </Group>
-      <Group>
-        <Button loading={create.isPending} onClick={replace}>
-          {mcp.data?.enabled ? "Replace token" : "Create token"}
-        </Button>
-        {mcp.data?.enabled && (
-          <Button variant="subtle" color="red" loading={revoke.isPending} onClick={() => revoke.mutate()}>
-            Turn off
+          <Badge color={state(scope).on ? "teal" : "gray"} variant="light">
+            {state(scope).on ? "On" : "Off"}
+          </Badge>
+          {state(scope).createdAt && (
+            <Text size="sm" c="dimmed">
+              Token created {when(state(scope).createdAt!)}
+            </Text>
+          )}
+          <Button size="xs" variant={scope === "read" ? "filled" : "default"} loading={create.isPending && create.variables?.scope === scope} onClick={() => replace(scope)}>
+            {state(scope).on ? "Replace token" : scope === "read" ? "Create token" : "Create change token"}
           </Button>
-        )}
-      </Group>
+          {state(scope).on && (
+            <Button size="xs" variant="subtle" color="red" loading={revoke.isPending && revoke.variables?.scope === scope} onClick={() => revoke.mutate({ scope })}>
+              Turn off
+            </Button>
+          )}
+        </Group>
+      ))}
       {token && (
         <Stack gap={4}>
           <Text size="sm" fw={600}>
-            Your token
+            Your {tokenScope === "change" ? "change" : "read"} token
           </Text>
           <Group gap="xs">
             <Code style={{ wordBreak: "break-all" }}>{token}</Code>
             <Copy value={token} />
           </Group>
           <Text size="sm" c="dimmed">
-            Copy it now; LANscape keeps only a fingerprint and can't show it again. Anyone with it can read your network
-            data, so treat it like a password.
+            Copy it now; LANscape keeps only a fingerprint and can't show it again. {ACCESS[tokenScope].warning}
           </Text>
         </Stack>
       )}
@@ -290,6 +361,8 @@ const McpPanel = () => {
           </Group>
         ))}
       </Stack>
+
+      <AiChanges empty="None yet. Changes the assistant (after you approve them) or an agent with a change token makes show here, kept for 90 days." />
 
       <Stack gap={4}>
         <Text size="sm" fw={600}>

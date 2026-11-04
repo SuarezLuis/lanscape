@@ -69,6 +69,7 @@ const SLIDES = [
   framed("<em>Ask</em> about your network", "assistant", "dark"),
   framed("Keep an eye on <em>your home services</em>", "services", "light"),
   alerts,
+  framed("Changes happen <em>only when you approve</em>", "assistant-change", "light"),
 ];
 
 const out = new URL("gallery/", ASSETS);

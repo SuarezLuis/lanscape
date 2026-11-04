@@ -22,6 +22,7 @@ const PORT_KINDS: [number[], string][] = [
   [[548], "Mac or NAS"],
   [[5000, 5001], "NAS"],
   [[7000], "AirPlay device (Apple TV, HomePod or a Mac)"],
+  [[8754, 30005, 30003, 8504], "Flight tracking receiver (ADS-B)"],
 ];
 
 const HOSTNAME_KINDS: [RegExp, string][] = [

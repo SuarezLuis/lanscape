@@ -19,7 +19,7 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 - **Reports:** an optional weekly summary through your alert channels, and a 30-day report to send your ISP.
 - **Device list** from ARP scans every 5 minutes: IP, MAC, maker (from the IEEE OUI registry), model, names announced over mDNS, UPnP and DHCP, and your own names. Includes the Umbrel itself.
 - **Devices keep their identity across private MAC addresses**, matched by the stable ids they announce (Google Cast, AirPlay, HomeKit, UPnP), what they say when they join (DHCP), or their name.
-- **Open ports** per device, on demand or on a schedule, with what actually answers on each one (Pi-hole, Home Assistant, Plex, OpenSSH...) next to what usually runs on that port, and an alert when a device opens a new one.
+- **Open ports** per device, on demand or on a schedule, with what actually answers on each one (Pi-hole, Home Assistant, Plex, OpenSSH...) next to what usually runs on that port, and an alert when a device opens a new one. Scan all 65,535 ports of one device when you need to.
 - **Identify a device** by switching it off and on between scans, or, with Pi-hole, by pausing its internet for a few minutes; plus a best guess at what each device is (camera, Roku, Android phone…) and why.
 - **Per-device history and alerts:** mark devices as known, see when each came and went, and get alerted when a chosen device has been offline for a while or comes back online, like a phone arriving home. Delete a device to hear about it as new next time.
 - **Notification rules** on any measurement, against a fixed value or a percentage from the 7-day median, with a "how long" window. Each rule alerts once when a problem starts and once when it clears. Also alerts when a new device joins, and optionally when an unknown one comes back.
@@ -28,8 +28,8 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 - **Choose the speed test server**, or let it pick the nearest.
 - **CSV export** of speed tests, ping checks and devices.
 - **Pi-hole integration:** names for devices that don't announce one, DNS activity per device, fewer sleepy devices shown as away, and pausing a device's internet to identify it.
-- **AI assistant:** ask about your network in plain language, with Claude, OpenAI, or a model on your own network such as Ollama. Read-only, shows the data behind each answer, and says where your data goes.
-- **MCP server for AI agents:** read-only tools for OpenClaw, Claude and other MCP clients to answer questions about your network, behind a token you can replace or turn off, with a log of their requests.
+- **AI assistant:** ask about your network in plain language, with Claude, OpenAI, or a model on your own network such as Ollama. It can suggest changes (name a device, mark it known, set its alerts, watch a service, turn a rule off) that happen only when you approve them, and every change can be undone. Shows the data behind each answer, and says where your data goes.
+- **MCP server for AI agents:** tools for OpenClaw, Claude and other MCP clients to answer questions about your network, behind a read token you can replace or turn off, with a log of their requests. A separate change token lets an agent name devices, set alerts and add service checks, each change logged and undoable.
 - **Backup and restore** of everything in one file, optionally encrypted with a passphrase, with a preview before restoring and an undo after.
 - **Password protection:** on Umbrel it starts with the password Umbrel shows for the app; change it or sign out everywhere in Settings.
 - Light, dark and system themes; works on phones.
@@ -41,6 +41,7 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 | ![Speed and latency history](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/2.jpg) | ![Outages and where they happened](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/3.jpg) |
 | ![Every device on your network](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/4.jpg) | ![Ask the assistant about your network](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/5.jpg) |
 | ![Service checks](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/6.jpg) | ![Alerts on your phone](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/7.jpg) |
+| ![Changes the assistant suggests, waiting for approval](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/8.jpg) | |
 
 Made from invented demo data with `scripts/demo/` (seed, model, capture, gallery).
 

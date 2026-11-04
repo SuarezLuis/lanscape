@@ -1,11 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { prisma } from "./db";
-import { callTool, INSTRUCTIONS, toolList } from "./mcp";
+import { describeChange, isChangeTool } from "./changes";
+import { callTool, changeToolList, INSTRUCTIONS, toolList } from "./mcp";
 
 /**
- * Built-in chat: a model of the owner's choice answers questions about the network with the same read-only tools
- * the MCP server offers. Claude goes through Anthropic's SDK; OpenAI, Ollama and other OpenAI-compatible servers
+ * Built-in chat: a model of the owner's choice answers questions about the network with the same tools the MCP
+ * server offers. The change tools don't change anything here: each becomes a proposal the owner approves in the app. Claude goes through Anthropic's SDK; OpenAI, Ollama and other OpenAI-compatible servers
  * through their chat completions endpoint. Conversations aren't stored: the browser sends the recent history.
  */
 
@@ -124,7 +125,8 @@ You are the assistant built into LANscape, answering the owner's questions about
 - Use the tools for every fact about the network; never guess numbers, names or times.
 - Ground each claim in what a tool returned, and say what it was based on ("the speed tests from the last week show..."). If the data doesn't cover the question, say so.
 - Keep a clear line between what the data shows and possible causes; offer causes as possibilities.
-- Answer in plain language, briefly. Use the owner's device names. Show times in a readable form.`;
+- Answer in plain language, briefly. Use the owner's device names. Show times in a readable form.
+- The change tools (renaming devices, marking them known, per-device alerts, service checks, alert rules) only propose a change: nothing happens until the owner approves it below your answer. Propose only what the owner asked for, and never say a change is done.`;
 
 const clip = (text: string) => (text.length > MAX_TOOL_TEXT ? `${text.slice(0, MAX_TOOL_TEXT)}\n[cut at ${MAX_TOOL_TEXT} characters; ask for a narrower range]` : text);
 
@@ -134,21 +136,37 @@ export type ChatEvent =
   | { type: "text"; text: string }
   | { type: "round" }
   | { type: "tool"; name: string; input: unknown }
-  | { type: "tool_done"; name: string; ok: boolean };
+  | { type: "tool_done"; name: string; ok: boolean }
+  | { type: "proposal"; proposal: Proposal };
+export type Proposal = { name: string; input: unknown; summary: string };
 type Emit = (event: ChatEvent) => void;
 
-const runTool = async (name: string, input: unknown, emit: Emit): Promise<ToolUse> => {
+const runTool = async (name: string, input: unknown, emit: Emit, proposals: Proposal[]): Promise<ToolUse> => {
   emit({ type: "tool", name, input });
+  if (isChangeTool(name)) {
+    try {
+      const proposal = { name, input, summary: await describeChange(name, input) };
+      proposals.push(proposal);
+      emit({ type: "tool_done", name, ok: true });
+      emit({ type: "proposal", proposal });
+      return { name, input, ok: true, result: `Proposed to the owner: ${proposal.summary}. Nothing has changed yet; it happens only if they approve it.` };
+    } catch (error) {
+      emit({ type: "tool_done", name, ok: false });
+      return { name, input, ok: false, result: error instanceof Error ? error.message : String(error) };
+    }
+  }
   const { text, isError } = await callTool(name, input, "LANscape chat");
   emit({ type: "tool_done", name, ok: !isError });
   return { name, input, ok: !isError, result: clip(text) };
 };
 
-const chatAnthropic = async (settings: Settings, history: ChatMessage[], used: ToolUse[], emit: Emit) => {
+const allTools = [...toolList, ...changeToolList];
+
+const chatAnthropic = async (settings: Settings, history: ChatMessage[], used: ToolUse[], proposals: Proposal[], emit: Emit) => {
   const client = anthropic(settings);
   // eager_input_streaming stays off: these inputs are a few bytes ({"range":"week"}), so buffered validation costs
   // nothing, and callTool validates every input again anyway
-  const tools = toolList.map(({ name, description, inputSchema }) => ({ name, description, input_schema: inputSchema as Anthropic.Beta.BetaTool.InputSchema }));
+  const tools = allTools.map(({ name, description, inputSchema }) => ({ name, description, input_schema: inputSchema as Anthropic.Beta.BetaTool.InputSchema }));
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((message) => ({ role: message.role, content: message.content }));
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     if (round > 0) emit({ type: "round" });
@@ -173,7 +191,7 @@ const chatAnthropic = async (settings: Settings, history: ChatMessage[], used: T
     }
     messages.push({ role: "assistant", content: response.content });
     // Run together, listed in the order asked, and returned in one message so parallel calls stay parallel
-    const results = await Promise.all(calls.map((call) => runTool(call.name, call.input, emit)));
+    const results = await Promise.all(calls.map((call) => runTool(call.name, call.input, emit, proposals)));
     used.push(...results);
     messages.push({
       role: "user",
@@ -232,8 +250,8 @@ const openaiStream = async (settings: Settings, body: unknown, emit: Emit) => {
   return { content, finish, calls: calls.filter(Boolean) };
 };
 
-const chatOpenAI = async (settings: Settings, history: ChatMessage[], used: ToolUse[], emit: Emit) => {
-  const tools = toolList.map(({ name, description, inputSchema }) => ({ type: "function", function: { name, description, parameters: inputSchema } }));
+const chatOpenAI = async (settings: Settings, history: ChatMessage[], used: ToolUse[], proposals: Proposal[], emit: Emit) => {
+  const tools = allTools.map(({ name, description, inputSchema }) => ({ type: "function", function: { name, description, parameters: inputSchema } }));
   const messages: OpenAIMessage[] = [{ role: "system", content: system() }, ...history];
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     if (round > 0) emit({ type: "round" });
@@ -250,7 +268,7 @@ const chatOpenAI = async (settings: Settings, history: ChatMessage[], used: Tool
         messages.push({ role: "tool", tool_call_id: call.id, content: "The arguments weren't valid JSON." });
         continue;
       }
-      const result = await runTool(call.function.name, input, emit);
+      const result = await runTool(call.function.name, input, emit, proposals);
       used.push(result);
       messages.push({ role: "tool", tool_call_id: call.id, content: result.result });
     }
@@ -262,6 +280,8 @@ export const chat = async (history: ChatMessage[], emit: Emit = () => {}) => {
   const settings = await readSettings();
   if (!settings) throw new Error("Set up the assistant first, under Integrations → AI assistant.");
   const used: ToolUse[] = [];
-  const reply = settings.provider === "anthropic" ? await chatAnthropic(settings, history, used, emit) : await chatOpenAI(settings, history, used, emit);
-  return { reply, tools: used, ...destination(settings) };
+  const proposals: Proposal[] = [];
+  const reply =
+    settings.provider === "anthropic" ? await chatAnthropic(settings, history, used, proposals, emit) : await chatOpenAI(settings, history, used, proposals, emit);
+  return { reply, tools: used, proposals, ...destination(settings) };
 };

@@ -38,14 +38,15 @@ test("finds open ports and what answers on them, following a redirect on the sam
   ]);
 });
 
-test("a device's scan replaces its previous one and goes with the device", async () => {
+test("a scan replaces what it checked, keeps ports it didn't check, and goes with the device", async () => {
   const mac = "aa:bb:cc:dd:ee:01";
-  await prisma.device.create({ data: { mac, ip: "127.0.0.1", lastSeen: new Date() } });
-  await prisma.devicePort.create({ data: { mac, port: 1, service: "old" } });
-  await scanDevicePorts(mac, [webPort]);
+  await prisma.device.create({ data: { mac, ip: "127.0.0.1", lastSeen: new Date(), portsScannedAt: new Date() } });
+  // 1 closed since; 2 was found by an earlier scan of all ports and isn't on this scan's list
+  await prisma.devicePort.createMany({ data: [{ mac, port: 1, service: "old" }, { mac, port: 2, service: "rare" }] });
+  await scanDevicePorts(mac, [webPort, 1]);
   const saved = await devicePorts(mac);
   expect(saved.scannedAt).toBeInstanceOf(Date);
-  expect(saved.ports.map((entry) => entry.port)).toEqual([webPort]);
+  expect(saved.ports.map((entry) => entry.port)).toEqual([2, webPort]);
   await prisma.device.delete({ where: { mac } });
   expect(await prisma.devicePort.count()).toBe(0);
 });

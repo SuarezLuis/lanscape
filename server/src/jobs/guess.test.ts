@@ -14,6 +14,7 @@ test("guesses from the strongest clues and says why", () => {
     kind: "Home server",
     reasons: ["it runs Home Assistant (port 8123), Plex (port 32400)", "its name is umbrel"],
   });
+  expect(guessDevice({ ...clues, vendor: "Raspberry Pi Trading Ltd", ports: [80, 8504, 8754, 30005] })?.kind).toBe("Flight tracking receiver (ADS-B)");
 });
 
 test("no guess for a device that names its model, or when nothing hints at a kind", () => {

@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { pruneChanges } from "../changes";
 import { pruneMcpCalls } from "../mcp";
 import { pruneServiceResults } from "./services";
 import { pruneTraits } from "./traits";
@@ -35,7 +36,7 @@ export const rollUpOldPings = async (now = new Date()) => {
 
 export const startRetention = () => {
   const run = () =>
-    Promise.all([rollUpOldPings(), pruneMcpCalls(), pruneServiceResults(), pruneTraits()]).catch((error: unknown) => {
+    Promise.all([rollUpOldPings(), pruneMcpCalls(), pruneChanges(), pruneServiceResults(), pruneTraits()]).catch((error: unknown) => {
       console.error("Retention failed:", error instanceof Error ? error.message : error);
     });
   void run();

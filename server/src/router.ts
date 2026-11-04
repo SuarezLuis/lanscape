@@ -19,6 +19,7 @@ import {
 import { BackupError, listSafetyBackups, undoRestore } from "./backup";
 import { prisma } from "./db";
 import { aiSettings, DEFAULT_ANTHROPIC_MODEL, describeAi, providerError, removeAi, saveAi } from "./ai";
+import { applyChange, listChanges, undoChange } from "./changes";
 import { planInput, readPlan, savePlan, weeklyPattern } from "./analytics";
 import { ispReport, readReportSettings, reportSettings, saveReportSettings, sendWeeklyReport } from "./reports";
 import { healthScore } from "./health";
@@ -35,7 +36,7 @@ import { describePihole, PAUSE_MINUTES, pauseDevice, pausedUntil, piholeActivity
 import { listServices, runServiceCheck, serviceInput } from "./jobs/services";
 import { readStatus } from "./jobs/status";
 import { guessDevice } from "./jobs/guess";
-import { devicePorts, PORT_CLOSED_ALERTS, PORT_OPENED_ALERTS, readPortAlerts, scanDevicePorts } from "./jobs/ports";
+import { devicePorts, fullPortScan, PORT_CLOSED_ALERTS, PORT_OPENED_ALERTS, readPortAlerts, scanDevicePorts, startFullPortScan, stopFullPortScan } from "./jobs/ports";
 import { displayModel, readTraits } from "./jobs/traits";
 import { findTelegramChats } from "./jobs/telegram";
 import { JOBS, jobRunning, loadAutomations, nextRun, runJobNow } from "./jobs/scheduler";
@@ -118,6 +119,14 @@ const piholeCall = async <T>(run: () => Promise<T>) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new TRPCError({ code: "BAD_REQUEST", message: /fetch failed|aborted|timeout|ECONNREFUSED/i.test(message) ? "Couldn't reach Pi-hole" : message });
+  }
+};
+
+const badRequest = async <T>(run: () => Promise<T>) => {
+  try {
+    return await run();
+  } catch (error) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : String(error) });
   }
 };
 
@@ -332,6 +341,10 @@ export const appRouter = t.router({
         throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : String(error) });
       }
     }),
+    // All ports of one device, in the background: progress while it runs, null once it's done or stopped
+    scanAllPorts: procedure.input(z.object({ mac: z.string() })).mutation(({ input }) => badRequest(() => startFullPortScan(input.mac))),
+    allPortsScan: procedure.input(z.object({ mac: z.string() })).query(({ input }) => fullPortScan(input.mac)),
+    stopAllPortsScan: procedure.input(z.object({ mac: z.string() })).mutation(({ input }) => void stopFullPortScan(input.mac)),
     history: procedure
       .input(z.object({ mac: z.string() }))
       .query(({ input }) => prisma.deviceEvent.findMany({ where: { mac: input.mac }, orderBy: { at: "desc" }, take: 100 })),
@@ -387,6 +400,8 @@ export const appRouter = t.router({
     settings: procedure.query(async () => ({ saved: await describeAi(), defaultAnthropicModel: DEFAULT_ANTHROPIC_MODEL })),
     save: procedure.input(aiSettings).mutation(({ input }) => providerCall(() => saveAi(input))),
     remove: procedure.mutation(() => removeAi()),
+    // A change the assistant proposed, run once the owner approves it
+    approve: procedure.input(z.object({ name: z.string(), input: z.record(z.string(), z.unknown()) })).mutation(({ input }) => badRequest(() => applyChange(input.name, input.input, "Assistant"))),
   }),
   integrations: t.router({
     pihole: procedure.query(() => describePihole()),
@@ -402,8 +417,11 @@ export const appRouter = t.router({
     removePihole: procedure.mutation(() => removePihole()),
     mcp: procedure.query(() => describeMcp()),
     // Replaces any earlier token, so creating one also cuts off whoever had the old one
-    createMcpToken: procedure.mutation(() => createMcpToken()),
-    revokeMcpToken: procedure.mutation(() => revokeMcpToken()),
+    createMcpToken: procedure.input(z.object({ scope: z.enum(["read", "change"]) })).mutation(({ input }) => createMcpToken(input.scope)),
+    revokeMcpToken: procedure.input(z.object({ scope: z.enum(["read", "change"]) })).mutation(({ input }) => revokeMcpToken(input.scope)),
+    // What the assistant and agents changed, newest first, each undoable once
+    changes: procedure.query(() => listChanges()),
+    undoChange: procedure.input(z.object({ id: z.int() })).mutation(({ input }) => badRequest(() => undoChange(input.id))),
     piholeActivity: procedure.input(z.object({ mac: z.string() })).query(async ({ input }) => {
       try {
         return await piholeActivity(input.mac);

@@ -86,7 +86,9 @@ When a device doesn't name its model, its panel shows a best guess, like **Proba
 
 ### Open ports
 
-Open a device and select **Scan ports** to see which of about 90 common ports it has open (web pages, SSH, file sharing, printers, media servers, databases and so on) and what answers on each. LANscape reads the web page title, the server's name or the greeting a service sends, and names it when it recognizes it, like Pi-hole, Home Assistant, Plex or OpenSSH 9.6. When that isn't what usually runs on the port, it says so: *Uptime Kuma, usually Grafana or a development web server*. When a port accepts a connection but doesn't say what it is, you see what usually runs there.
+Open a device and select **Scan ports** to see which of about 90 common ports it has open (web pages, SSH, file sharing, printers, media servers, databases, flight-tracking feeders and so on) and what answers on each. LANscape reads the web page title, the server's name or the greeting a service sends, and names it when it recognizes it, like Pi-hole, Home Assistant, Plex or OpenSSH 9.6. When that isn't what usually runs on the port, it says so: *Uptime Kuma, usually Grafana or a development web server*. When a port accepts a connection but doesn't say what it is, you see what usually runs there.
+
+**Scan all ports** checks all 65,535 ports of that one device, to find services outside the common list (like a Flightradar24 feeder's status page on 8754). It runs in the background with its progress shown, takes a few minutes (longer on a device that silently ignores closed ports), and **Stop** ends it without saving anything. It never runs on a schedule and doesn't send port alerts, since you're watching it. Later scans of the common ports keep what it found on the other ports.
 
 The scan only connects; it doesn't log in or change anything, and it takes a few seconds per device. The **Ports** column in the device list shows the first few open ports from each device's latest scan; hover to see them all. To keep it current for every device, turn on **Port scan** on the Automations page. LANscape can alert you when a device opens a new port (see Notifications).
 
@@ -198,7 +200,9 @@ Pi-hole only knows names if it hands out addresses itself (its DHCP server), or 
 
 ### AI assistant
 
-The **Assistant** page answers questions about your network in plain language: "When was my internet slow this month?", "Is there anything on my network I don't recognize?", "Has the NAS been flaky?". It reads the same data as the AI agents tab below (speed tests, latency, outages, devices, services and alerts) and can't change anything. Answers appear as they're written, with each piece of data it reads shown as it happens. Under each answer, **Looked at** shows exactly which data it read, so you can check it.
+The **Assistant** page answers questions about your network in plain language: "When was my internet slow this month?", "Is there anything on my network I don't recognize?", "Has the NAS been flaky?". It reads the same data as the AI agents tab below (speed tests, latency, outages, devices, services and alerts). Answers appear as they're written, with each piece of data it reads shown as it happens. Under each answer, **Looked at** shows exactly which data it read, so you can check it.
+
+It can also suggest changes when you ask, like "name 192.168.0.3 Flight radar", "mark every Nest device as known", "alert me when the kids' tablet has been offline for 30 minutes", "watch my Pi-hole's web page" or "turn off the upload alert". Nothing changes until you select **Approve** on the suggestion below its answer, which says exactly what will happen; **Dismiss** drops it. Approved changes are listed under the chat and on the AI agents tab, where **Undo** puts things back as they were. It can't delete anything, run scans or tests, or change anything on your network itself.
 
 Set it up on the **AI assistant** tab with one of:
 
@@ -222,11 +226,11 @@ AI agents that speak [MCP](https://modelcontextprotocol.io), like OpenClaw or Cl
 - the services you watch, and whether each is up
 - the alerts LANscape raised
 
-Agents can't change settings, run scans or speed tests, or see Pi-hole's DNS activity. The tab has a few questions to start with, like "When was my internet slow this month, and was it my ISP or my home network?" or "Which devices never go offline?".
+With a read token, that's all they can do. A separate **change token** also lets an agent rename devices, mark them known or unknown, set per-device offline and back-online alerts, add service checks, and turn alert rules on or off. Each change is listed under **Changes made by AI** with the agent's address, kept for 90 days, and **Undo** puts it back. No token lets an agent delete anything, run scans or speed tests, see Pi-hole's DNS activity, or change anything on your network itself. The tab has a few questions to start with, like "When was my internet slow this month, and was it my ISP or my home network?" or "Which devices never go offline?".
 
-It's off until you select **Create token** on the AI agents tab. Copy the token straight away: LANscape keeps only a fingerprint and can't show it again. Then give the agent the server address (`http://<your-umbrel>:4545/mcp`, Streamable HTTP) with the token in an `Authorization: Bearer` header. The tab shows the exact command for Claude Code and a JSON config that most other clients accept. An agent running on the Umbrel itself also uses the Umbrel's network address, not `localhost`.
+It's off until you select **Create token** (read) or **Create change token** on the AI agents tab. Only give an agent the change token if you want it to make changes. Copy the token straight away: LANscape keeps only a fingerprint and can't show it again. Then give the agent the server address (`http://<your-umbrel>:4545/mcp`, Streamable HTTP) with the token in an `Authorization: Bearer` header. The tab shows the exact command for Claude Code and a JSON config that most other clients accept. An agent running on the Umbrel itself also uses the Umbrel's network address, not `localhost`.
 
-**Replace token** makes a new one and cuts off the old one; **Turn off** removes it. The tab lists the agents' recent requests, kept for 30 days. Backups leave the token out, and restoring one keeps the token you have now.
+**Replace token** makes a new one and cuts off the old one; **Turn off** removes it. Each kind of token is replaced and turned off on its own. The tab lists the agents' recent requests, kept for 30 days. Backups leave the tokens out, and restoring one keeps the tokens you have now.
 
 ## Settings
 

@@ -1,20 +1,23 @@
 import { Accordion, Alert, Anchor, Badge, Box, Button, Card, Code, Group, Loader, Paper, Stack, Text, Textarea, Title, Typography } from "@mantine/core";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { PROMPTS } from "./IntegrationsPage";
+import { AiChanges, PROMPTS } from "./IntegrationsPage";
 import { useTRPC } from "./trpc";
 
 type ToolUse = { name: string; input: unknown; ok: boolean; result: string };
-type Turn = { role: "user"; content: string } | { role: "assistant"; content: string; tools: ToolUse[] };
+// A change the assistant wants to make; it happens only when the owner approves it
+type Proposal = { name: string; input: unknown; summary: string; state?: "approved" | "dismissed" };
+type Turn = { role: "user"; content: string } | { role: "assistant"; content: string; tools: ToolUse[]; proposals?: Proposal[] };
 type Live = { text: string; tools: { name: string; input: unknown; ok: boolean | null }[] };
 type Event =
   | { type: "text"; text: string }
   | { type: "round" }
   | { type: "tool"; name: string; input: unknown }
   | { type: "tool_done"; name: string; ok: boolean }
-  | { type: "done"; reply: string; tools: ToolUse[] }
+  | { type: "proposal" }
+  | { type: "done"; reply: string; tools: ToolUse[]; proposals: Proposal[] }
   | { type: "error"; message: string };
 
 // The server streams JSON lines; each one goes to onEvent as it arrives
@@ -80,6 +83,50 @@ const ToolsUsed = ({ tools }: { tools: ToolUse[] }) =>
     </Accordion>
   );
 
+const Proposals = ({ proposals, onChange }: { proposals: Proposal[]; onChange: (index: number, state: Proposal["state"]) => void }) => {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const approve = useMutation(trpc.ai.approve.mutationOptions({ onSuccess: () => queryClient.invalidateQueries() }));
+  return (
+    <Stack gap={6}>
+      {proposals.map((proposal, i) => (
+        <Paper key={i} withBorder p="xs" radius="md">
+          <Group justify="space-between" wrap="nowrap" gap="xs">
+            <Text size="sm" td={proposal.state === "dismissed" ? "line-through" : undefined} c={proposal.state === "dismissed" ? "dimmed" : undefined}>
+              {proposal.summary}
+            </Text>
+            {proposal.state === "approved" ? (
+              <Badge color="teal" variant="light" style={{ flexShrink: 0 }}>
+                Done
+              </Badge>
+            ) : proposal.state === "dismissed" ? null : (
+              <Group gap={6} wrap="nowrap">
+                <Button
+                  size="compact-sm"
+                  loading={approve.isPending && approve.variables?.name === proposal.name && approve.variables.input === proposal.input}
+                  onClick={() =>
+                    approve.mutate({ name: proposal.name, input: proposal.input as Record<string, unknown> }, { onSuccess: () => onChange(i, "approved") })
+                  }
+                >
+                  Approve
+                </Button>
+                <Button size="compact-sm" variant="default" onClick={() => onChange(i, "dismissed")}>
+                  Dismiss
+                </Button>
+              </Group>
+            )}
+          </Group>
+        </Paper>
+      ))}
+      {approve.error && (
+        <Text size="sm" c="red">
+          {approve.error.message}
+        </Text>
+      )}
+    </Stack>
+  );
+};
+
 export const AssistantPage = () => {
   const trpc = useTRPC();
   const settings = useQuery(trpc.ai.settings.queryOptions());
@@ -108,7 +155,7 @@ export const AssistantPage = () => {
         return { ...current, tools: current.tools.map((tool, i) => (i === index ? { ...tool, ok: event.ok } : tool)) };
       });
     }
-    if (event.type === "done") setTurns((current) => [...current, { role: "assistant", content: event.reply, tools: event.tools }]);
+    if (event.type === "done") setTurns((current) => [...current, { role: "assistant", content: event.reply, tools: event.tools, proposals: event.proposals }]);
     if (event.type === "error") setError(event.message);
   };
 
@@ -209,6 +256,18 @@ export const AssistantPage = () => {
                 <Typography fz="sm">
                   <Markdown remarkPlugins={[remarkGfm]}>{turn.content}</Markdown>
                 </Typography>
+                {turn.proposals?.length ? (
+                  <Proposals
+                    proposals={turn.proposals}
+                    onChange={(index, state) =>
+                      setTurns((current) =>
+                        current.map((entry, j) =>
+                          j === i && entry.role === "assistant" ? { ...entry, proposals: entry.proposals?.map((proposal, k) => (k === index ? { ...proposal, state } : proposal)) } : entry,
+                        ),
+                      )
+                    }
+                  />
+                ) : null}
                 <ToolsUsed tools={turn.tools} />
               </Stack>
             ),
@@ -269,13 +328,15 @@ export const AssistantPage = () => {
             </Button>
           </Group>
           <Text size="xs" c="dimmed" mt={4}>
-            The assistant reads LANscape's data and can't change anything. It can be wrong; check what it looked at below each
-            answer.{" "}
+            The assistant reads LANscape's data. It can suggest changes, like naming a device or adding a service check, but
+            nothing changes until you approve it, and every change can be undone. It can be wrong; check what it looked at
+            below each answer.{" "}
             <Anchor size="xs" href="/help">
               Help
             </Anchor>
           </Text>
         </form>
+        <AiChanges />
       </Stack>
     </Card>
   );

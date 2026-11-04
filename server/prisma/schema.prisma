@@ -191,3 +191,16 @@ model MacTrait {
 
   @@id([mac, kind])
 }
+
+// A change an AI made (the assistant after the owner approved it, or an agent with a change token), and how to undo it
+model AiChange {
+  id       Int       @id @default(autoincrement())
+  at       DateTime  @default(now())
+  by       String // "Assistant" or "MCP agent at <ip>"
+  tool     String
+  summary  String
+  undo     String // JSON { tool, input } that puts things back
+  undoneAt DateTime?
+
+  @@index([at])
+}

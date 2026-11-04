@@ -76,9 +76,11 @@ export const PORTS: Record<number, string> = {
   8200: "MiniDLNA media sharing",
   8291: "MikroTik Winbox",
   8384: "Syncthing",
+  8504: "tar1090 (a live map of planes overhead)",
   8443: "a web server (HTTPS), like UniFi",
   8448: "Matrix",
   8554: "camera streams (RTSP)",
+  8754: "a Flightradar24 feeder's status page",
   8883: "MQTT over TLS",
   8888: "a web server, like Jupyter",
   9000: "Portainer or a web server",
@@ -90,6 +92,8 @@ export const PORTS: Record<number, string> = {
   10000: "Webmin",
   11434: "Ollama",
   27017: "MongoDB",
+  30003: "dump1090 aircraft data (SBS)",
+  30005: "dump1090 aircraft data (Beast)",
   32400: "Plex",
   49152: "UPnP (routers and media devices)",
   62078: "iPhone and iPad sync",
@@ -101,6 +105,7 @@ const TLS_PORTS = new Set([443, 465, 636, 853, 993, 995, 2376, 5001, 6443, 8006,
 const CONNECT_MS = 800;
 const PROBE_MS = 2500;
 const PARALLEL = 32;
+const SETTLE_MS = 5000;
 
 // What the page title, server header or banner says it is; the first match wins
 const KNOWN: [RegExp, string | ((match: RegExpMatchArray) => string)][] = [
@@ -128,6 +133,9 @@ const KNOWN: [RegExp, string | ((match: RegExpMatchArray) => string)][] = [
   [/webmin/i, "Webmin"],
   [/adguard/i, "AdGuard Home"],
   [/ollama/i, "Ollama"],
+  [/fr24 feeder/i, "Flightradar24 feeder"],
+  [/tar1090/i, "tar1090"],
+  [/skyaware|piaware/i, "FlightAware PiAware"],
   [/OpenSSH[_ ]([\d.]+(?:p\d+)?)/, (match) => `OpenSSH ${match[1]}`],
   [/^SSH-[\d.]+-dropbear/i, "Dropbear SSH"],
   [/^SSH-/, "an SSH server"],
@@ -215,6 +223,8 @@ const banner = (host: string, port: number) =>
 
 export const identify = async (host: string, port: number): Promise<Seen> => {
   const greeting = await banner(host, port);
+  // A stream of binary data (dump1090's aircraft feed) says nothing readable about what it is
+  if (greeting && greeting.replace(/[\x20-\x7e\r\n\t]/g, "").length > greeting.length / 4) return { service: null, detail: null };
   if (greeting && !greeting.startsWith("HTTP/")) return recognize([clean(greeting)], null);
   const schemes = TLS_PORTS.has(port) ? ["https", "http"] : ["http", "https"];
   for (const scheme of schemes) {
@@ -248,9 +258,24 @@ const inBatches = async <T, R>(items: T[], size: number, run: (item: T) => Promi
   return results;
 };
 
-export const scanHost = async (host: string, ports = Object.keys(PORTS).map(Number)) => {
-  const open = ports.filter((_, i, all) => all.indexOf(_) === i);
-  const answered = (await inBatches(open, PARALLEL, async (port) => ((await isOpen(host, port)) ? port : null))).filter((port) => port !== null);
+const COMMON_PORTS = Object.keys(PORTS).map(Number);
+export const ALL_PORTS = Array.from({ length: 65_535 }, (_, i) => i + 1);
+
+// quiet: no port alerts, for a scan the owner started and is watching
+type ScanOptions = { parallel?: number; signal?: AbortSignal; onProgress?: (checked: number, open: number) => void; quiet?: boolean };
+
+export const scanHost = async (host: string, ports = COMMON_PORTS, { parallel = PARALLEL, signal, onProgress }: ScanOptions = {}) => {
+  const unique = [...new Set(ports)];
+  const answered: number[] = [];
+  for (let i = 0; i < unique.length; i += parallel) {
+    signal?.throwIfAborted();
+    const batch = unique.slice(i, i + parallel);
+    answered.push(...(await Promise.all(batch.map(async (port) => ((await isOpen(host, port)) ? port : null)))).filter((port) => port !== null));
+    onProgress?.(i + batch.length, answered.length);
+  }
+  signal?.throwIfAborted();
+  // Right after thousands of connections some devices don't answer properly for a few seconds (seen on a Raspberry Pi)
+  if (unique.length > 1000 && answered.length) await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
   return inBatches(answered, 8, async (port) => ({ port, ...(await identify(host, port)) }));
 };
 
@@ -296,18 +321,22 @@ export const portAlert = (label: string, ip: string, change: "opened" | "closed"
 
 const scanning = new Set<string>();
 
-// Scans one device's common ports at its current address and keeps what was found
-export const scanDevicePorts = async (mac: string, ports?: number[]) => {
+// Scans one device's ports (the common ones unless told otherwise) at its current address and keeps what was found.
+// Ports outside the ones checked keep what an earlier scan of all ports found
+export const scanDevicePorts = async (mac: string, ports = COMMON_PORTS, options: ScanOptions = {}) => {
   const device = await prisma.device.findUniqueOrThrow({ where: { mac } });
   if (scanning.has(mac)) throw new Error("A port scan of this device is already running.");
   scanning.add(mac);
   try {
-    const found = await scanHost(device.ip, ports);
-    const previous = device.portsScannedAt ? await prisma.devicePort.findMany({ where: { mac } }) : null;
+    const found = await scanHost(device.ip, ports, options);
+    const checked = new Set(ports);
+    const earlier = device.portsScannedAt ? await prisma.devicePort.findMany({ where: { mac } }) : null;
+    const previous = earlier && earlier.filter((entry) => checked.has(entry.port));
+    const kept = (earlier ?? []).filter((entry) => !checked.has(entry.port)).map(({ port, service, detail }) => ({ port, service, detail }));
     // An empty scan of a device that had ports keeps the old list (see portChanges)
     if (found.length === 0 && previous?.length) return found;
     const { opened, closed } = portChanges(previous, found);
-    const alerts = await readPortAlerts();
+    const alerts = options.quiet ? { portOpened: false, portClosed: false } : await readPortAlerts();
     const label = deviceLabel(device);
     if (alerts.portOpened && opened.length) {
       const { title, message } = portAlert(label, device.ip, "opened", opened);
@@ -319,7 +348,7 @@ export const scanDevicePorts = async (mac: string, ports?: number[]) => {
     }
     await prisma.$transaction([
       prisma.devicePort.deleteMany({ where: { mac } }),
-      prisma.devicePort.createMany({ data: found.map((entry) => ({ mac, ...entry })) }),
+      prisma.devicePort.createMany({ data: [...found, ...kept].map((entry) => ({ mac, ...entry })) }),
       prisma.device.update({ where: { mac }, data: { portsScannedAt: new Date() } }),
     ]);
     return found;
@@ -327,6 +356,34 @@ export const scanDevicePorts = async (mac: string, ports?: number[]) => {
     scanning.delete(mac);
   }
 };
+
+// All 65,535 ports of one device, on request only: in the background, with progress, and stoppable (nothing is saved
+// then). A few minutes on most devices (a Raspberry Pi took 4); one that silently drops closed ports takes longer
+const FULL_PARALLEL = 128;
+type FullScan = { checked: number; total: number; open: number; startedAt: Date; stop: AbortController };
+const fullScans = new Map<string, FullScan>();
+
+export const startFullPortScan = async (mac: string) => {
+  await prisma.device.findUniqueOrThrow({ where: { mac } });
+  if (scanning.has(mac)) throw new Error("A port scan of this device is already running.");
+  const scan: FullScan = { checked: 0, total: ALL_PORTS.length, open: 0, startedAt: new Date(), stop: new AbortController() };
+  fullScans.set(mac, scan);
+  void scanDevicePorts(mac, ALL_PORTS, {
+    parallel: FULL_PARALLEL,
+    quiet: true,
+    signal: scan.stop.signal,
+    onProgress: (checked, open) => Object.assign(scan, { checked, open }),
+  })
+    .catch(() => {})
+    .finally(() => fullScans.delete(mac));
+};
+
+export const fullPortScan = (mac: string) => {
+  const scan = fullScans.get(mac);
+  return scan ? { checked: scan.checked, total: scan.total, open: scan.open, startedAt: scan.startedAt } : null;
+};
+
+export const stopFullPortScan = (mac: string) => fullScans.get(mac)?.stop.abort();
 
 // The scheduled scan: every device that answered the latest device scan, one at a time
 export const scanOnlineDevicePorts = async () => {
