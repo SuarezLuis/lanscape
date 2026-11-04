@@ -33,6 +33,17 @@ const scrollToCard = (page, heading) =>
   }, heading);
 
 const QUESTION = "When was my internet slow this month, and was it my ISP or my home network?";
+const CHANGE = "The new iPad is Maya's. Name it, mark it as known, and tell me when it comes back online after being away an hour.";
+
+// A fresh conversation each time, so each picture holds only its own question
+const ask = async (page, question, done) => {
+  const fresh = await page.$("::-p-text(New chat)");
+  if (fresh && !(await fresh.evaluate((node) => node.closest("button")?.disabled))) await fresh.click();
+  await page.type("textarea[aria-label='Your question']", question);
+  await page.keyboard.press("Enter");
+  await page.waitForSelector(done, { timeout: 15_000 });
+  await pause(800);
+};
 
 const SHOTS = [
   { name: "overview", path: "/overview" },
@@ -88,13 +99,15 @@ const SHOTS = [
     name: "assistant",
     path: "/assistant",
     prepare: async (page) => {
-      // The conversation stays in the tab, so the second color scheme reuses it
-      if (!(await page.$("::-p-text(Looked at)"))) {
-        await page.type("textarea[aria-label='Your question']", QUESTION);
-        await page.keyboard.press("Enter");
-        await page.waitForSelector("::-p-text(Looked at)", { timeout: 15_000 });
-      }
-      await pause(800);
+      await ask(page, QUESTION, "::-p-text(Looked at)");
+      await page.evaluate(() => window.scrollTo(0, 0));
+    },
+  },
+  {
+    name: "assistant-change",
+    path: "/assistant",
+    prepare: async (page) => {
+      await ask(page, CHANGE, "::-p-text(Approve)");
       await page.evaluate(() => window.scrollTo(0, 0));
     },
   },

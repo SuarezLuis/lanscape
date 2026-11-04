@@ -1,5 +1,6 @@
-// A stand-in OpenAI-compatible model for the Assistant screenshot: it looks up speed tests and outages, then answers
-// from what LANscape returns, so the answer matches the demo data. Nothing is sent to a real model.
+// A stand-in OpenAI-compatible model for the Assistant screenshots: it looks up speed tests and outages, then answers
+// from what LANscape returns, so the answer matches the demo data; asked about the iPad, it finds it and proposes
+// changes for the owner to approve. Nothing is sent to a real model.
 //   node scripts/demo/model.mjs   ->  http://127.0.0.1:4602/v1, model "demo-model"
 import { createServer } from "node:http";
 
@@ -41,12 +42,34 @@ createServer((request, response) => {
       for (const [delta, finish_reason] of deltas) response.write(`data: ${JSON.stringify({ choices: [{ delta, finish_reason }] })}\n\n`);
       response.end("data: [DONE]\n\n");
     };
-    const results = Object.fromEntries(JSON.parse(raw).messages.filter((message) => message.role === "tool").map((message) => [message.tool_call_id, JSON.parse(message.content)]));
+    const { messages } = JSON.parse(raw);
+    const parse = (text) => {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text;
+      }
+    };
+    const results = Object.fromEntries(messages.filter((message) => message.role === "tool").map((message) => [message.tool_call_id, parse(message.content)]));
+    const call = (index, id, name, args = { range: "month" }) => ({ index, id, type: "function", function: { name, arguments: JSON.stringify(args) } });
+    if (messages.findLast((message) => message.role === "user")?.content.includes("iPad")) {
+      if (results.rename) {
+        const words = "I found the iPad that joined this afternoon at 192.168.1.64. Approve the changes below and I'll name it, mark it as known, and alert you when it comes back online after an hour or more away.".split(/(?<= )/);
+        return stream([...words.map((word) => [{ content: word }, null]), [{}, "stop"]]);
+      }
+      if (results.devices) {
+        const { mac } = results.devices.devices.find((device) => device.name === "iPad");
+        return stream([
+          [{ tool_calls: [call(0, "rename", "rename_device", { mac, name: "Maya's iPad" }), call(1, "known", "set_device_known", { mac, known: true }), call(2, "alerts", "set_device_alerts", { mac, onlineMinutes: 60 })] }, null],
+          [{}, "tool_calls"],
+        ]);
+      }
+      return stream([[{ tool_calls: [call(0, "devices", "list_devices", { status: "all", unknownOnly: true })] }, null], [{}, "tool_calls"]]);
+    }
     if (results.speed && results.outages) {
       const words = answer(results.speed, results.outages).split(/(?<= )/);
       return stream([...words.map((word) => [{ content: word }, null]), [{}, "stop"]]);
     }
-    const call = (index, id, name) => ({ index, id, type: "function", function: { name, arguments: JSON.stringify({ range: "month" }) } });
     stream([[{ tool_calls: [call(0, "speed", "get_speed_history"), call(1, "outages", "get_outages")] }, null], [{}, "tool_calls"]]);
   });
 }).listen(4602, "127.0.0.1");

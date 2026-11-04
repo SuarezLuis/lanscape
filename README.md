@@ -41,6 +41,7 @@ Install it from an Umbrel app store: it's in the [SZ community app store](https:
 | ![Speed and latency history](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/2.jpg) | ![Outages and where they happened](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/3.jpg) |
 | ![Every device on your network](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/4.jpg) | ![Ask the assistant about your network](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/5.jpg) |
 | ![Service checks](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/6.jpg) | ![Alerts on your phone](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/7.jpg) |
+| ![Changes the assistant suggests, waiting for approval](https://raw.githubusercontent.com/SuarezLuis/lanscape/master/docs/assets/gallery/8.jpg) | |
 
 Made from invented demo data with `scripts/demo/` (seed, model, capture, gallery).
 

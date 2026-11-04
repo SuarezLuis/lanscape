@@ -71,11 +71,11 @@ export const CHANGE_TOOLS: Record<string, ChangeTool<z.ZodObject>> = {
       if (offlineMinutes === undefined && onlineMinutes === undefined) throw new Error("Give offlineMinutes, onlineMinutes or both");
       const { device, label } = await findDevice(mac);
       const parts = [
-        offlineMinutes === undefined ? null : offlineMinutes === null ? "no offline alerts" : `an alert after ${offlineMinutes} minutes offline`,
-        onlineMinutes === undefined ? null : onlineMinutes === null ? "no back-online alerts" : `an alert when it's back after ${onlineMinutes} minutes away`,
+        offlineMinutes === undefined ? null : offlineMinutes === null ? "no offline alerts" : `alert when it's been offline ${offlineMinutes} minutes`,
+        onlineMinutes === undefined ? null : onlineMinutes === null ? "no back-online alerts" : `alert when it's back online after ${onlineMinutes} minutes or more away`,
       ].filter(Boolean);
       return {
-        summary: `Set ${label} to ${parts.join(" and ")}`,
+        summary: `For ${label}: ${parts.join(", and ")}`,
         apply: async () => {
           await prisma.device.update({
             where: { mac },
@@ -105,7 +105,7 @@ export const CHANGE_TOOLS: Record<string, ChangeTool<z.ZodObject>> = {
       if (!parsed.success) throw new Error(parsed.error.issues.map((issue) => issue.message).join("; "));
       const { id: _, ...service } = parsed.data;
       return {
-        summary: `Add a ${service.kind.toUpperCase()} check “${service.name}” of ${service.target}${service.query ? ` (looking up ${service.query})` : ""}, every ${service.everyMinutes} minute${service.everyMinutes === 1 ? "" : "s"}, with alerts`,
+        summary: `Add ${service.kind === "http" ? "an" : "a"} ${service.kind.toUpperCase()} check “${service.name}” of ${service.target}${service.query ? ` (looking up ${service.query})` : ""}, every ${service.everyMinutes} minute${service.everyMinutes === 1 ? "" : "s"}, with alerts`,
         apply: async () => {
           const created = await prisma.serviceCheck.create({ data: service });
           return { tool: "remove_service_check", input: { id: created.id } };
