@@ -23,6 +23,9 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 
 ## Shipped
 
+### v1.14.1
+- [x] **Snappier UI:** the Known device switch flips immediately instead of waiting for the device list to reload; switches and checkboxes show a pointer cursor; speed tests, health, outages, network, device history, services, alerts, overview and assistant show a spinner while loading instead of nothing or an early "no data" message.
+
 ### v1.14.0
 - [x] **AI changes (assistant and MCP):** the assistant and MCP agents can name devices, mark them known or unknown, set per-device offline and back-online alerts, add service checks and turn alert rules on or off; nothing else, and nothing on the network itself. The assistant only proposes: the owner approves each change, shown in words, in the chat. MCP agents need a separate change token (the read token stays read-only). Every change is logged with who made it, kept for 90 days, and can be undone. New `list_alert_rules` MCP tool.
 - [x] **Scan all ports of one device:** all 65,535 ports from the device panel, on demand only, in the background with progress and Stop (a Raspberry Pi took 4 minutes); no port alerts from it, and later common scans keep what it found on other ports. The common list now has ADS-B feeder ports (8504 tar1090, 8754 FR24 status, 30003 and 30005 dump1090), the FR24, tar1090 and PiAware pages are recognized by name, and a device with those ports is guessed to be a flight tracking receiver.
