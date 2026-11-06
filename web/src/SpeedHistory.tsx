@@ -1,5 +1,5 @@
 import { LineChart } from "@mantine/charts";
-import { Button, Card, Group, SegmentedControl, SimpleGrid, Stack, Table, Text, Title, UnstyledButton } from "@mantine/core";
+import { Button, Card, Group, SegmentedControl, SimpleGrid, Stack, Table, Text, Title, UnstyledButton, Loader } from "@mantine/core";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@lanscape/server/router";
@@ -138,7 +138,7 @@ export const SpeedHistory = () => {
         </Group>
 
         {tests.length === 0 && (latency.data ?? []).length === 0 ? (
-          !loading && <Text c="dimmed">No speed tests or ping checks {selected?.empty}.</Text>
+          loading ? <Loader size="sm" /> : <Text c="dimmed">No speed tests or ping checks {selected?.empty}.</Text>
         ) : (
           <>
             {/* Mbps and ms never share an axis; color steps validated for light and dark */}

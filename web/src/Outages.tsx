@@ -1,4 +1,4 @@
-import { Badge, Box, Card, Group, SegmentedControl, Stack, Table, Text, Title, Tooltip } from "@mantine/core";
+import { Badge, Box, Card, Group, SegmentedControl, Stack, Table, Text, Title, Tooltip, Loader } from "@mantine/core";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@lanscape/server/router";
@@ -54,7 +54,7 @@ export const Outages = () => {
           ping checks on in Automations.
         </Text>
 
-        {outages.isPending ? null : list.length === 0 ? (
+        {outages.isPending ? <Loader size="sm" /> : list.length === 0 ? (
           <Text size="sm">No outages {selected.text}.</Text>
         ) : (
           <>

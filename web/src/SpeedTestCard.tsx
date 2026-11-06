@@ -1,4 +1,4 @@
-import { Button, Card, Group, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { Button, Card, Group, SimpleGrid, Stack, Text, Title, Loader } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { useSubscription } from "@trpc/tanstack-react-query";
@@ -128,7 +128,7 @@ export const SpeedTestCard = () => {
           </Text>
         </Stack>
       ) : (
-        !latest.isPending && <Text c="dimmed">No speed tests yet. Run one to see your download and upload speeds.</Text>
+        latest.isPending ? <Loader size="sm" /> : <Text c="dimmed">No speed tests yet. Run one to see your download and upload speeds.</Text>
       )}
     </Card>
   );

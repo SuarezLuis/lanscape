@@ -23,7 +23,7 @@ if (!root) throw new Error("Missing #root element in index.html");
 
 createRoot(root).render(
   <StrictMode>
-    <MantineProvider defaultColorScheme="auto">
+    <MantineProvider defaultColorScheme="auto" theme={{ cursorType: "pointer" }}>
       <QueryClientProvider client={queryClient}>
         <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
           <App />

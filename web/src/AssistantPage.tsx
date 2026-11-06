@@ -176,7 +176,7 @@ export const AssistantPage = () => {
     send(draft);
   };
 
-  if (settings.isPending) return null;
+  if (settings.isPending) return <Loader size="sm" />;
   if (!saved) {
     return (
       <Card withBorder padding="md" radius="md">

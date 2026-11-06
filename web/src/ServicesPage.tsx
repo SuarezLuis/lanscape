@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, Group, Modal, SegmentedControl, Select, Stack, Switch, Text, TextInput, Title, Tooltip } from "@mantine/core";
+import { Badge, Box, Button, Card, Group, Modal, SegmentedControl, Select, Stack, Switch, Text, TextInput, Title, Tooltip, Loader } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@lanscape/server/router";
@@ -190,6 +190,7 @@ export const ServicesPage = () => {
           Watch the services on your network: a web app answering, a port accepting connections, or a DNS server resolving
           names. A service is down after two failed checks in a row, and you're alerted when it goes down and when it's back.
         </Text>
+        {services.isPending && <Loader size="sm" />}
         {services.data?.length === 0 && <Text size="sm">No services yet. Add your NAS, Home Assistant, Pi-hole or anything else you rely on.</Text>}
         {services.data?.map((service) => (
           <ServiceRow
