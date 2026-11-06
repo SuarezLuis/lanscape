@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Card, Group, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { Anchor, Badge, Button, Card, Group, SimpleGrid, Stack, Text, Title, Loader } from "@mantine/core";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { navigate } from "./route";
@@ -72,7 +72,7 @@ export const OverviewPage = () => {
     };
   }, []);
   const data = useQuery({ ...trpc.overview.queryOptions({ since }), refetchInterval: 30_000, placeholderData: keepPreviousData }).data;
-  if (!data) return null;
+  if (!data) return <Loader size="sm" />;
   const { internet, speed, outages, services, devices, alerts } = data;
 
   return (

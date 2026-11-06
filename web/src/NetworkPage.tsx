@@ -16,6 +16,7 @@ import {
   Timeline,
   Title,
   Tooltip,
+  Loader,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@lanscape/server/router";
@@ -563,7 +564,7 @@ const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () 
           <Switch
             label="Known device"
             description="Mark devices you recognize. Unknown ones show a New badge."
-            checked={device.known}
+            checked={update.isPending && update.variables.known !== undefined ? update.variables.known : device.known}
             onChange={(event) => update.mutate({ mac: device.mac, known: event.currentTarget.checked })}
           />
           <Select
@@ -598,6 +599,7 @@ const DeviceDrawer = ({ device, onClose }: { device: Device | null; onClose: () 
           <PauseInternet mac={device.mac} />
           <PiholeActivity mac={device.mac} />
           <Title order={5}>History</Title>
+          {history.isPending && <Loader size="xs" />}
           {history.data?.length === 0 && (
             <Text size="sm" c="dimmed">
               No changes recorded yet.
@@ -776,6 +778,7 @@ export const NetworkPage = () => {
             </Table>
           </Table.ScrollContainer>
         )}
+        {list.isPending && <Loader size="sm" />}
         {list.data && devices.length === 0 && !scan.isPending && (
           <Text c="dimmed">No devices yet. Run a scan, or wait for the next scheduled one.</Text>
         )}

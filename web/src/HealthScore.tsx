@@ -1,4 +1,4 @@
-import { Badge, Card, Group, Progress, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { Badge, Card, Group, Progress, SimpleGrid, Stack, Text, Title, Loader } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "./trpc";
 
@@ -14,7 +14,7 @@ export const HealthScore = () => {
     <Card withBorder padding="md" radius="md">
       <Stack gap="md">
         <Title order={3}>Internet health</Title>
-        {health.isPending ? null : !day ? (
+        {health.isPending ? <Loader size="sm" /> : !day ? (
           <Text size="sm" c="dimmed">
             Not enough data yet. The score needs half an hour of ping checks; turn them on in Automations if they're off.
           </Text>

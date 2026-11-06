@@ -1,4 +1,4 @@
-import { Box, Card, Group, NumberInput, SegmentedControl, Stack, Text, Title, Tooltip } from "@mantine/core";
+import { Box, Card, Group, NumberInput, SegmentedControl, Stack, Text, Title, Tooltip, Loader } from "@mantine/core";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTRPC } from "./trpc";
@@ -75,7 +75,9 @@ export const SpeedPattern = () => {
             ? "Average internet ping by day and hour over the last 30 days of ping checks. Deeper is slower."
             : `Average ${metric} by day and hour over the last year of speed tests. Hours without a test stay blank; scheduling tests at different times fills them in.`}
         </Text>
-        {cells.length === 0 ? (
+        {pattern.isPending ? (
+          <Loader size="sm" />
+        ) : cells.length === 0 ? (
           <Text size="sm">No data yet.</Text>
         ) : (
           <Box style={{ overflowX: "auto" }}>

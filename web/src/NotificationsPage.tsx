@@ -16,6 +16,7 @@ import {
   Text,
   TextInput,
   Title,
+  Loader,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@lanscape/server/router";
@@ -377,7 +378,7 @@ export const NotificationsPage = () => {
       <Card withBorder padding="md" radius="md">
         <Stack gap="sm">
           <Title order={3}>Recent alerts</Title>
-          {(list.data ?? []).length === 0 && <Text c="dimmed">No alerts yet.</Text>}
+          {list.isPending ? <Loader size="sm" /> : list.data?.length === 0 && <Text c="dimmed">No alerts yet.</Text>}
           {list.data?.map((notification) => (
             <Group key={notification.id} gap="sm" wrap="nowrap" align="flex-start">
               <Badge color={KIND[notification.kind]?.color ?? "gray"} variant="light" miw={92}>
