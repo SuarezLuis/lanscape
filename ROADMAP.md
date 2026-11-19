@@ -23,6 +23,9 @@ What's planned, and what shipped in which release. Tick items off in the PR that
 
 ## Shipped
 
+### v1.14.2
+- [x] **Port scans no longer print on printers:** raw printing ports (9100–9107) are only checked for being open, never probed; the probe used to print a page of junk text.
+
 ### v1.14.1
 - [x] **Snappier UI:** the Known device switch flips immediately instead of waiting for the device list to reload; switches and checkboxes show a pointer cursor; speed tests, health, outages, network, device history, services, alerts, overview and assistant show a spinner while loading instead of nothing or an early "no data" message.
 
