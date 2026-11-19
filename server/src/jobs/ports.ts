@@ -222,6 +222,8 @@ const banner = (host: string, port: number) =>
   });
 
 export const identify = async (host: string, port: number): Promise<Seen> => {
+  // Raw printing ports print whatever they're sent, so a probe prints a page of junk (nmap skips these too)
+  if (port >= 9100 && port <= 9107) return { service: null, detail: null };
   const greeting = await banner(host, port);
   // A stream of binary data (dump1090's aircraft feed) says nothing readable about what it is
   if (greeting && greeting.replace(/[\x20-\x7e\r\n\t]/g, "").length > greeting.length / 4) return { service: null, detail: null };
