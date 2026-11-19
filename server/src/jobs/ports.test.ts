@@ -2,7 +2,7 @@ import { createServer as createHttpServer } from "node:http";
 import { createServer, type AddressInfo, type Server } from "node:net";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { prisma } from "../db";
-import { devicePorts, recognize, scanDevicePorts, scanHost } from "./ports";
+import { devicePorts, identify, recognize, scanDevicePorts, scanHost } from "./ports";
 
 // A Pi-hole-like admin page behind a redirect, and an SSH server that greets first
 const web = createHttpServer((request, response) => {
@@ -63,4 +63,13 @@ test("alerts on ports opened since the previous scan, not on the first one or an
   await scanDevicePorts(mac, [1]);
   expect((await devicePorts(mac)).ports).toHaveLength(2);
   expect(await prisma.notification.count()).toBe(1);
+});
+
+test("sends nothing to a raw printing port, which would print it", async () => {
+  let received = "";
+  const printer = createServer((socket) => socket.on("error", () => {}).on("data", (chunk) => (received += chunk)));
+  await new Promise<void>((done) => printer.listen(9100, "127.0.0.1", done));
+  expect(await identify("127.0.0.1", 9100)).toEqual({ service: null, detail: null });
+  await new Promise<void>((done) => printer.close(() => done()));
+  expect(received).toBe("");
 });
